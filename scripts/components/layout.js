@@ -15,7 +15,7 @@ window.BackofficeDemoData = {
     window.localStorage.setItem(storageKey, JSON.stringify(records));
   },
   ensure() {
-    if (window.localStorage.getItem(this.versionStorageKey) === 'scenario-v6') return;
+    if (window.localStorage.getItem(this.versionStorageKey) === 'scenario-v7') return;
     const timestamp = '2026-08-16 10:00:00';
     const replaceDemoRecords = (records, seeds) => [...seeds, ...records.filter((record) => !String(record.id || '').startsWith('demo-'))];
     const categories = replaceDemoRecords(this.read(this.categoryStorageKey), [
@@ -27,9 +27,54 @@ window.BackofficeDemoData = {
 
     const avatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"%3E%3Crect width="160" height="160" rx="28" fill="%23ff7aa7"/%3E%3Cpath d="M43 72c0-16 13-29 29-29h16c16 0 29 13 29 29v45H43V72Z" fill="%23fff" opacity=".94"/%3E%3Cpath d="M60 83h40M60 100h28" stroke="%23ff7aa7" stroke-width="8" stroke-linecap="round"/%3E%3C/svg%3E';
     const merchants = replaceDemoRecords(this.read(this.merchantStorageKey), [
-      { id: 'demo-merchant-recharge', avatarName: '乐充服务头像.svg', avatarPreview: avatar, name: '乐充生活服务', category: '生活充值', videoName: '', coverName: '', ruleContent: '<p><b>服务规则</b></p><p>充值到账后不可退款，请在支付前确认充值账号及面额。</p><ul><li>优惠以支付页面展示为准</li><li>到账时间以运营商实际处理结果为准</li></ul>', status: '上线' },
-      { id: 'demo-merchant-commerce', avatarName: '优选商城头像.svg', avatarPreview: avatar, name: '优选商城', category: '电商购物', videoName: '', coverName: '', ruleContent: '', status: '上线' },
-      { id: 'demo-merchant-coupon', avatarName: '优享卡券头像.svg', avatarPreview: avatar, name: '优享卡券中心', category: '优惠卡券', videoName: '', coverName: '', ruleContent: '<p><b>卡券使用说明</b></p><p>请在有效期内使用卡券，具体使用范围以卡券详情页说明为准。</p>', status: '上线' }
+      {
+        id: 'demo-merchant-recharge', avatarName: '乐充服务头像.svg', avatarPreview: avatar, name: '乐充生活服务', category: '生活充值',
+        videoName: '乐充会员服务介绍.mp4', coverName: '乐充会员服务封面.png',
+        ruleContent: '<p><b>服务规则</b></p><p>充值到账后不可退款，请在支付前确认充值账号及面额。</p><ul><li>优惠以支付页面展示为准</li><li>到账时间以运营商实际处理结果为准</li><li>如充值失败，款项将原路退回</li></ul>',
+        targeting: {
+          identities: ['经期', '辣妈'], targetGroup: 'grp_recharge_active_2026', excludeGroup: 'grp_recharge_blacklist', audiences: ['高活跃用户', '近30日下单用户', '会员活动用户'], audienceInversion: '否',
+          platformVersions: {
+            ios: { enabled: true, start: '8.96.0.0', end: '' },
+            android: { enabled: true, start: '8.96.0.0', end: '9.20.0.0' },
+            harmony: { enabled: false, start: '', end: '' }
+          },
+          onlineStart: '2026-08-01T00:00', onlineEnd: '2026-12-31T23:59'
+        },
+        testPlan: { uids: '100001,100086,100520', start: '2026-08-01T00:00', end: '2026-09-30T23:59', enabled: true },
+        enabledStatus: '启用', onlineSchedule: { start: '2020-01-01T00:00', end: '2099-12-31T23:59' }, status: '上线'
+      },
+      {
+        id: 'demo-merchant-commerce', avatarName: '优选商城头像.svg', avatarPreview: avatar, name: '优选商城', category: '电商购物',
+        videoName: '优选商城品牌故事.mp4', coverName: '优选商城品牌封面.png',
+        ruleContent: '<p><b>商城说明</b></p><p>商品价格、库存及发货时效以商品详情页及订单页面为准。</p><ol><li>下单后请留意订单状态</li><li>售后问题请按订单指引处理</li></ol>',
+        targeting: {
+          identities: ['怀孕', '备孕'], targetGroup: 'grp_commerce_quality', excludeGroup: '', audiences: ['价格敏感用户', '召回活动用户'], audienceInversion: '是',
+          platformVersions: {
+            ios: { enabled: true, start: '9.00.0.0', end: '' },
+            android: { enabled: true, start: '9.01.0.0', end: '' },
+            harmony: { enabled: true, start: '9.05.0.0', end: '' }
+          },
+          onlineStart: '2026-09-01T00:00', onlineEnd: '2026-12-31T23:59'
+        },
+        testPlan: { uids: '', start: '', end: '', enabled: false },
+        enabledStatus: '启用', onlineSchedule: { start: '2027-01-01T00:00', end: '2099-12-31T23:59' }, status: '上线'
+      },
+      {
+        id: 'demo-merchant-coupon', avatarName: '优享卡券头像.svg', avatarPreview: avatar, name: '优享卡券中心', category: '优惠卡券',
+        videoName: '', coverName: '',
+        ruleContent: '<p><b>卡券使用说明</b></p><p>请在有效期内使用卡券，具体使用范围以卡券详情页说明为准。</p><ul><li>卡券逾期不补发、不退款</li><li>卡券不可与其他优惠叠加使用</li></ul>',
+        targeting: {
+          identities: ['仅注册MS用户'], targetGroup: '', excludeGroup: '', audiences: ['新注册用户'], audienceInversion: '否',
+          platformVersions: {
+            ios: { enabled: true, start: '8.96.0.0', end: '' },
+            android: { enabled: false, start: '', end: '' },
+            harmony: { enabled: false, start: '', end: '' }
+          },
+          onlineStart: '', onlineEnd: ''
+        },
+        testPlan: { uids: '', start: '', end: '', enabled: false },
+        enabledStatus: '停用', onlineSchedule: { start: '2026-01-01T00:00', end: '2026-12-31T23:59' }, status: '下线'
+      }
     ]);
     this.write(this.merchantStorageKey, merchants);
 
@@ -42,7 +87,7 @@ window.BackofficeDemoData = {
       { id: 'demo-template-coupon-custom', name: '卡券详情页-定制模板', type: '卡券详情页', level: '定制模板', category: '', merchantIds: ['demo-merchant-coupon'], merchantNames: ['优享卡券中心'], status: '启用', updatedAt: timestamp, styleComponents: [{ id: 'demo-coupon-custom-flow', type: 'merchantProductFlow', title: '优享卡券推荐', selectedProductIds: ['demo-merchant-coupon-2101', 'demo-merchant-coupon-2102', 'demo-merchant-coupon-2103'] }] }
     ]);
     this.write(this.templateStorageKey, templates);
-    window.localStorage.setItem(this.versionStorageKey, 'scenario-v6');
+    window.localStorage.setItem(this.versionStorageKey, 'scenario-v7');
   }
 };
 

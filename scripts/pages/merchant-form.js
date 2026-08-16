@@ -81,12 +81,15 @@ window.MerchantFormPage = {
           <div class="form-row audience-row"><label>定制人群：</label><div class="form-control-area audience-options-wrap"><div class="audience-options">${this.renderAudienceGroups()}</div></div></div>
           <div class="form-row audience-inversion-row"><label>是否定制人群取反：</label><div class="form-control-area inline-radios"><label><input type="radio" name="merchant-audience-inversion" value="否" checked />否</label><label><input type="radio" name="merchant-audience-inversion" value="是" />是</label><p class="form-warning">选择定制人群后，取反表示圈定人群以外的用户。</p></div></div>
           <div class="form-row version-grid"><label>平台和版本：</label><div class="form-control-area"><div><label><input type="checkbox" data-platform-enabled="ios" />iOS</label><input class="control version-control" data-platform-start="ios" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="ios" placeholder="最高版本（选填）" /></div><div><label><input type="checkbox" data-platform-enabled="android" />Android</label><input class="control version-control" data-platform-start="android" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="android" placeholder="最高版本（选填）" /></div><div><label><input type="checkbox" data-platform-enabled="harmony" />Harmony</label><input class="control version-control" data-platform-start="harmony" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="harmony" placeholder="最高版本（选填）" /></div></div></div>
-          <div class="form-row date-range"><label for="merchant-online-start">上线时间：</label><div class="form-control-area"><input class="control" id="merchant-online-start" type="datetime-local" /><span>至</span><input class="control" id="merchant-online-end" type="datetime-local" /></div></div>
+          <div class="form-row date-range"><label for="merchant-online-start">启用时间：</label><div class="form-control-area"><input class="control" id="merchant-online-start" type="datetime-local" /><span>至</span><input class="control" id="merchant-online-end" type="datetime-local" /></div></div>
         </div></section>
         <section class="form-section"><h2 class="section-title">测试计划</h2><div class="section-body test-plan-body"><p class="test-plan-notice">测试 UID 内的用户将在测试有效时间内看到此合作商配置，到期自动终止。</p><div class="form-row"><label for="merchant-test-uids">测试 UID：</label><div class="form-control-area"><input class="control compact-control" id="merchant-test-uids" placeholder="多个 UID 用英文逗号分隔" /></div></div><div class="form-row date-range"><label for="merchant-test-start">测试时间：</label><div class="form-control-area"><input class="control" id="merchant-test-start" type="datetime-local" /><span>至</span><input class="control" id="merchant-test-end" type="datetime-local" /></div></div><div class="form-row check-row"><label>测试状态：</label><div class="form-control-area"><label class="switch"><input id="merchant-test-enabled" type="checkbox" checked /><span class="switch-track"></span></label><span class="status-badge" id="merchant-test-status">生效</span></div></div></div></section>
+        <section class="form-section"><h2 class="section-title">上线时间</h2><div class="section-body"><div class="form-row date-range"><label for="merchant-schedule-start">上线时间：</label><div class="form-control-area"><input class="control" id="merchant-schedule-start" type="datetime-local" /><span>至</span><input class="control" id="merchant-schedule-end" type="datetime-local" /></div></div><div class="form-row"><label>是否启用：</label><div class="form-control-area radio-group"><label class="radio-option"><input type="radio" name="merchant-enabled-status" value="启用" checked />启用</label><label class="radio-option"><input type="radio" name="merchant-enabled-status" value="停用" />停用</label></div></div></div></section>
         <div class="form-page-actions"><button class="button secondary" id="cancel-merchant-form" type="button">取消</button><button class="button primary" type="submit">${recordId ? '保存修改' : '保存'}</button></div>
       </form>
-    </section>`;
+    </section>
+    <div class="modal" id="merchant-tracking-scenario-modal" hidden><div class="modal-card confirm-card" role="dialog" aria-modal="true" aria-labelledby="merchant-tracking-scenario-title"><div class="modal-header"><h2 id="merchant-tracking-scenario-title">跟单标识配置</h2></div><div class="confirm-body"><p>请选择当前商城跟单标识的研发配置情况，用于模拟保存校验。</p><div class="radio-group scenario-radio-group"><label class="radio-option"><input type="radio" name="tracking-config-status" value="configured" checked />研发已配置标识</label><label class="radio-option"><input type="radio" name="tracking-config-status" value="unconfigured" />研发未配置标识</label></div></div><div class="modal-footer"><button class="button secondary" type="button" data-close-tracking-scenario>取消</button><button class="button primary" type="button" id="confirm-tracking-scenario">确认</button></div></div></div>
+    <div class="modal" id="merchant-tracking-warning-modal" hidden><div class="modal-card confirm-card" role="dialog" aria-modal="true" aria-labelledby="merchant-tracking-warning-title"><div class="modal-header"><h2 id="merchant-tracking-warning-title">未配置跟单标识</h2></div><div class="confirm-body"><p>请联系研发侧配置商城的标识，否则将导致用户端订单归属商城显示异常。</p><p class="confirm-impact">先切换“是否启用”为停用，进行保存。</p></div><div class="modal-footer"><button class="button secondary" type="button" data-close-tracking-warning>取消</button><button class="button primary" type="button" id="disable-and-save-merchant">切换为“停用”并保存</button></div></div></div>`;
   },
   bind({ navigate, recordId = null } = {}) {
     const categorySelect = document.getElementById('merchant-category');
@@ -98,6 +101,8 @@ window.MerchantFormPage = {
     const editingRecord = merchantRecords.find((record) => record.id === recordId);
     const targeting = this.normalizeTargeting(editingRecord?.targeting);
     const testPlan = this.normalizeTestPlan(editingRecord?.testPlan);
+    const onlineSchedule = { start: editingRecord?.onlineSchedule?.start || '', end: editingRecord?.onlineSchedule?.end || '' };
+    const enabledStatus = editingRecord?.enabledStatus || (editingRecord?.status === '下线' ? '停用' : '启用');
     if (editingRecord) {
       if (![...categorySelect.options].some((option) => option.text === editingRecord.category)) categorySelect.add(new Option(editingRecord.category, editingRecord.category));
       document.getElementById('merchant-name').value = editingRecord.name || '';
@@ -121,6 +126,10 @@ window.MerchantFormPage = {
     });
     document.getElementById('merchant-online-start').value = targeting.onlineStart;
     document.getElementById('merchant-online-end').value = targeting.onlineEnd;
+    document.getElementById('merchant-schedule-start').value = onlineSchedule.start;
+    document.getElementById('merchant-schedule-end').value = onlineSchedule.end;
+    const enabledStatusInput = document.querySelector(`input[name="merchant-enabled-status"][value="${enabledStatus}"]`);
+    if (enabledStatusInput) enabledStatusInput.checked = true;
     document.getElementById('merchant-test-uids').value = testPlan.uids;
     document.getElementById('merchant-test-start').value = testPlan.start;
     document.getElementById('merchant-test-end').value = testPlan.end;
@@ -145,6 +154,36 @@ window.MerchantFormPage = {
         document.execCommand(button.dataset.ruleCommand, false);
       }));
     }
+    const trackingScenarioModal = document.getElementById('merchant-tracking-scenario-modal');
+    const trackingWarningModal = document.getElementById('merchant-tracking-warning-modal');
+    let pendingMerchantRecord = null;
+    const persistMerchant = (merchantRecord) => {
+      const updatedRecords = editingRecord ? merchantRecords.map((record) => record.id === editingRecord.id ? merchantRecord : record) : [merchantRecord, ...merchantRecords].slice(0, 10);
+      window.localStorage.setItem(this.merchantStorageKey, JSON.stringify(updatedRecords));
+      navigate?.('merchant');
+    };
+    const closeTrackingModals = () => {
+      trackingScenarioModal.hidden = true;
+      trackingWarningModal.hidden = true;
+    };
+    document.querySelector('[data-close-tracking-scenario]').addEventListener('click', closeTrackingModals);
+    document.querySelector('[data-close-tracking-warning]').addEventListener('click', closeTrackingModals);
+    document.getElementById('confirm-tracking-scenario').addEventListener('click', () => {
+      if (!pendingMerchantRecord) return;
+      const configured = document.querySelector('input[name="tracking-config-status"]:checked').value === 'configured';
+      trackingScenarioModal.hidden = true;
+      if (configured) persistMerchant(pendingMerchantRecord);
+      else trackingWarningModal.hidden = false;
+    });
+    document.getElementById('disable-and-save-merchant').addEventListener('click', () => {
+      if (!pendingMerchantRecord) return;
+      const stoppedInput = document.querySelector('input[name="merchant-enabled-status"][value="停用"]');
+      stoppedInput.checked = true;
+      pendingMerchantRecord.enabledStatus = '停用';
+      pendingMerchantRecord.status = '下线';
+      trackingWarningModal.hidden = true;
+      persistMerchant(pendingMerchantRecord);
+    });
     document.getElementById('merchant-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const name = document.getElementById('merchant-name');
@@ -182,6 +221,7 @@ window.MerchantFormPage = {
         end: document.getElementById('merchant-test-end').value,
         enabled: testEnabled.checked
       };
+      const currentEnabledStatus = document.querySelector('input[name="merchant-enabled-status"]:checked').value;
       const merchantRecord = {
         id: editingRecord?.id || String(Date.now()),
         avatarName: avatar.files[0]?.name || editingRecord?.avatarName || '',
@@ -193,11 +233,20 @@ window.MerchantFormPage = {
         ruleContent: ruleEditor ? this.sanitizeRuleHtml(ruleEditor.innerHTML) : (editingRecord?.ruleContent || ''),
         targeting: updatedTargeting,
         testPlan: updatedTestPlan,
-        status: editingRecord?.status || '上线'
+        onlineSchedule: {
+          start: document.getElementById('merchant-schedule-start').value,
+          end: document.getElementById('merchant-schedule-end').value
+        },
+        enabledStatus: currentEnabledStatus,
+        status: currentEnabledStatus === '启用' ? '上线' : '下线'
       };
-      const updatedRecords = editingRecord ? merchantRecords.map((record) => record.id === editingRecord.id ? merchantRecord : record) : [merchantRecord, ...merchantRecords].slice(0, 10);
-      window.localStorage.setItem(this.merchantStorageKey, JSON.stringify(updatedRecords));
-      navigate?.('merchant');
+      const needsTrackingCheck = currentEnabledStatus === '启用' && (!editingRecord || enabledStatus === '停用');
+      if (needsTrackingCheck) {
+        pendingMerchantRecord = merchantRecord;
+        trackingScenarioModal.hidden = false;
+        return;
+      }
+      persistMerchant(merchantRecord);
     });
   }
 };
