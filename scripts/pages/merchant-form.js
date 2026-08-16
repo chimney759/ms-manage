@@ -37,6 +37,12 @@ window.MerchantFormPage = {
       onlineStart: '', onlineEnd: ''
     };
   },
+  createTestPlan() {
+    return { uids: '', start: '', end: '', enabled: true };
+  },
+  normalizeTestPlan(testPlan = {}) {
+    return { ...this.createTestPlan(), ...(testPlan && typeof testPlan === 'object' ? testPlan : {}) };
+  },
   normalizeTargeting(targeting = {}) {
     const defaults = this.createTargeting();
     const platformVersions = Object.fromEntries(Object.entries(defaults.platformVersions).map(([platform, value]) => [platform, {
@@ -77,6 +83,7 @@ window.MerchantFormPage = {
           <div class="form-row version-grid"><label>平台和版本：</label><div class="form-control-area"><div><label><input type="checkbox" data-platform-enabled="ios" />iOS</label><input class="control version-control" data-platform-start="ios" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="ios" placeholder="最高版本（选填）" /></div><div><label><input type="checkbox" data-platform-enabled="android" />Android</label><input class="control version-control" data-platform-start="android" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="android" placeholder="最高版本（选填）" /></div><div><label><input type="checkbox" data-platform-enabled="harmony" />Harmony</label><input class="control version-control" data-platform-start="harmony" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="harmony" placeholder="最高版本（选填）" /></div></div></div>
           <div class="form-row date-range"><label for="merchant-online-start">上线时间：</label><div class="form-control-area"><input class="control" id="merchant-online-start" type="datetime-local" /><span>至</span><input class="control" id="merchant-online-end" type="datetime-local" /></div></div>
         </div></section>
+        <section class="form-section"><h2 class="section-title">测试计划</h2><div class="section-body test-plan-body"><p class="test-plan-notice">测试 UID 内的用户将在测试有效时间内看到此合作商配置，到期自动终止。</p><div class="form-row"><label for="merchant-test-uids">测试 UID：</label><div class="form-control-area"><input class="control compact-control" id="merchant-test-uids" placeholder="多个 UID 用英文逗号分隔" /></div></div><div class="form-row date-range"><label for="merchant-test-start">测试时间：</label><div class="form-control-area"><input class="control" id="merchant-test-start" type="datetime-local" /><span>至</span><input class="control" id="merchant-test-end" type="datetime-local" /></div></div><div class="form-row check-row"><label>测试状态：</label><div class="form-control-area"><label class="switch"><input id="merchant-test-enabled" type="checkbox" checked /><span class="switch-track"></span></label><span class="status-badge" id="merchant-test-status">生效</span></div></div></div></section>
         <div class="form-page-actions"><button class="button secondary" id="cancel-merchant-form" type="button">取消</button><button class="button primary" type="submit">${recordId ? '保存修改' : '保存'}</button></div>
       </form>
     </section>`;
@@ -90,6 +97,7 @@ window.MerchantFormPage = {
     try { merchantRecords = JSON.parse(window.localStorage.getItem(this.merchantStorageKey)) || []; } catch (error) { merchantRecords = []; }
     const editingRecord = merchantRecords.find((record) => record.id === recordId);
     const targeting = this.normalizeTargeting(editingRecord?.targeting);
+    const testPlan = this.normalizeTestPlan(editingRecord?.testPlan);
     if (editingRecord) {
       if (![...categorySelect.options].some((option) => option.text === editingRecord.category)) categorySelect.add(new Option(editingRecord.category, editingRecord.category));
       document.getElementById('merchant-name').value = editingRecord.name || '';
@@ -113,6 +121,18 @@ window.MerchantFormPage = {
     });
     document.getElementById('merchant-online-start').value = targeting.onlineStart;
     document.getElementById('merchant-online-end').value = targeting.onlineEnd;
+    document.getElementById('merchant-test-uids').value = testPlan.uids;
+    document.getElementById('merchant-test-start').value = testPlan.start;
+    document.getElementById('merchant-test-end').value = testPlan.end;
+    const testEnabled = document.getElementById('merchant-test-enabled');
+    const testStatus = document.getElementById('merchant-test-status');
+    const updateTestStatus = () => {
+      testStatus.textContent = testEnabled.checked ? '生效' : '未生效';
+      testStatus.classList.toggle('is-inactive', !testEnabled.checked);
+    };
+    testEnabled.checked = testPlan.enabled;
+    updateTestStatus();
+    testEnabled.addEventListener('change', updateTestStatus);
     document.getElementById('back-to-merchant-list').addEventListener('click', () => navigate?.('merchant'));
     document.getElementById('cancel-merchant-form').addEventListener('click', () => navigate?.('merchant'));
     document.getElementById('merchant-video').addEventListener('change', (event) => { const file = event.target.files[0]; document.getElementById('video-cover-row').hidden = !file; document.getElementById('video-file-name').textContent = file ? file.name : '未选择文件'; });
@@ -156,6 +176,12 @@ window.MerchantFormPage = {
         onlineStart: document.getElementById('merchant-online-start').value,
         onlineEnd: document.getElementById('merchant-online-end').value
       };
+      const updatedTestPlan = {
+        uids: document.getElementById('merchant-test-uids').value.trim(),
+        start: document.getElementById('merchant-test-start').value,
+        end: document.getElementById('merchant-test-end').value,
+        enabled: testEnabled.checked
+      };
       const merchantRecord = {
         id: editingRecord?.id || String(Date.now()),
         avatarName: avatar.files[0]?.name || editingRecord?.avatarName || '',
@@ -166,6 +192,7 @@ window.MerchantFormPage = {
         coverName: document.getElementById('video-cover').files[0]?.name || editingRecord?.coverName || '',
         ruleContent: ruleEditor ? this.sanitizeRuleHtml(ruleEditor.innerHTML) : (editingRecord?.ruleContent || ''),
         targeting: updatedTargeting,
+        testPlan: updatedTestPlan,
         status: editingRecord?.status || '上线'
       };
       const updatedRecords = editingRecord ? merchantRecords.map((record) => record.id === editingRecord.id ? merchantRecord : record) : [merchantRecord, ...merchantRecords].slice(0, 10);
