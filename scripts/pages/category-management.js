@@ -5,6 +5,7 @@ window.CategoryManagementPage = {
   editingId: null,
   pendingToggleId: null,
   loadRecords() {
+    window.BackofficeDemoData?.ensure();
     try {
       const storedRecords = JSON.parse(window.localStorage.getItem(this.storageKey));
       this.records = Array.isArray(storedRecords) ? storedRecords.slice(0, this.maxRecords) : [];

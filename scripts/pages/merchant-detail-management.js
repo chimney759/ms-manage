@@ -6,6 +6,7 @@ window.MerchantDetailManagementPage = {
   editingId: null,
   stylingId: null,
   loadRecords() {
+    window.BackofficeDemoData?.ensure();
     try { this.records = JSON.parse(window.localStorage.getItem(this.storageKey)) || []; } catch (error) { this.records = []; }
   },
   saveRecords() { window.localStorage.setItem(this.storageKey, JSON.stringify(this.records)); },

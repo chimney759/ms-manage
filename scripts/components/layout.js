@@ -1,3 +1,47 @@
+window.BackofficeDemoData = {
+  categoryStorageKey: 'meiyou-cashback-category-records',
+  merchantStorageKey: 'meiyou-cashback-merchant-records',
+  templateStorageKey: 'meiyou-cashback-merchant-detail-templates',
+  versionStorageKey: 'meiyou-cashback-demo-data-version',
+  read(storageKey) {
+    try {
+      const records = JSON.parse(window.localStorage.getItem(storageKey));
+      return Array.isArray(records) ? records : [];
+    } catch (error) {
+      return [];
+    }
+  },
+  write(storageKey, records) {
+    window.localStorage.setItem(storageKey, JSON.stringify(records));
+  },
+  ensure() {
+    if (window.localStorage.getItem(this.versionStorageKey) === 'scenario-v3') return;
+    const timestamp = '2026-08-16 10:00:00';
+    const replaceDemoRecords = (records, seeds) => [...seeds, ...records.filter((record) => !String(record.id || '').startsWith('demo-'))];
+    const categories = replaceDemoRecords(this.read(this.categoryStorageKey), [
+      { id: 'demo-category-recharge', recordName: '充值服务合作商分类', categoryName: '生活充值', status: '启用', creator: '管理员', createdAt: timestamp, updater: '管理员', updatedAt: timestamp },
+      { id: 'demo-category-commerce', recordName: '电商服务合作商分类', categoryName: '电商购物', status: '启用', creator: '管理员', createdAt: timestamp, updater: '管理员', updatedAt: timestamp }
+    ]);
+    this.write(this.categoryStorageKey, categories);
+
+    const avatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"%3E%3Crect width="160" height="160" rx="28" fill="%23ff7aa7"/%3E%3Cpath d="M43 72c0-16 13-29 29-29h16c16 0 29 13 29 29v45H43V72Z" fill="%23fff" opacity=".94"/%3E%3Cpath d="M60 83h40M60 100h28" stroke="%23ff7aa7" stroke-width="8" stroke-linecap="round"/%3E%3C/svg%3E';
+    const merchants = replaceDemoRecords(this.read(this.merchantStorageKey), [
+      { id: 'demo-merchant-recharge', avatarName: '乐充服务头像.svg', avatarPreview: avatar, name: '乐充生活服务', category: '生活充值', videoName: '', coverName: '', ruleContent: '<p><b>服务规则</b></p><p>充值到账后不可退款，请在支付前确认充值账号及面额。</p><ul><li>优惠以支付页面展示为准</li><li>到账时间以运营商实际处理结果为准</li></ul>', status: '上线' },
+      { id: 'demo-merchant-commerce', avatarName: '优选商城头像.svg', avatarPreview: avatar, name: '优选商城', category: '电商购物', videoName: '', coverName: '', ruleContent: '', status: '上线' }
+    ]);
+    this.write(this.merchantStorageKey, merchants);
+
+    const templates = replaceDemoRecords(this.read(this.templateStorageKey), [
+      { id: 'demo-template-recharge-category', name: '充值详情页-分类兜底模板', type: '充值详情页', level: '分类兜底模板', category: '生活充值', merchantIds: [], merchantNames: [], status: '启用', updatedAt: timestamp },
+      { id: 'demo-template-recharge-custom', name: '充值详情页-定制模板', type: '充值详情页', level: '定制模板', category: '', merchantIds: ['demo-merchant-recharge'], merchantNames: ['乐充生活服务'], status: '启用', updatedAt: timestamp },
+      { id: 'demo-template-commerce-category', name: '电商详情页-分类兜底模板', type: '电商详情页', level: '分类兜底模板', category: '电商购物', merchantIds: [], merchantNames: [], status: '启用', updatedAt: timestamp },
+      { id: 'demo-template-commerce-custom', name: '电商详情页-定制模板', type: '电商详情页', level: '定制模板', category: '', merchantIds: ['demo-merchant-commerce'], merchantNames: ['优选商城'], status: '启用', updatedAt: timestamp }
+    ]);
+    this.write(this.templateStorageKey, templates);
+    window.localStorage.setItem(this.versionStorageKey, 'scenario-v3');
+  }
+};
+
 window.BackofficeLayout = {
   render() {
     return `
@@ -6,12 +50,12 @@ window.BackofficeLayout = {
           <div class="brand"><div class="brand-mark"><b>MY</b></div><span class="brand-name">美柚省钱管理后台</span></div>
           <nav class="nav">
             <div class="nav-group open">
-              <button class="nav-title" type="button"><span class="nav-icon">&#9830;</span><span class="nav-text">合作商管理</span><span class="chevron">⌃</span></button>
+              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="nav-text">合作商管理</span><span class="chevron">⌃</span></button>
               <div class="subnav"><a class="active" data-view="merchant">合作商列表</a><a data-view="category">合作商分类管理</a><a data-view="merchant-detail">合作商详情页管理</a></div>
             </div>
-            <div class="nav-group"><button class="nav-title" type="button"><span class="nav-icon">&#9670;</span><span class="nav-text">商品管理</span><span class="chevron">⌄</span></button><div class="subnav"><a>商品列表</a><a>商品分类</a></div></div>
-            <div class="nav-group"><button class="nav-title" type="button"><span class="nav-icon">&#9673;</span><span class="nav-text">订单管理</span><span class="chevron">⌄</span></button><div class="subnav"><a>订单列表</a><a>售后管理</a></div></div>
-            <div class="nav-group"><button class="nav-title" type="button"><span class="nav-icon">&#9881;</span><span class="nav-text">运营配置</span><span class="chevron">⌄</span></button><div class="subnav"><a>活动管理</a><a>资源位管理</a></div></div>
+            <div class="nav-group"><button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2h12l2 5-2 3H6L4 7z"/><path d="M4 7v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7M9 13h6"/></svg></span><span class="nav-text">商品管理</span><span class="chevron">⌄</span></button><div class="subnav"><a>商品列表</a><a>商品分类</a></div></div>
+            <div class="nav-group"><button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3z"/><path d="M3 10h18M7 15h4"/></svg></span><span class="nav-text">订单管理</span><span class="chevron">⌄</span></button><div class="subnav"><a>订单列表</a><a>售后管理</a></div></div>
+            <div class="nav-group"><button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M18.36 5.64l-2.12 2.12M7.76 16.24l-2.12 2.12"/><circle cx="12" cy="12" r="4"/></svg></span><span class="nav-text">运营配置</span><span class="chevron">⌄</span></button><div class="subnav"><a>活动管理</a><a>资源位管理</a></div></div>
           </nav>
         </aside>
         <main class="main">

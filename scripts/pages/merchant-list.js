@@ -3,6 +3,7 @@ window.MerchantListPage = {
   categoryStorageKey: 'meiyou-cashback-category-records',
   records: [],
   loadRecords() {
+    window.BackofficeDemoData?.ensure();
     try {
       const storedRecords = JSON.parse(window.localStorage.getItem(this.storageKey));
       this.records = Array.isArray(storedRecords) ? storedRecords : [];
