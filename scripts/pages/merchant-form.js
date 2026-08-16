@@ -1,0 +1,104 @@
+window.MerchantFormPage = {
+  categoryStorageKey: 'meiyou-cashback-category-records',
+  merchantStorageKey: 'meiyou-cashback-merchant-records',
+  readFileAsDataUrl(file) {
+    if (!file) return Promise.resolve('');
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => resolve(String(reader.result || '')));
+      reader.addEventListener('error', () => resolve(''));
+      reader.readAsDataURL(file);
+    });
+  },
+  sanitizeRuleHtml(value = '') {
+    const template = document.createElement('template');
+    template.innerHTML = String(value);
+    const allowedTags = new Set(['P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI']);
+    template.content.querySelectorAll('*').forEach((element) => {
+      if (!allowedTags.has(element.tagName)) element.replaceWith(...element.childNodes);
+      else [...element.attributes].forEach((attribute) => element.removeAttribute(attribute.name));
+    });
+    return template.innerHTML;
+  },
+  render({ recordId = null } = {}) {
+    return `<section class="content merchant-form-page">
+      <div class="page-heading"><div class="page-title-row"><button class="back-button" id="back-to-merchant-list" type="button" title="返回合作商列表">‹</button><h1>${recordId ? '编辑合作商' : '添加合作商'}</h1></div></div>
+      <form class="merchant-form" id="merchant-form" novalidate>
+        <section class="form-section"><h2 class="section-title">商家基础信息</h2><div class="section-body">
+          <div class="form-row"><label class="required">合作商头像：</label><div class="form-control-area"><label class="upload-field" for="merchant-avatar"><input id="merchant-avatar" type="file" accept="image/*" /><span class="upload-icon">+</span><span class="upload-label">上传头像</span></label><button class="help-tooltip" type="button" data-tooltip="用于用户端的合作商展示" aria-label="合作商头像说明">?</button><div class="form-help">建议上传 1:1 比例图片，支持 JPG、PNG 格式</div></div></div>
+          <div class="form-row"><label class="required" for="merchant-name">合作商名称：</label><div class="form-control-area"><div class="control-with-tooltip"><input class="control" id="merchant-name" placeholder="请输入商家名称" maxlength="30" /><button class="help-tooltip" type="button" data-tooltip="透传到用户端的商家名称，用户可见" aria-label="合作商名称说明">?</button></div><div class="error-message">请输入合作商名称</div></div></div>
+          <div class="form-row"><label class="required" for="merchant-category">合作商分类：</label><div class="form-control-area"><div class="control-with-tooltip"><select class="control" id="merchant-category"><option value="">请选择合作商分类</option></select><button class="help-tooltip" type="button" data-tooltip="取自合作商分类管理的启用配置，用户端将根据分类进行合作商聚合展示" aria-label="合作商分类说明">?</button></div><div class="error-message">请选择合作商分类</div></div></div>
+        </div></section>
+        <section class="form-section"><h2 class="section-title">商家营销信息</h2><div class="section-body">
+          <div class="form-row"><label>合作商视频：</label><div class="form-control-area"><label class="upload-file" for="merchant-video"><input id="merchant-video" type="file" accept="video/*" /><span>上传视频</span></label><span class="upload-file-name" id="video-file-name">未选择文件</span></div></div>
+          <div class="form-row" id="video-cover-row" hidden><label for="video-cover">视频封面：</label><div class="form-control-area"><label class="upload-file" for="video-cover"><input id="video-cover" type="file" accept="image/*" /><span>上传封面</span></label><span class="upload-file-name" id="cover-file-name">未选择文件</span></div></div>
+        </div></section>
+        <section class="form-section merchant-rule-section"><h2 class="section-title">合作商规则</h2><div class="section-body"><div class="form-row"><label for="merchant-rule-editor">规则内容：</label><div class="form-control-area"><div class="control-with-tooltip merchant-rule-editor-wrap"><div class="rich-text-editor"><div class="rich-text-toolbar" role="toolbar" aria-label="规则内容编辑工具"><button type="button" data-rule-command="bold" title="加粗"><b>B</b></button><button type="button" data-rule-command="italic" title="斜体"><i>I</i></button><button type="button" data-rule-command="insertUnorderedList" title="无序列表">•</button><button type="button" data-rule-command="insertOrderedList" title="有序列表">1.</button></div><div class="rich-text-content" id="merchant-rule-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="请输入合作商规则（选填）"></div></div><button class="help-tooltip" type="button" data-tooltip="展示在对应的合作商模板的底部。在合作商详情页管理中展示在对应的商家下。" aria-label="合作商规则说明">?</button></div></div></div></div></section>
+        <div class="form-page-actions"><button class="button secondary" id="cancel-merchant-form" type="button">取消</button><button class="button primary" type="submit">${recordId ? '保存修改' : '保存'}</button></div>
+      </form>
+    </section>`;
+  },
+  bind({ navigate, recordId = null } = {}) {
+    const categorySelect = document.getElementById('merchant-category');
+    let categoryRecords = [];
+    try { categoryRecords = JSON.parse(window.localStorage.getItem(this.categoryStorageKey)) || []; } catch (error) { categoryRecords = []; }
+    categoryRecords.filter((record) => record.status === '启用').forEach((record) => categorySelect.add(new Option(record.categoryName, record.id)));
+    let merchantRecords = [];
+    try { merchantRecords = JSON.parse(window.localStorage.getItem(this.merchantStorageKey)) || []; } catch (error) { merchantRecords = []; }
+    const editingRecord = merchantRecords.find((record) => record.id === recordId);
+    if (editingRecord) {
+      if (![...categorySelect.options].some((option) => option.text === editingRecord.category)) categorySelect.add(new Option(editingRecord.category, editingRecord.category));
+      document.getElementById('merchant-name').value = editingRecord.name || '';
+      categorySelect.value = [...categorySelect.options].find((option) => option.text === editingRecord.category)?.value || '';
+      document.getElementById('video-file-name').textContent = editingRecord.videoName || '未选择文件';
+      document.getElementById('cover-file-name').textContent = editingRecord.coverName || '未选择文件';
+      document.getElementById('video-cover-row').hidden = !editingRecord.videoName;
+      const ruleEditor = document.getElementById('merchant-rule-editor');
+      if (ruleEditor) ruleEditor.innerHTML = this.sanitizeRuleHtml(editingRecord.ruleContent);
+    }
+    document.getElementById('back-to-merchant-list').addEventListener('click', () => navigate?.('merchant'));
+    document.getElementById('cancel-merchant-form').addEventListener('click', () => navigate?.('merchant'));
+    document.getElementById('merchant-video').addEventListener('change', (event) => { const file = event.target.files[0]; document.getElementById('video-cover-row').hidden = !file; document.getElementById('video-file-name').textContent = file ? file.name : '未选择文件'; });
+    document.getElementById('video-cover').addEventListener('change', (event) => { const file = event.target.files[0]; document.getElementById('cover-file-name').textContent = file ? file.name : '未选择文件'; });
+    const ruleEditor = document.getElementById('merchant-rule-editor');
+    if (ruleEditor) {
+      document.querySelectorAll('[data-rule-command]').forEach((button) => button.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        ruleEditor.focus();
+        document.execCommand(button.dataset.ruleCommand, false);
+      }));
+    }
+    document.getElementById('merchant-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const name = document.getElementById('merchant-name');
+      const category = document.getElementById('merchant-category');
+      const avatar = document.getElementById('merchant-avatar');
+      const requiredFields = [
+        { field: avatar, label: '合作商头像' },
+        { field: name, label: '合作商名称' },
+        { field: category, label: '合作商分类' }
+      ];
+      const missingFields = requiredFields.filter(({ field }) => !(field.value || field.files?.length || (field === avatar && editingRecord?.avatarName)));
+      requiredFields.forEach(({ field }) => field.closest('.form-row').classList.toggle('is-invalid', missingFields.some(({ field: missingField }) => missingField === field)));
+      if (missingFields.length) {
+        window.BackofficeLayout.showRequiredFieldToast(missingFields[0].label);
+        return;
+      }
+      const avatarPreview = avatar.files[0] ? await this.readFileAsDataUrl(avatar.files[0]) : (editingRecord?.avatarPreview || '');
+      const merchantRecord = {
+        id: editingRecord?.id || String(Date.now()),
+        avatarName: avatar.files[0]?.name || editingRecord?.avatarName || '',
+        avatarPreview,
+        name: name.value.trim(),
+        category: category.options[category.selectedIndex].text,
+        videoName: document.getElementById('merchant-video').files[0]?.name || editingRecord?.videoName || '',
+        coverName: document.getElementById('video-cover').files[0]?.name || editingRecord?.coverName || '',
+        ruleContent: ruleEditor ? this.sanitizeRuleHtml(ruleEditor.innerHTML) : (editingRecord?.ruleContent || ''),
+        status: editingRecord?.status || '上线'
+      };
+      const updatedRecords = editingRecord ? merchantRecords.map((record) => record.id === editingRecord.id ? merchantRecord : record) : [merchantRecord, ...merchantRecords].slice(0, 10);
+      window.localStorage.setItem(this.merchantStorageKey, JSON.stringify(updatedRecords));
+      navigate?.('merchant');
+    });
+  }
+};
