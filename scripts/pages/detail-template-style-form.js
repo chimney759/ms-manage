@@ -53,7 +53,28 @@ window.DetailTemplateStyleFormPage = {
   merchantsForTemplate(record) {
     let merchants = [];
     try { merchants = JSON.parse(window.localStorage.getItem(this.merchantStorageKey)) || []; } catch (error) { merchants = []; }
+    if (record.level === '定制模板') {
+      const merchantIds = new Set(record.merchantIds || []);
+      return merchants.filter((merchant) => merchant.name && merchantIds.has(merchant.id));
+    }
+    if (record.level === '分类兜底模板') return merchants.filter((merchant) => merchant.name && merchant.category === record.category);
     return merchants.filter((merchant) => merchant.name);
+  },
+  sanitizeRuleHtml(value = '') {
+    const template = document.createElement('template');
+    template.innerHTML = String(value);
+    const allowedTags = new Set(['P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI']);
+    template.content.querySelectorAll('*').forEach((element) => {
+      if (!allowedTags.has(element.tagName)) element.replaceWith(...element.childNodes);
+      else [...element.attributes].forEach((attribute) => element.removeAttribute(attribute.name));
+    });
+    return template.innerHTML;
+  },
+  renderMerchantRules(record) {
+    const merchantsWithRules = this.merchantsForTemplate(record).filter((merchant) => merchant.ruleContent?.trim());
+    if (!merchantsWithRules.length) return '';
+    const showMerchantName = merchantsWithRules.length > 1;
+    return `<section class="preview-merchant-rules" aria-label="合作商规则"><h3>合作商规则</h3>${merchantsWithRules.map((merchant) => `<article class="preview-merchant-rule">${showMerchantName ? `<b>${this.escape(merchant.name)}</b>` : ''}<div>${this.sanitizeRuleHtml(merchant.ruleContent)}</div></article>`).join('')}</section>`;
   },
   productCatalog(record) {
     const productSeeds = [
@@ -132,6 +153,7 @@ window.DetailTemplateStyleFormPage = {
     let draggedComponentId = '';
     let draggedProductId = '';
     let draggedProductComponentId = '';
+    let draggedListProductId = '';
     let activeMaterialIndex = 0;
     let productFilters = { supplier: '', title: '', id: '', status: '', type: '' };
     const selectComponent = (id) => { this.activeComponentId = id; renderAll(); };
@@ -165,6 +187,27 @@ window.DetailTemplateStyleFormPage = {
       draggedProductId = '';
       draggedProductComponentId = '';
     };
+    const removeDraggedComponent = () => {
+      const component = components.find((item) => item.id === draggedComponentId);
+      if (component) {
+        const label = this.componentLabel(component.type);
+        removeComponent(component.id);
+        window.BackofficeLayout.showToast('已移除组件', `${label}已从页面预览中移除`);
+      }
+      draggedComponentId = '';
+    };
+    const reorderSelectedProducts = (componentId, sourceId, targetId) => {
+      if (!sourceId || !targetId || sourceId === targetId) return;
+      const productComponent = components.find((item) => item.id === componentId && item.type === 'merchantProductFlow');
+      if (!productComponent) return;
+      const ordered = [...(productComponent.selectedProductIds || [])];
+      const from = ordered.indexOf(sourceId);
+      const to = ordered.indexOf(targetId);
+      if (from === -1 || to === -1) return;
+      const [moved] = ordered.splice(from, 1);
+      ordered.splice(to, 0, moved);
+      updateComponent(productComponent.id, { selectedProductIds: ordered }, { refreshConfig: true });
+    };
     const resourceMaterials = (component) => Array.isArray(component.materials) && component.materials.length ? component.materials : [this.createResourceMaterial()];
     const renderAnnotations = () => {
       const phoneFrame = phoneStage.querySelector('.phone-frame');
@@ -185,7 +228,8 @@ window.DetailTemplateStyleFormPage = {
     };
     const renderPreview = () => {
       const activeId = this.activeComponentId;
-      canvas.innerHTML = components.length ? components.map((component, index) => {
+      const merchantRules = this.renderMerchantRules(record);
+      const componentPreview = components.map((component, index) => {
         const active = component.id === activeId ? ' is-active' : '';
         const selectedAttr = `data-style-component-id="${this.escape(component.id)}" draggable="true"`;
         if (component.type === 'search') return `<button class="preview-component preview-search${active}" type="button" ${selectedAttr}><span>⌕</span><em>${this.escape(component.placeholder || '搜索商品、品牌或优惠')}</em></button>`;
@@ -197,19 +241,32 @@ window.DetailTemplateStyleFormPage = {
         if (component.type === 'merchantProductFlow') {
           const productsById = new Map(this.productCatalog(record).map((item) => [item.id, item]));
           const selectedProducts = (component.selectedProductIds || []).map((id) => productsById.get(id)).filter(Boolean);
-          return `<button class="preview-component preview-merchant-product-flow${active}" type="button" ${selectedAttr}><div class="merchant-product-preview-row">${selectedProducts.length ? selectedProducts.map((product) => `<i draggable="true" data-product-order-id="${this.escape(product.id)}"><img src="${this.escape(product.image)}" alt="${this.escape(product.title)}商品图" /><span class="merchant-product-info"><b>${this.escape(product.title)}</b><small><em>¥${this.escape(product.salesPrice)}</em><del>¥${this.escape(product.officialPrice)}</del></small></span><u aria-hidden="true">⠿</u></i>`).join('') : '<em class="merchant-product-empty">请在右侧勾选货品</em>'}</div></button>`;
+          return `<button class="preview-component preview-merchant-product-flow${active}" type="button" ${selectedAttr}><div class="merchant-product-preview-row">${selectedProducts.length ? selectedProducts.map((product) => `<i draggable="true" data-product-order-id="${this.escape(product.id)}"><img src="${this.escape(product.image)}" alt="${this.escape(product.title)}商品图" /><span class="merchant-product-info"><b>${this.escape(product.title)}</b><small><em>¥${this.escape(product.salesPrice)}</em><del>¥${this.escape(product.officialPrice)}</del></small></span><span class="merchant-order-button">去下单</span><u aria-hidden="true">⠿</u></i>`).join('') : '<em class="merchant-product-empty">请在右侧勾选货品</em>'}</div></button>`;
         }
         return `<button class="preview-component preview-product-flow${active}" type="button" ${selectedAttr}><div class="preview-product-row"><i>商品</i><i>商品</i><i>商品</i></div></button>`;
-      }).join('') : '<div class="canvas-empty"><b>+</b><span>拖入功能组件开始搭建</span></div>';
+      }).join('');
+      canvas.innerHTML = componentPreview || merchantRules ? `${componentPreview}${merchantRules}` : '<div class="canvas-empty"><b>+</b><span>拖入功能组件开始搭建</span></div>';
       dropTip.hidden = components.length > 0;
       canvas.querySelectorAll('[data-style-component-id]').forEach((element) => {
         element.addEventListener('click', () => selectComponent(element.dataset.styleComponentId));
         element.addEventListener('dragstart', (event) => { draggedComponentId = element.dataset.styleComponentId; event.dataTransfer.effectAllowed = 'move'; });
-        element.addEventListener('dragend', () => { draggedComponentId = ''; });
+        element.addEventListener('dragend', () => {
+          const componentId = element.dataset.styleComponentId;
+          window.setTimeout(() => { if (draggedComponentId === componentId) draggedComponentId = ''; }, 0);
+        });
       });
       canvas.querySelectorAll('[data-product-order-id]').forEach((product) => {
         product.addEventListener('dragstart', (event) => { event.stopPropagation(); draggedProductId = product.dataset.productOrderId; draggedProductComponentId = product.closest('[data-style-component-id]')?.dataset.styleComponentId || ''; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', draggedProductId); });
-        product.addEventListener('dragend', (event) => { event.stopPropagation(); draggedProductId = ''; draggedProductComponentId = ''; });
+        product.addEventListener('dragend', (event) => {
+          event.stopPropagation();
+          const productId = product.dataset.productOrderId;
+          window.setTimeout(() => {
+            if (draggedProductId === productId) {
+              draggedProductId = '';
+              draggedProductComponentId = '';
+            }
+          }, 0);
+        });
       });
       window.requestAnimationFrame(renderAnnotations);
     };
@@ -219,7 +276,7 @@ window.DetailTemplateStyleFormPage = {
       if (!component) { config.innerHTML = '<div class="style-config-empty">从左侧拖入组件，或点击预览中的组件进行配置</div>'; return; }
       const remove = `<button class="text-button style-remove" id="remove-style-component" type="button">移除组件</button>`;
       if (component.type === 'search') {
-        config.innerHTML = `<div class="style-config-form"><label>搜索占位词<input class="control" id="style-search-placeholder" value="${this.escape(component.placeholder || '')}" placeholder="请输入搜索占位词" /></label>${remove}</div>`;
+        config.innerHTML = `<div class="style-config-form"><label>搜索-模板底纹词<input class="control" id="style-search-placeholder" value="${this.escape(component.placeholder || '')}" placeholder="请输入搜索-模板底纹词" /></label>${remove}</div>`;
         document.getElementById('style-search-placeholder').addEventListener('input', (event) => updateComponent(component.id, { placeholder: event.target.value }));
       } else if (component.type === 'resource') {
         const materials = resourceMaterials(component);
@@ -254,8 +311,13 @@ window.DetailTemplateStyleFormPage = {
         const supplierOptions = this.merchantsForTemplate(record);
         const filteredProducts = allProducts.filter((item) => (!productFilters.supplier || item.supplierId === productFilters.supplier) && (!productFilters.title || item.title.includes(productFilters.title.trim())) && (!productFilters.id || item.productNo.includes(productFilters.id.trim())) && (!productFilters.status || item.status === productFilters.status) && (!productFilters.type || item.type === productFilters.type));
         const selectedIds = new Set(component.selectedProductIds || []);
+        const filteredProductIds = new Set(filteredProducts.map((item) => item.id));
+        const orderedProducts = [
+          ...(component.selectedProductIds || []).map((id) => allProducts.find((item) => item.id === id)).filter((item) => item && filteredProductIds.has(item.id)),
+          ...filteredProducts.filter((item) => !selectedIds.has(item.id))
+        ];
         const everyVisibleSelected = filteredProducts.length > 0 && filteredProducts.every((item) => selectedIds.has(item.id));
-        config.innerHTML = `<div class="style-config-form merchant-product-config"><label>货品流名称<input class="control" id="style-merchant-flow-title" value="${this.escape(component.title || '')}" placeholder="请输入货品流名称" /></label><div class="product-filter-grid"><label>合作商<select class="control" id="product-filter-supplier"><option value="">全部</option>${supplierOptions.map((merchant) => `<option value="${this.escape(merchant.id)}" ${productFilters.supplier === merchant.id ? 'selected' : ''}>${this.escape(merchant.name)}</option>`).join('')}</select></label><label>商品标题<input class="control" id="product-filter-title" value="${this.escape(productFilters.title)}" placeholder="请输入商品标题" /></label><label>商品编号<input class="control" id="product-filter-id" value="${this.escape(productFilters.id)}" placeholder="请输入商品编号" /></label><label>状态<select class="control" id="product-filter-status"><option value="">全部</option><option value="上线中" ${productFilters.status === '上线中' ? 'selected' : ''}>上线中</option><option value="已下线" ${productFilters.status === '已下线' ? 'selected' : ''}>已下线</option></select></label><label>商品类型<select class="control" id="product-filter-type"><option value="">全部</option><option value="直充" ${productFilters.type === '直充' ? 'selected' : ''}>直充</option></select></label></div><div class="product-config-summary"><span>展示当前合作商列表对应的货品</span><b>已选 ${selectedIds.size} 件</b></div><div class="product-picker-table-wrap"><table class="product-picker-table"><thead><tr><th><input id="select-all-products" type="checkbox" ${everyVisibleSelected ? 'checked' : ''} aria-label="全选当前货品" /></th><th>货品编号</th><th>货品标题</th><th>合作商</th><th>品牌名称</th><th>类型</th><th>成本价</th><th>官方价</th><th>状态</th></tr></thead><tbody>${filteredProducts.length ? filteredProducts.map((item) => `<tr><td><input type="checkbox" data-product-id="${item.id}" ${selectedIds.has(item.id) ? 'checked' : ''} aria-label="选择${this.escape(item.title)}" /></td><td>${item.productNo}</td><td>${this.escape(item.title)}</td><td>${this.escape(item.supplier)}</td><td>${this.escape(item.brand)}</td><td>${this.escape(item.type)}</td><td>${item.cost}</td><td>${item.price}</td><td><span class="${item.status === '上线中' ? 'product-online' : ''}">${item.status}</span></td></tr>`).join('') : '<tr><td colspan="9" class="product-picker-empty">当前合作商暂无可选货品</td></tr>'}</tbody></table></div>${remove}</div>`;
+        config.innerHTML = `<div class="style-config-form merchant-product-config"><label>货品流名称<input class="control" id="style-merchant-flow-title" value="${this.escape(component.title || '')}" placeholder="请输入货品流名称" /></label><div class="product-filter-grid"><label>合作商<select class="control" id="product-filter-supplier"><option value="">全部</option>${supplierOptions.map((merchant) => `<option value="${this.escape(merchant.id)}" ${productFilters.supplier === merchant.id ? 'selected' : ''}>${this.escape(merchant.name)}</option>`).join('')}</select></label><label>商品标题<input class="control" id="product-filter-title" value="${this.escape(productFilters.title)}" placeholder="请输入商品标题" /></label><label>商品编号<input class="control" id="product-filter-id" value="${this.escape(productFilters.id)}" placeholder="请输入商品编号" /></label><label>状态<select class="control" id="product-filter-status"><option value="">全部</option><option value="上线中" ${productFilters.status === '上线中' ? 'selected' : ''}>上线中</option><option value="已下线" ${productFilters.status === '已下线' ? 'selected' : ''}>已下线</option></select></label><label>商品类型<select class="control" id="product-filter-type"><option value="">全部</option><option value="直充" ${productFilters.type === '直充' ? 'selected' : ''}>直充</option></select></label></div><div class="product-config-summary"><span>展示当前合作商列表对应的货品，已选行可拖动排序</span><b>已选 ${selectedIds.size} 件</b></div><div class="product-picker-table-wrap"><table class="product-picker-table"><thead><tr><th><input id="select-all-products" type="checkbox" ${everyVisibleSelected ? 'checked' : ''} aria-label="全选当前货品" /></th><th aria-label="排序"></th><th>货品编号</th><th>货品标题</th><th>合作商</th><th>品牌名称</th><th>类型</th><th>成本价</th><th>官方价</th><th>状态</th></tr></thead><tbody>${orderedProducts.length ? orderedProducts.map((item) => { const selected = selectedIds.has(item.id); return `<tr class="${selected ? 'is-selected-product' : ''}" ${selected ? `draggable="true" data-list-product-id="${this.escape(item.id)}"` : ''}><td><input type="checkbox" data-product-id="${item.id}" ${selected ? 'checked' : ''} aria-label="选择${this.escape(item.title)}" /></td><td><span class="product-row-drag" aria-hidden="true">⠿</span></td><td>${item.productNo}</td><td>${this.escape(item.title)}</td><td>${this.escape(item.supplier)}</td><td>${this.escape(item.brand)}</td><td>${this.escape(item.type)}</td><td>${item.cost}</td><td>${item.price}</td><td><span class="${item.status === '上线中' ? 'product-online' : ''}">${item.status}</span></td></tr>`; }).join('') : '<tr><td colspan="10" class="product-picker-empty">当前合作商暂无可选货品</td></tr>'}</tbody></table></div>${remove}</div>`;
         document.getElementById('style-merchant-flow-title').addEventListener('input', (event) => updateComponent(component.id, { title: event.target.value }));
         [['product-filter-supplier', 'supplier'], ['product-filter-title', 'title'], ['product-filter-id', 'id'], ['product-filter-status', 'status'], ['product-filter-type', 'type']].forEach(([id, key]) => {
           const filter = document.getElementById(id);
@@ -282,8 +344,15 @@ window.DetailTemplateStyleFormPage = {
         const updateSelectedProducts = (id, checked) => { const next = new Set(component.selectedProductIds || []); checked ? next.add(id) : next.delete(id); updateComponent(component.id, { selectedProductIds: [...next] }, { refreshConfig: true }); };
         document.querySelectorAll('[data-product-id]').forEach((input) => input.addEventListener('change', () => updateSelectedProducts(input.dataset.productId, input.checked)));
         document.getElementById('select-all-products').addEventListener('change', (event) => { const next = new Set(component.selectedProductIds || []); filteredProducts.forEach((item) => event.target.checked ? next.add(item.id) : next.delete(item.id)); updateComponent(component.id, { selectedProductIds: [...next] }, { refreshConfig: true }); });
+        config.querySelectorAll('[data-list-product-id]').forEach((row) => {
+          row.addEventListener('dragstart', (event) => { draggedListProductId = row.dataset.listProductId; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', draggedListProductId); });
+          row.addEventListener('dragend', () => { draggedListProductId = ''; config.querySelectorAll('.is-product-dragover').forEach((item) => item.classList.remove('is-product-dragover')); });
+          row.addEventListener('dragover', (event) => { if (!draggedListProductId || row.dataset.listProductId === draggedListProductId) return; event.preventDefault(); row.classList.add('is-product-dragover'); });
+          row.addEventListener('dragleave', () => row.classList.remove('is-product-dragover'));
+          row.addEventListener('drop', (event) => { if (!draggedListProductId || row.dataset.listProductId === draggedListProductId) return; event.preventDefault(); event.stopPropagation(); reorderSelectedProducts(component.id, draggedListProductId, row.dataset.listProductId); draggedListProductId = ''; });
+        });
       } else {
-        config.innerHTML = `<div class="style-config-form"><label>信息流标题<input class="control" id="style-flow-title" value="${this.escape(component.title || '')}" placeholder="请输入信息流标题" /></label><label>选择应用库<select class="control" id="style-flow-library"><option value="">请选择应用库</option><option value="活动商品库" ${component.library === '活动商品库' ? 'selected' : ''}>活动商品库（占位）</option><option value="精选商品库" ${component.library === '精选商品库' ? 'selected' : ''}>精选商品库（占位）</option><option value="高佣商品库" ${component.library === '高佣商品库' ? 'selected' : ''}>高佣商品库（占位）</option></select></label><div class="style-divider"><span>或直接填写</span></div><label>应用库 ID<input class="control" id="style-flow-library-id" value="${this.escape(component.libraryId || '')}" placeholder="请输入应用库 ID" /></label><label>应用库名称<input class="control" id="style-flow-library-name" value="${this.escape(component.libraryName || '')}" placeholder="请输入应用库名称" /></label>${remove}</div>`;
+        config.innerHTML = `<div class="style-config-form"><label>信息流-记录名称<div class="control-with-tooltip"><input class="control" id="style-flow-title" value="${this.escape(component.title || '')}" placeholder="请输入信息流-记录名称" /><button class="help-tooltip" type="button" data-tooltip="仅后台可见" aria-label="信息流-记录名称说明">?</button></div></label><label>选择应用库<select class="control" id="style-flow-library"><option value="">请选择应用库</option><option value="活动商品库" ${component.library === '活动商品库' ? 'selected' : ''}>活动商品库（占位）</option><option value="精选商品库" ${component.library === '精选商品库' ? 'selected' : ''}>精选商品库（占位）</option><option value="高佣商品库" ${component.library === '高佣商品库' ? 'selected' : ''}>高佣商品库（占位）</option></select></label><div class="style-divider"><span>或直接填写</span></div><label>应用库 ID<input class="control" id="style-flow-library-id" value="${this.escape(component.libraryId || '')}" placeholder="请输入应用库 ID" /></label><label>应用库名称<input class="control" id="style-flow-library-name" value="${this.escape(component.libraryName || '')}" placeholder="请输入应用库名称" /></label>${remove}</div>`;
         [['style-flow-title', 'title'], ['style-flow-library', 'library'], ['style-flow-library-id', 'libraryId'], ['style-flow-library-name', 'libraryName']].forEach(([id, key]) => document.getElementById(id).addEventListener('input', (event) => updateComponent(component.id, { [key]: event.target.value })));
       }
       document.getElementById('remove-style-component').addEventListener('click', () => removeComponent(component.id));
@@ -320,21 +389,24 @@ window.DetailTemplateStyleFormPage = {
           const from = components.findIndex((item) => item.id === draggedComponentId); const to = components.findIndex((item) => item.id === target.dataset.styleComponentId);
           const [moved] = components.splice(from, 1); components.splice(to, 0, moved); renderAll();
         }
+        draggedComponentId = '';
       }
     });
-    phoneStage.addEventListener('dragover', (event) => { if (draggedProductId) event.preventDefault(); });
+    phoneStage.addEventListener('dragover', (event) => { if (draggedProductId || draggedComponentId) event.preventDefault(); });
     phoneStage.addEventListener('drop', (event) => {
-      if (!draggedProductId || canvas.contains(event.target)) return;
+      if (canvas.contains(event.target)) return;
       event.preventDefault();
-      removeDraggedProduct();
+      if (draggedProductId) removeDraggedProduct();
+      else if (draggedComponentId) removeDraggedComponent();
     });
     document.addEventListener('dragover', (event) => {
-      if (draggedProductId && !phoneStage.contains(event.target)) event.preventDefault();
+      if ((draggedProductId || draggedComponentId) && !phoneStage.contains(event.target)) event.preventDefault();
     });
     document.addEventListener('drop', (event) => {
-      if (!draggedProductId || phoneStage.contains(event.target)) return;
+      if ((!draggedProductId && !draggedComponentId) || phoneStage.contains(event.target)) return;
       event.preventDefault();
-      removeDraggedProduct();
+      if (draggedProductId) removeDraggedProduct();
+      else removeDraggedComponent();
     });
     document.getElementById('cancel-detail-template-style-page').addEventListener('click', back);
     document.getElementById('save-detail-template-style-page').addEventListener('click', () => {

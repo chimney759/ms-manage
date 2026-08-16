@@ -20,6 +20,40 @@ window.MerchantFormPage = {
     });
     return template.innerHTML;
   },
+  targetingIdentities: ['经期', '怀孕', '备孕', '辣妈', '亲友', '仅注册MS用户'],
+  audienceGroups: [
+    { title: '常用人群', items: ['高活跃用户', '新注册用户', '近30日下单用户', '价格敏感用户'] },
+    { title: '活动人群', items: ['大促活动用户', '会员活动用户', '内容活动用户', '召回活动用户'] },
+    { title: '临时人群', items: ['运营临时圈选人群', '合作商专属用户', '白名单用户', '灰度验证用户'] }
+  ],
+  createTargeting() {
+    return {
+      identities: [], targetGroup: '', excludeGroup: '', audiences: [], audienceInversion: '否',
+      platformVersions: {
+        ios: { enabled: true, start: '8.96.0.0', end: '' },
+        android: { enabled: true, start: '8.96.0.0', end: '' },
+        harmony: { enabled: true, start: '8.99.0.0', end: '' }
+      },
+      onlineStart: '', onlineEnd: ''
+    };
+  },
+  normalizeTargeting(targeting = {}) {
+    const defaults = this.createTargeting();
+    const platformVersions = Object.fromEntries(Object.entries(defaults.platformVersions).map(([platform, value]) => [platform, {
+      ...value,
+      ...(targeting.platformVersions?.[platform] || {})
+    }]));
+    return {
+      ...defaults,
+      ...targeting,
+      identities: Array.isArray(targeting.identities) ? targeting.identities : [],
+      audiences: Array.isArray(targeting.audiences) ? targeting.audiences : [],
+      platformVersions
+    };
+  },
+  renderAudienceGroups() {
+    return this.audienceGroups.map(({ title, items }) => `<div class="audience-group"><div class="audience-group-title">${title}</div><div class="audience-group-items">${items.map((item) => `<label><input type="checkbox" value="${item}" data-target-audience /><span>${item}</span></label>`).join('')}</div></div>`).join('');
+  },
   render({ recordId = null } = {}) {
     return `<section class="content merchant-form-page">
       <div class="page-heading"><div class="page-title-row"><button class="back-button" id="back-to-merchant-list" type="button" title="返回合作商列表">‹</button><h1>${recordId ? '编辑合作商' : '添加合作商'}</h1></div></div>
@@ -34,6 +68,15 @@ window.MerchantFormPage = {
           <div class="form-row" id="video-cover-row" hidden><label for="video-cover">视频封面：</label><div class="form-control-area"><label class="upload-file" for="video-cover"><input id="video-cover" type="file" accept="image/*" /><span>上传封面</span></label><span class="upload-file-name" id="cover-file-name">未选择文件</span></div></div>
         </div></section>
         <section class="form-section merchant-rule-section"><h2 class="section-title">合作商规则</h2><div class="section-body"><div class="form-row"><label for="merchant-rule-editor">规则内容：</label><div class="form-control-area"><div class="control-with-tooltip merchant-rule-editor-wrap"><div class="rich-text-editor"><div class="rich-text-toolbar" role="toolbar" aria-label="规则内容编辑工具"><button type="button" data-rule-command="bold" title="加粗"><b>B</b></button><button type="button" data-rule-command="italic" title="斜体"><i>I</i></button><button type="button" data-rule-command="insertUnorderedList" title="无序列表">•</button><button type="button" data-rule-command="insertOrderedList" title="有序列表">1.</button></div><div class="rich-text-content" id="merchant-rule-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="请输入合作商规则（选填）"></div></div><button class="help-tooltip" type="button" data-tooltip="展示在对应的合作商模板的底部。在合作商详情页管理中展示在对应的商家下。" aria-label="合作商规则说明">?</button></div></div></div></div></section>
+        <section class="form-section"><h2 class="section-title">定向信息</h2><div class="section-body targeting-body">
+          <div class="form-row check-row"><label>用户身份：</label><div class="form-control-area">${this.targetingIdentities.map((item) => `<label><input type="checkbox" value="${item}" data-target-identity />${item}</label>`).join('')}</div></div>
+          <div class="form-row"><label for="merchant-target-group">指定人群包：</label><div class="form-control-area"><input class="control compact-control" id="merchant-target-group" placeholder="请输入指定人群包ID或名称" /></div></div>
+          <div class="form-row"><label for="merchant-exclude-group">排除人群包：</label><div class="form-control-area"><input class="control compact-control" id="merchant-exclude-group" placeholder="请输入排除人群包ID或名称" /></div></div>
+          <div class="form-row audience-row"><label>定制人群：</label><div class="form-control-area audience-options-wrap"><div class="audience-options">${this.renderAudienceGroups()}</div></div></div>
+          <div class="form-row audience-inversion-row"><label>是否定制人群取反：</label><div class="form-control-area inline-radios"><label><input type="radio" name="merchant-audience-inversion" value="否" checked />否</label><label><input type="radio" name="merchant-audience-inversion" value="是" />是</label><p class="form-warning">选择定制人群后，取反表示圈定人群以外的用户。</p></div></div>
+          <div class="form-row version-grid"><label>平台和版本：</label><div class="form-control-area"><div><label><input type="checkbox" data-platform-enabled="ios" />iOS</label><input class="control version-control" data-platform-start="ios" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="ios" placeholder="最高版本（选填）" /></div><div><label><input type="checkbox" data-platform-enabled="android" />Android</label><input class="control version-control" data-platform-start="android" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="android" placeholder="最高版本（选填）" /></div><div><label><input type="checkbox" data-platform-enabled="harmony" />Harmony</label><input class="control version-control" data-platform-start="harmony" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="harmony" placeholder="最高版本（选填）" /></div></div></div>
+          <div class="form-row date-range"><label for="merchant-online-start">上线时间：</label><div class="form-control-area"><input class="control" id="merchant-online-start" type="datetime-local" /><span>至</span><input class="control" id="merchant-online-end" type="datetime-local" /></div></div>
+        </div></section>
         <div class="form-page-actions"><button class="button secondary" id="cancel-merchant-form" type="button">取消</button><button class="button primary" type="submit">${recordId ? '保存修改' : '保存'}</button></div>
       </form>
     </section>`;
@@ -46,6 +89,7 @@ window.MerchantFormPage = {
     let merchantRecords = [];
     try { merchantRecords = JSON.parse(window.localStorage.getItem(this.merchantStorageKey)) || []; } catch (error) { merchantRecords = []; }
     const editingRecord = merchantRecords.find((record) => record.id === recordId);
+    const targeting = this.normalizeTargeting(editingRecord?.targeting);
     if (editingRecord) {
       if (![...categorySelect.options].some((option) => option.text === editingRecord.category)) categorySelect.add(new Option(editingRecord.category, editingRecord.category));
       document.getElementById('merchant-name').value = editingRecord.name || '';
@@ -56,6 +100,19 @@ window.MerchantFormPage = {
       const ruleEditor = document.getElementById('merchant-rule-editor');
       if (ruleEditor) ruleEditor.innerHTML = this.sanitizeRuleHtml(editingRecord.ruleContent);
     }
+    document.querySelectorAll('[data-target-identity]').forEach((input) => { input.checked = targeting.identities.includes(input.value); });
+    document.querySelectorAll('[data-target-audience]').forEach((input) => { input.checked = targeting.audiences.includes(input.value); });
+    document.getElementById('merchant-target-group').value = targeting.targetGroup;
+    document.getElementById('merchant-exclude-group').value = targeting.excludeGroup;
+    const audienceInversionInput = document.querySelector(`input[name="merchant-audience-inversion"][value="${targeting.audienceInversion}"]`);
+    if (audienceInversionInput) audienceInversionInput.checked = true;
+    Object.entries(targeting.platformVersions).forEach(([platform, value]) => {
+      document.querySelector(`[data-platform-enabled="${platform}"]`).checked = value.enabled;
+      document.querySelector(`[data-platform-start="${platform}"]`).value = value.start;
+      document.querySelector(`[data-platform-end="${platform}"]`).value = value.end;
+    });
+    document.getElementById('merchant-online-start').value = targeting.onlineStart;
+    document.getElementById('merchant-online-end').value = targeting.onlineEnd;
     document.getElementById('back-to-merchant-list').addEventListener('click', () => navigate?.('merchant'));
     document.getElementById('cancel-merchant-form').addEventListener('click', () => navigate?.('merchant'));
     document.getElementById('merchant-video').addEventListener('change', (event) => { const file = event.target.files[0]; document.getElementById('video-cover-row').hidden = !file; document.getElementById('video-file-name').textContent = file ? file.name : '未选择文件'; });
@@ -85,6 +142,20 @@ window.MerchantFormPage = {
         return;
       }
       const avatarPreview = avatar.files[0] ? await this.readFileAsDataUrl(avatar.files[0]) : (editingRecord?.avatarPreview || '');
+      const updatedTargeting = {
+        identities: [...document.querySelectorAll('[data-target-identity]:checked')].map((input) => input.value),
+        targetGroup: document.getElementById('merchant-target-group').value.trim(),
+        excludeGroup: document.getElementById('merchant-exclude-group').value.trim(),
+        audiences: [...document.querySelectorAll('[data-target-audience]:checked')].map((input) => input.value),
+        audienceInversion: document.querySelector('input[name="merchant-audience-inversion"]:checked').value,
+        platformVersions: Object.fromEntries(['ios', 'android', 'harmony'].map((platform) => [platform, {
+          enabled: document.querySelector(`[data-platform-enabled="${platform}"]`).checked,
+          start: document.querySelector(`[data-platform-start="${platform}"]`).value.trim(),
+          end: document.querySelector(`[data-platform-end="${platform}"]`).value.trim()
+        }])),
+        onlineStart: document.getElementById('merchant-online-start').value,
+        onlineEnd: document.getElementById('merchant-online-end').value
+      };
       const merchantRecord = {
         id: editingRecord?.id || String(Date.now()),
         avatarName: avatar.files[0]?.name || editingRecord?.avatarName || '',
@@ -94,6 +165,7 @@ window.MerchantFormPage = {
         videoName: document.getElementById('merchant-video').files[0]?.name || editingRecord?.videoName || '',
         coverName: document.getElementById('video-cover').files[0]?.name || editingRecord?.coverName || '',
         ruleContent: ruleEditor ? this.sanitizeRuleHtml(ruleEditor.innerHTML) : (editingRecord?.ruleContent || ''),
+        targeting: updatedTargeting,
         status: editingRecord?.status || '上线'
       };
       const updatedRecords = editingRecord ? merchantRecords.map((record) => record.id === editingRecord.id ? merchantRecord : record) : [merchantRecord, ...merchantRecords].slice(0, 10);
