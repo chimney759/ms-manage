@@ -65,12 +65,8 @@ window.DetailTemplateStyleFormPage = {
   merchantsForTemplate(record) {
     let merchants = [];
     try { merchants = JSON.parse(window.localStorage.getItem(this.merchantStorageKey)) || []; } catch (error) { merchants = []; }
-    if (record.level === '定制模板') {
-      const merchantIds = new Set(record.merchantIds || []);
-      return merchants.filter((merchant) => merchant.name && merchantIds.has(merchant.id));
-    }
-    if (record.level === '分类兜底模板') return merchants.filter((merchant) => merchant.name && merchant.category === record.category);
-    return merchants.filter((merchant) => merchant.name);
+    const merchantIds = new Set(record.merchantIds || []);
+    return merchants.filter((merchant) => merchant.name && merchantIds.has(merchant.id));
   },
   sanitizeRuleHtml(value = '') {
     const template = document.createElement('template');
@@ -141,7 +137,7 @@ window.DetailTemplateStyleFormPage = {
     if (!record) {
       return `<section class="content"><div class="page-heading"><div class="page-title-row"><button class="back-button" id="back-to-detail-templates" type="button" title="返回合作商详情页管理">‹</button><h1>模板样式编辑</h1></div></div><section class="panel style-page-empty"><div class="empty"><div class="empty-inner"><div class="empty-icon">▰</div><div>未找到对应的详情页模板</div></div></div></section></section>`;
     }
-    const scope = record.level === '分类兜底模板' ? (record.category || '-') : (record.merchantNames?.join('、') || '-');
+    const scope = record.merchantNames?.join('、') || '-';
     const supportsSearch = record.type === '电商详情页';
     const supportsMerchantProductFlow = record.type !== '电商详情页';
     const searchTool = supportsSearch
