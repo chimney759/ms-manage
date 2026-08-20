@@ -29,7 +29,7 @@ window.DetailTemplateStyleFormPage = {
     };
   },
   componentLabel(type) {
-    return { search: '搜索功能', resource: '资源位', productFlow: '商品信息流', merchantProductFlow: '合作商货品流' }[type] || '未命名组件';
+    return { search: '搜索功能', resource: '资源位', productFlow: '商品信息流', merchantProductFlow: '合作商-商品流' }[type] || '未命名组件';
   },
   audienceGroups: [
     { title: '常用人群', items: ['返现新用户（实时）', '首次访问用户（实时）', '0 单用户群（实时）', '少于等于 1 单的用户群（实时）', '淘宝 0 单用户群（实时）', '抖音 0 单用户群（实时）', '返现 uid 尾号为双号人群（实时）', '返现 uid 尾号为单号人群（实时）'] },
@@ -108,7 +108,7 @@ window.DetailTemplateStyleFormPage = {
     const merchants = this.merchantsForTemplate(record);
     return merchants.flatMap((merchant, merchantIndex) => {
       const merchantSeeds = availableSeeds.filter((_, itemIndex) => itemIndex % Math.min(merchants.length, 3) === merchantIndex % Math.min(merchants.length, 3));
-      return merchantSeeds.map(([id, title, brand, type, salesPrice, officialPrice, image]) => ({ id: `${merchant.id}-${id}`, productNo: id, title, supplierId: merchant.id, supplier: merchant.name, brand, type, image, salesPrice, officialPrice, cost: salesPrice, price: officialPrice, status: merchant.status === '下线' ? '已下线' : '上线中' }));
+      return merchantSeeds.map(([id, title, brand, type, salesPrice, officialPrice, image]) => ({ id: `${merchant.id}-${id}`, productNo: id, title, supplierId: merchant.id, supplier: merchant.name, brand, type, productCategory: type === '直充' ? '会员权益' : '优惠券', image, salesPrice, officialPrice, cost: salesPrice, price: officialPrice, status: merchant.status === '下线' ? '已下线' : '上线中' }));
     });
   },
   createResourceMaterial() {
@@ -144,7 +144,7 @@ window.DetailTemplateStyleFormPage = {
       ? '<button class="style-tool" type="button" draggable="true" data-component-type="search"><b>⌕</b><span>搜索功能</span><small>仅支持一个</small></button>'
       : '';
     const merchantProductFlowTool = supportsMerchantProductFlow
-      ? '<button class="style-tool" type="button" draggable="true" data-component-type="merchantProductFlow"><b>▤</b><span>合作商货品流</span><small>拖入后确认货品</small></button>'
+      ? '<button class="style-tool" type="button" draggable="true" data-component-type="merchantProductFlow"><b>▤</b><span>合作商-商品流</span><small>拖入后确认合作商商品</small></button>'
       : '';
     return `<section class="content detail-template-style-page"><div class="page-heading"><div class="page-title-row"><button class="back-button" id="back-to-detail-templates" type="button" title="返回合作商详情页管理">‹</button><h1>模板样式编辑</h1></div><span class="heading-note">${this.escape(record.name)} · ${this.escape(scope)}</span></div>
       <section class="style-builder" id="style-builder" data-record-id="${this.escape(record.id)}">
@@ -186,7 +186,7 @@ window.DetailTemplateStyleFormPage = {
     let draggedProductComponentId = '';
     let draggedListProductId = '';
     let activeMaterialIndex = 0;
-    let productFilters = { supplier: '', title: '', id: '', status: '', type: '', category: '' };
+    let productFilters = { supplier: '', title: '', id: '', status: '', type: '', column: '' };
     let rechargeDetailConfig = record.type === '充值详情页' ? this.normalizeRechargeDetailConfig(record.rechargeDetailConfig) : null;
     const rechargeCategories = rechargeDetailConfig?.categories || [];
     const activeRechargeCategoryByComponent = {};
@@ -201,7 +201,7 @@ window.DetailTemplateStyleFormPage = {
         return;
       }
       if (type === 'merchantProductFlow' && !supportsMerchantProductFlow) {
-        window.BackofficeLayout.showToast('当前样式类型不支持合作商货品流', '电商详情页不支持添加合作商货品流组件');
+        window.BackofficeLayout.showToast('当前样式类型不支持合作商-商品流', '电商详情页不支持添加合作商-商品流组件');
         return;
       }
       if (type === 'search' && components.some((component) => component.type === 'search')) {
@@ -246,13 +246,15 @@ window.DetailTemplateStyleFormPage = {
       if (!sourceId || !targetId || sourceId === targetId) return;
       const productComponent = components.find((item) => item.id === componentId && item.type === 'merchantProductFlow');
       if (!productComponent) return;
+      const onlineProductIds = new Set(this.productCatalog(record).filter((item) => item.status === '上线中').map((item) => item.id));
+      if (!onlineProductIds.has(sourceId) || !onlineProductIds.has(targetId)) return;
       const ordered = [...(productComponent.selectedProductIds || [])];
       const from = ordered.indexOf(sourceId);
       const to = ordered.indexOf(targetId);
       if (from === -1 || to === -1) return;
       const [moved] = ordered.splice(from, 1);
       ordered.splice(to, 0, moved);
-      updateComponent(productComponent.id, { selectedProductIds: ordered }, { refreshConfig: true });
+      updateComponent(productComponent.id, { selectedProductIds: ordered.filter((id) => onlineProductIds.has(id)) }, { refreshConfig: true });
     };
     const resourceMaterials = (component) => Array.isArray(component.materials) && component.materials.length ? component.materials : [this.createResourceMaterial()];
     const renderAnnotations = () => {
@@ -287,14 +289,14 @@ window.DetailTemplateStyleFormPage = {
         }
         if (component.type === 'merchantProductFlow') {
           const productsById = new Map(this.productCatalog(record).map((item) => [item.id, item]));
-          const selectedProducts = (component.selectedProductIds || []).map((id) => productsById.get(id)).filter(Boolean);
+          const selectedProducts = (component.selectedProductIds || []).map((id) => productsById.get(id)).filter((product) => product?.status === '上线中');
           if (record.type === '充值详情页') {
             const groups = rechargeCategories.map((label) => ({ label, products: selectedProducts.filter((product, productIndex) => productCategory(component, product.id, (component.selectedProductIds || []).indexOf(product.id)) === label) })).filter((group) => group.products.length);
             const activeCategory = activeRechargeCategoryByComponent[component.id];
             const currentCategory = groups.some((group) => group.label === activeCategory) ? activeCategory : groups[0]?.label || '';
             activeRechargeCategoryByComponent[component.id] = currentCategory;
             const currentGroup = groups.find((group) => group.label === currentCategory);
-            return `<section class="preview-component preview-merchant-product-flow is-recharge-flow${active}" ${selectedAttr}><div class="recharge-category-nav" role="tablist">${groups.map((group) => `<button class="recharge-category-tab${group.label === currentCategory ? ' is-active' : ''}" type="button" data-merchant-flow-category="${this.escape(component.id)}::${this.escape(group.label)}" role="tab" aria-selected="${group.label === currentCategory}">${this.escape(group.label)}</button>`).join('')}</div><div class="recharge-horizontal-products">${currentGroup?.products.map((product) => `<article class="recharge-horizontal-card" draggable="true" data-product-order-id="${this.escape(product.id)}"><img src="${this.escape(product.image)}" alt="${this.escape(product.title)}商品图" /><b>${this.escape(product.title)}</b><span>${this.escape(product.brand)}</span><div><em>¥${this.escape(product.salesPrice)}</em><del>¥${this.escape(product.officialPrice)}</del></div></article>`).join('') || '<span class="recharge-products-empty">请在右侧勾选并设置商品分类</span>'}</div></section>`;
+            return `<section class="preview-component preview-merchant-product-flow is-recharge-flow${active}" ${selectedAttr}><div class="recharge-category-nav" role="tablist">${groups.map((group) => `<button class="recharge-category-tab${group.label === currentCategory ? ' is-active' : ''}" type="button" data-merchant-flow-category="${this.escape(component.id)}::${this.escape(group.label)}" role="tab" aria-selected="${group.label === currentCategory}">${this.escape(group.label)}</button>`).join('')}</div><div class="recharge-horizontal-products">${currentGroup?.products.map((product) => `<article class="recharge-horizontal-card" draggable="true" data-product-order-id="${this.escape(product.id)}"><img src="${this.escape(product.image)}" alt="${this.escape(product.title)}商品图" /><b>${this.escape(product.title)}</b><span>${this.escape(product.brand)}</span><div><em>¥${this.escape(product.salesPrice)}</em><del>¥${this.escape(product.officialPrice)}</del></div></article>`).join('') || '<span class="recharge-products-empty">请在右侧勾选合作商商品</span>'}</div></section>`;
           }
           return `<button class="preview-component preview-merchant-product-flow${active}" type="button" ${selectedAttr}><div class="merchant-product-preview-row">${selectedProducts.length ? selectedProducts.map((product) => `<i draggable="true" data-product-order-id="${this.escape(product.id)}"><img src="${this.escape(product.image)}" alt="${this.escape(product.title)}商品图" /><span class="merchant-product-info"><b>${this.escape(product.title)}</b><small><em>¥${this.escape(product.salesPrice)}</em><del>¥${this.escape(product.officialPrice)}</del></small></span><span class="merchant-order-button">去下单</span><u aria-hidden="true">⠿</u></i>`).join('') : '<em class="merchant-product-empty">请在右侧勾选货品</em>'}</div></button>`;
         }
@@ -337,7 +339,7 @@ window.DetailTemplateStyleFormPage = {
       configType.textContent = component ? this.componentLabel(component.type) : (rechargeDetailConfig ? '固定样式' : '未选择组件');
       if (!component) {
         if (!rechargeDetailConfig) { config.innerHTML = '<div class="style-config-empty">从左侧拖入组件，或点击预览中的组件进行配置</div>'; return; }
-        config.innerHTML = `<div class="style-config-form recharge-fixed-config"><div class="fixed-config-note"><b>充值详情固定样式</b><span>手机号与固定按钮在预览中固定展示；合作商货品流可在页面预览区域调整。</span></div><label>固定按钮文案<input class="control" id="recharge-fixed-action-text" value="${this.escape(rechargeDetailConfig.actionText || '')}" placeholder="优惠充值" /></label><p>选填，未填写时默认展示“优惠充值”。</p></div>`;
+        config.innerHTML = `<div class="style-config-form recharge-fixed-config"><div class="fixed-config-note"><b>充值详情固定样式</b><span>手机号与固定按钮在预览中固定展示；合作商-商品流可在页面预览区域调整。</span></div><label>固定按钮文案<input class="control" id="recharge-fixed-action-text" value="${this.escape(rechargeDetailConfig.actionText || '')}" placeholder="优惠充值" /></label><p>选填，未填写时默认展示“优惠充值”。</p></div>`;
         document.getElementById('recharge-fixed-action-text').addEventListener('input', (event) => {
           rechargeDetailConfig = { ...rechargeDetailConfig, actionText: event.target.value };
           renderPreview();
@@ -380,27 +382,33 @@ window.DetailTemplateStyleFormPage = {
         const allProducts = this.productCatalog(record);
         const allowedProductType = this.allowedProductType(record);
         const supplierOptions = this.merchantsForTemplate(record);
-        const categoryOptions = rechargeCategories;
-        const categoryFor = (item) => productCategory(component, item.id, (component.selectedProductIds || []).indexOf(item.id));
-        const filteredProducts = allProducts.filter((item) => (!productFilters.supplier || item.supplierId === productFilters.supplier) && (!productFilters.title || item.title.includes(productFilters.title.trim())) && (!productFilters.id || item.productNo.includes(productFilters.id.trim())) && (!productFilters.status || item.status === productFilters.status) && (!productFilters.type || item.type === productFilters.type) && (!productFilters.category || categoryFor(item) === productFilters.category));
-        const selectedIds = new Set(component.selectedProductIds || []);
-        const filteredProductIds = new Set(filteredProducts.map((item) => item.id));
+        const columnOptions = rechargeCategories;
+        const columnFor = (item) => productCategory(component, item.id, (component.selectedProductIds || []).indexOf(item.id));
+        const filteredProducts = allProducts.filter((item) => (!productFilters.supplier || item.supplierId === productFilters.supplier) && (!productFilters.title || item.title.includes(productFilters.title.trim())) && (!productFilters.id || item.productNo.includes(productFilters.id.trim())) && (!productFilters.status || item.status === productFilters.status) && (!productFilters.type || item.type === productFilters.type) && (!productFilters.column || columnFor(item) === productFilters.column));
+        const onlineProductIds = new Set(allProducts.filter((item) => item.status === '上线中').map((item) => item.id));
+        const selectedProductIds = (component.selectedProductIds || []).filter((id) => onlineProductIds.has(id));
+        if (selectedProductIds.length !== (component.selectedProductIds || []).length) component.selectedProductIds = selectedProductIds;
+        const selectedIds = new Set(selectedProductIds);
+        const onlineProducts = filteredProducts.filter((item) => item.status === '上线中');
+        const offlineProducts = filteredProducts.filter((item) => item.status !== '上线中');
+        const filteredProductIds = new Set(onlineProducts.map((item) => item.id));
         const orderedProducts = [
-          ...(component.selectedProductIds || []).map((id) => allProducts.find((item) => item.id === id)).filter((item) => item && filteredProductIds.has(item.id)),
-          ...filteredProducts.filter((item) => !selectedIds.has(item.id))
+          ...selectedProductIds.map((id) => allProducts.find((item) => item.id === id)).filter((item) => item && filteredProductIds.has(item.id)),
+          ...onlineProducts.filter((item) => !selectedIds.has(item.id)),
+          ...offlineProducts
         ];
-        const everyVisibleSelected = filteredProducts.length > 0 && filteredProducts.every((item) => selectedIds.has(item.id));
+        const everyVisibleSelected = onlineProducts.length > 0 && onlineProducts.every((item) => selectedIds.has(item.id));
         const productCell = (value, className = '') => `<span class="product-cell-value ${className}" title="${this.escape(String(value || ''))}">${this.escape(String(value || ''))}</span>`;
         const productTypeFilter = allowedProductType
           ? `<label>商品类型<select class="control" id="product-filter-type" disabled><option value="${this.escape(allowedProductType)}">${this.escape(allowedProductType)}</option></select></label>`
           : `<label>商品类型<select class="control" id="product-filter-type"><option value="">全部</option><option value="直充" ${productFilters.type === '直充' ? 'selected' : ''}>直充</option><option value="卡券" ${productFilters.type === '卡券' ? 'selected' : ''}>卡券</option></select></label>`;
-        const categoryFilter = record.type === '充值详情页' ? `<label>商品分类<select class="control" id="product-filter-category"><option value="">全部</option>${categoryOptions.map((category) => `<option value="${this.escape(category)}" ${productFilters.category === category ? 'selected' : ''}>${this.escape(category)}</option>`).join('')}</select></label>` : '';
-        const categoryHeader = record.type === '充值详情页' ? '<th>商品分类</th>' : '';
-        const categoryCell = (item, selected) => record.type === '充值详情页' ? `<td>${selected ? `<select class="product-category-select" data-product-category-id="${this.escape(item.id)}">${categoryOptions.map((category) => `<option value="${this.escape(category)}" ${categoryFor(item) === category ? 'selected' : ''}>${this.escape(category)}</option>`).join('')}</select>` : productCell(categoryFor(item))}</td>` : '';
-        const columnCount = record.type === '充值详情页' ? 11 : 10;
-        config.innerHTML = `<div class="style-config-form merchant-product-config"><label>货品流名称<input class="control" id="style-merchant-flow-title" value="${this.escape(component.title || '')}" placeholder="请输入货品流名称" /></label><div class="product-filter-grid"><label>合作商<select class="control" id="product-filter-supplier"><option value="">全部</option>${supplierOptions.map((merchant) => `<option value="${this.escape(merchant.id)}" ${productFilters.supplier === merchant.id ? 'selected' : ''}>${this.escape(merchant.name)}</option>`).join('')}</select></label><label>商品标题<input class="control" id="product-filter-title" value="${this.escape(productFilters.title)}" placeholder="请输入商品标题" /></label><label>商品编号<input class="control" id="product-filter-id" value="${this.escape(productFilters.id)}" placeholder="请输入商品编号" /></label><label>状态<select class="control" id="product-filter-status"><option value="">全部</option><option value="上线中" ${productFilters.status === '上线中' ? 'selected' : ''}>上线中</option><option value="已下线" ${productFilters.status === '已下线' ? 'selected' : ''}>已下线</option></select></label>${productTypeFilter}${categoryFilter}</div><div class="product-config-summary"><span>展示当前合作商列表对应的货品，已选行可拖动排序</span><b>已选 ${selectedIds.size} 件</b></div><div class="product-picker-table-wrap"><table class="product-picker-table"><thead><tr><th><input id="select-all-products" type="checkbox" ${everyVisibleSelected ? 'checked' : ''} aria-label="全选当前货品" /></th><th aria-label="排序"></th><th>货品编号</th><th>货品标题</th><th>合作商</th><th>品牌名称</th><th>类型</th>${categoryHeader}<th>成本价</th><th>官方价</th><th>状态</th></tr></thead><tbody>${orderedProducts.length ? orderedProducts.map((item) => { const selected = selectedIds.has(item.id); return `<tr class="${selected ? 'is-selected-product' : ''}" ${selected ? `draggable="true" data-list-product-id="${this.escape(item.id)}"` : ''}><td><input type="checkbox" data-product-id="${item.id}" ${selected ? 'checked' : ''} aria-label="选择${this.escape(item.title)}" /></td><td><span class="product-row-drag" aria-hidden="true">⠿</span></td><td>${productCell(item.productNo)}</td><td>${productCell(item.title)}</td><td>${productCell(item.supplier)}</td><td>${productCell(item.brand)}</td><td>${productCell(item.type)}</td>${categoryCell(item, selected)}<td>${productCell(item.cost)}</td><td>${productCell(item.price)}</td><td>${productCell(item.status, item.status === '上线中' ? 'product-online' : '')}</td></tr>`; }).join('') : `<tr><td colspan="${columnCount}" class="product-picker-empty">当前合作商暂无可选货品</td></tr>`}</tbody></table></div>${remove}</div>`;
+        const columnFilter = record.type === '充值详情页' ? `<label>商品栏目<select class="control" id="product-filter-column"><option value="">全部</option>${columnOptions.map((column) => `<option value="${this.escape(column)}" ${productFilters.column === column ? 'selected' : ''}>${this.escape(column)}</option>`).join('')}</select></label>` : '';
+        const columnHeader = record.type === '充值详情页' ? '<th>商品栏目</th>' : '';
+        const columnCell = (item) => record.type === '充值详情页' ? `<td>${productCell(columnFor(item))}</td>` : '';
+        const columnCount = record.type === '充值详情页' ? 12 : 11;
+        config.innerHTML = `<div class="style-config-form merchant-product-config"><label>货品流名称<input class="control" id="style-merchant-flow-title" value="${this.escape(component.title || '')}" placeholder="请输入货品流名称" /></label><div class="product-filter-grid"><label>合作商<select class="control" id="product-filter-supplier"><option value="">全部</option>${supplierOptions.map((merchant) => `<option value="${this.escape(merchant.id)}" ${productFilters.supplier === merchant.id ? 'selected' : ''}>${this.escape(merchant.name)}</option>`).join('')}</select></label><label>商品标题<input class="control" id="product-filter-title" value="${this.escape(productFilters.title)}" placeholder="请输入商品标题" /></label><label>商品编号<input class="control" id="product-filter-id" value="${this.escape(productFilters.id)}" placeholder="请输入商品编号" /></label><label>状态<select class="control" id="product-filter-status"><option value="">全部</option><option value="上线中" ${productFilters.status === '上线中' ? 'selected' : ''}>上线中</option><option value="已下线" ${productFilters.status === '已下线' ? 'selected' : ''}>已下线</option></select></label>${productTypeFilter}${columnFilter}</div><div class="product-config-summary"><span>上线中货品优先展示并支持勾选、排序；已下线货品仅展示</span><b>已选 ${selectedIds.size} 件</b></div><div class="product-picker-table-wrap"><table class="product-picker-table"><thead><tr><th><input id="select-all-products" type="checkbox" ${everyVisibleSelected ? 'checked' : ''} ${onlineProducts.length ? '' : 'disabled'} aria-label="全选当前上线中货品" /></th><th aria-label="排序"></th><th>货品编号</th><th>货品标题</th><th>合作商</th><th>品牌名称</th><th>类型</th><th>商品分类</th>${columnHeader}<th>成本价</th><th>官方价</th><th>状态</th></tr></thead><tbody>${orderedProducts.length ? orderedProducts.map((item) => { const selectable = item.status === '上线中'; const selected = selectable && selectedIds.has(item.id); return `<tr class="${selected ? 'is-selected-product' : ''}${selectable ? '' : ' is-offline-product'}" ${selected ? `draggable="true" data-list-product-id="${this.escape(item.id)}"` : ''}><td><input type="checkbox" data-product-id="${item.id}" ${selected ? 'checked' : ''} ${selectable ? '' : 'disabled'} aria-label="选择${this.escape(item.title)}" /></td><td><span class="product-row-drag" aria-hidden="true">${selectable ? '⠿' : '-'}</span></td><td>${productCell(item.productNo)}</td><td>${productCell(item.title)}</td><td>${productCell(item.supplier)}</td><td>${productCell(item.brand)}</td><td>${productCell(item.type)}</td><td>${productCell(item.productCategory)}</td>${columnCell(item)}<td>${productCell(item.cost)}</td><td>${productCell(item.price)}</td><td>${productCell(item.status, item.status === '上线中' ? 'product-online' : '')}</td></tr>`; }).join('') : `<tr><td colspan="${columnCount}" class="product-picker-empty">当前合作商暂无货品</td></tr>`}</tbody></table></div>${remove}</div>`;
         document.getElementById('style-merchant-flow-title').addEventListener('input', (event) => updateComponent(component.id, { title: event.target.value }));
-        [['product-filter-supplier', 'supplier'], ['product-filter-title', 'title'], ['product-filter-id', 'id'], ['product-filter-status', 'status'], ['product-filter-type', 'type'], ['product-filter-category', 'category']].forEach(([id, key]) => {
+        [['product-filter-supplier', 'supplier'], ['product-filter-title', 'title'], ['product-filter-id', 'id'], ['product-filter-status', 'status'], ['product-filter-type', 'type'], ['product-filter-column', 'column']].forEach(([id, key]) => {
           const filter = document.getElementById(id);
           if (!filter) return;
           let isComposing = false;
@@ -423,10 +431,9 @@ window.DetailTemplateStyleFormPage = {
             filter.addEventListener('input', refreshFilter);
           }
         });
-        const updateSelectedProducts = (id, checked) => { const next = new Set(component.selectedProductIds || []); checked ? next.add(id) : next.delete(id); updateComponent(component.id, { selectedProductIds: [...next] }, { refreshConfig: true }); };
+        const updateSelectedProducts = (id, checked) => { if (!onlineProductIds.has(id)) return; const next = new Set(component.selectedProductIds || []); checked ? next.add(id) : next.delete(id); updateComponent(component.id, { selectedProductIds: [...next].filter((productId) => onlineProductIds.has(productId)) }, { refreshConfig: true }); };
         document.querySelectorAll('[data-product-id]').forEach((input) => input.addEventListener('change', () => updateSelectedProducts(input.dataset.productId, input.checked)));
-        config.querySelectorAll('[data-product-category-id]').forEach((select) => select.addEventListener('change', () => updateComponent(component.id, { productCategories: { ...component.productCategories, [select.dataset.productCategoryId]: select.value } }, { refreshConfig: true })));
-        document.getElementById('select-all-products').addEventListener('change', (event) => { const next = new Set(component.selectedProductIds || []); filteredProducts.forEach((item) => event.target.checked ? next.add(item.id) : next.delete(item.id)); updateComponent(component.id, { selectedProductIds: [...next] }, { refreshConfig: true }); });
+        document.getElementById('select-all-products').addEventListener('change', (event) => { const next = new Set(component.selectedProductIds || []); onlineProducts.forEach((item) => event.target.checked ? next.add(item.id) : next.delete(item.id)); updateComponent(component.id, { selectedProductIds: [...next].filter((productId) => onlineProductIds.has(productId)) }, { refreshConfig: true }); });
         config.querySelectorAll('[data-list-product-id]').forEach((row) => {
           row.addEventListener('dragstart', (event) => { draggedListProductId = row.dataset.listProductId; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', draggedListProductId); });
           row.addEventListener('dragend', () => { draggedListProductId = ''; config.querySelectorAll('.is-product-dragover').forEach((item) => item.classList.remove('is-product-dragover')); });

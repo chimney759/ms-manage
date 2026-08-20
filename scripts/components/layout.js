@@ -114,12 +114,16 @@ window.BackofficeLayout = {
               <div class="subnav merchant-subnav">
                 <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>合作商-基础信息</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a class="active" data-view="merchant">合作商列表</a><a data-view="category">合作商分类</a></div></div>
                 <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>合作商-产品管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="merchant-product">货品列表（合作商）</a><a>商品列表（合作商）</a></div></div>
-                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>合作商-营销管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="merchant-detail">详情页管理（合作商）</a><a data-view="merchant-shelf">商家页列表页管理</a></div></div>
+                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>合作商-营销管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="merchant-detail">详情页管理（合作商）</a><a data-view="merchant-shelf">商家列表页管理</a></div></div>
               </div>
             </div>
-            <div class="nav-group"><button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2h12l2 5-2 3H6L4 7z"/><path d="M4 7v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7M9 13h6"/></svg></span><span class="nav-text">商品管理</span><span class="chevron">⌄</span></button><div class="subnav"><a>商品列表</a><a>商品分类</a></div></div>
-            <div class="nav-group"><button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3z"/><path d="M3 10h18M7 15h4"/></svg></span><span class="nav-text">订单管理</span><span class="chevron">⌄</span></button><div class="subnav"><a>订单列表</a><a>售后管理</a></div></div>
-            <div class="nav-group"><button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M18.36 5.64l-2.12 2.12M7.76 16.24l-2.12 2.12"/><circle cx="12" cy="12" r="4"/></svg></span><span class="nav-text">运营配置</span><span class="chevron">⌄</span></button><div class="subnav"><a>活动管理</a><a>资源位管理</a></div></div>
+            <div class="nav-group open">
+              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h5M8 17h3"/></svg></span><span class="nav-text">配置中心</span><span class="chevron">⌃</span></button>
+              <div class="subnav config-subnav">
+                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>升级弹窗</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="force-upgrade-modal">强制升级弹窗</a><a data-view="guided-upgrade-modal">引导升级弹窗</a></div></div>
+                <a data-view="privacy-policy-modal">隐私政策更新弹窗</a>
+              </div>
+            </div>
           </nav>
         </aside>
         <main class="main">
@@ -130,8 +134,8 @@ window.BackofficeLayout = {
         </main>
       </div>`;
   },
-  setBreadcrumb(pageName) {
-    document.getElementById('breadcrumb').innerHTML = `<strong>首页</strong><span>/</span><span>合作商管理</span><span>/</span><span>${pageName}</span>`;
+  setBreadcrumb(pageName, sectionName = '合作商管理') {
+    document.getElementById('breadcrumb').innerHTML = `<strong>首页</strong><span>/</span><span>${sectionName}</span><span>/</span><span>${pageName}</span>`;
   },
   showRequiredFieldToast(fieldName) {
     const toast = document.getElementById('global-form-toast');
