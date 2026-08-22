@@ -124,6 +124,17 @@ window.BackofficeLayout = {
                 <a data-view="privacy-policy-modal">隐私政策更新弹窗</a>
               </div>
             </div>
+            <div class="nav-group open">
+              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span class="nav-text">营销管理</span><span class="chevron">⌃</span></button>
+              <div class="subnav">
+                <a data-view="marketing-config">Tab频道页配置</a>
+                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>搜索中间页管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a>热搜词管理</a><a>信息流管理</a></div></div>
+              </div>
+            </div>
+            <div class="nav-group open">
+              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><span class="nav-text">推广管理</span><span class="chevron">⌃</span></button>
+              <div class="subnav"><a>运营弹窗管理</a><a>频道底部红点管理</a><a>贴边管理</a><a>横幅管理</a></div>
+            </div>
           </nav>
         </aside>
         <main class="main">
@@ -151,6 +162,39 @@ window.BackofficeLayout = {
     toast.hidden = false;
     window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(() => { toast.hidden = true; }, 2400);
+  },
+  confirm({ title = '确认操作', message = '', confirmText = '确认', cancelText = '取消' } = {}) {
+    const existing = document.getElementById('global-confirm-modal');
+    existing?.remove();
+    return new Promise((resolve) => {
+      const modal = document.createElement('div');
+      modal.id = 'global-confirm-modal';
+      modal.className = 'modal global-confirm-modal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.setAttribute('aria-labelledby', 'global-confirm-title');
+      modal.innerHTML = `<div class="modal-card confirm-card"><div class="modal-header"><h2 id="global-confirm-title">${title}</h2><button class="icon-close" type="button" aria-label="关闭">×</button></div><div class="modal-body confirm-body"><p>${message}</p></div><div class="modal-footer"><button class="button secondary" type="button" data-confirm-cancel>${cancelText}</button><button class="button danger" type="button" data-confirm-submit>${confirmText}</button></div></div>`;
+      let onKeydown;
+      let settled = false;
+      const finish = (confirmed) => {
+        if (settled) return;
+        settled = true;
+        document.removeEventListener('keydown', onKeydown);
+        modal.remove();
+        resolve(confirmed);
+      };
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal || event.target.closest('.icon-close, [data-confirm-cancel]')) finish(false);
+        if (event.target.closest('[data-confirm-submit]')) finish(true);
+      });
+      onKeydown = (event) => {
+        if (event.key !== 'Escape') return;
+        finish(false);
+      };
+      document.addEventListener('keydown', onKeydown);
+      document.body.append(modal);
+      modal.querySelector('[data-confirm-cancel]').focus();
+    });
   },
   setAddModalMode(modal, isAdd) {
     modal.classList.toggle('is-add-fullscreen', isAdd);

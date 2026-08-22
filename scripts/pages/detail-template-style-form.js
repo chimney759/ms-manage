@@ -262,7 +262,9 @@ window.DetailTemplateStyleFormPage = {
       if (!phoneFrame) { annotations.innerHTML = ''; return; }
       const stageBox = phoneStage.getBoundingClientRect();
       const frameBox = phoneFrame.getBoundingClientRect();
-      const left = Math.min(phoneStage.clientWidth - 92, frameBox.right - stageBox.left + 12);
+      const useStackedAnnotations = phoneStage.clientWidth < frameBox.width + 108;
+      const left = frameBox.right - stageBox.left + 16;
+      annotations.classList.toggle('is-stacked', useStackedAnnotations);
       annotations.innerHTML = [...canvas.querySelectorAll('[data-style-component-id]')].map((element) => {
         const component = components.find((item) => item.id === element.dataset.styleComponentId);
         if (!component) return '';
@@ -270,7 +272,8 @@ window.DetailTemplateStyleFormPage = {
         const top = Math.max(0, box.top - stageBox.top);
         const height = Math.max(36, box.height);
         const detail = component.type === 'merchantProductFlow' ? `${(component.selectedProductIds || []).length} 件` : '';
-        return `<button class="component-annotation" type="button" data-style-component-id="${this.escape(component.id)}" style="top:${top}px;left:${left}px;height:${height}px"><span>${this.escape(this.componentLabel(component.type))}${detail ? `<small>${detail}</small>` : ''}</span></button>`;
+        const position = useStackedAnnotations ? '' : ` style="top:${top}px;left:${left}px;height:${height}px"`;
+        return `<button class="component-annotation" type="button" data-style-component-id="${this.escape(component.id)}"${position}><span>${this.escape(this.componentLabel(component.type))}${detail ? `<small>${detail}</small>` : ''}</span></button>`;
       }).join('');
       annotations.querySelectorAll('.component-annotation').forEach((annotation) => annotation.addEventListener('click', () => selectComponent(annotation.dataset.styleComponentId)));
     };
