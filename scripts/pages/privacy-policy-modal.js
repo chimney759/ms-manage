@@ -51,6 +51,10 @@ window.PrivacyPolicyModalPage = {
     </section></section>`;
   },
   renderForm({ recordId = null } = {}) {
+    // Form markup is rendered before bind(), so hydrate persisted records here for edit routes.
+    this.records = this.readRecords();
+    this.ensureRecords();
+    this.normalizeRecords();
     const record = this.records.find((item) => item.id === recordId);
     const isEdit = Boolean(record);
     const value = record || { system: 'Android', enabled: '开启', minVersion: '3.5.0', maxVersion: '99.99.99', title: '隐私政策更新提醒', content: '<p>尊敬的用户，您好。</p><p>羊毛省钱隐私政策有更新，为了让您按需、放心地使用 App，建议您认真阅读并充分理解《隐私政策》相关条款。</p><p>请阅读完整版 <a href="#">《隐私政策》</a></p>', policyVersion: '1', testPlan: { uids: '', start: '', end: '', enabled: false } };
