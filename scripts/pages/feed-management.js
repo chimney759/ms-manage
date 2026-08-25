@@ -3,6 +3,55 @@ window.FeedManagementPage = {
   clone(value) {
     return JSON.parse(JSON.stringify(value));
   },
+  createMosaicConfig(data = {}) {
+    const defaults = {
+      image: '',
+      darkImage: '',
+      routeType: '',
+      routeProtocol: '',
+      pid: '',
+      selectedPid: '',
+      skipType: '',
+      mallId: '',
+      popupLogo: '',
+      popupCopy: '',
+      requiresLogin: true,
+      ...data
+    };
+    const legacyPosition = {
+      id: `feed-mosaic-position-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      image: defaults.image,
+      darkImage: defaults.darkImage,
+      routeType: defaults.routeType,
+      routeProtocol: defaults.routeProtocol,
+      pid: defaults.pid,
+      selectedPid: defaults.selectedPid,
+      skipType: defaults.skipType,
+      mallId: defaults.mallId,
+      popupLogo: defaults.popupLogo,
+      popupCopy: defaults.popupCopy,
+      requiresLogin: defaults.requiresLogin
+    };
+    const positions = Array.isArray(data.positions) && data.positions.length ? data.positions.map((position) => ({ ...legacyPosition, ...position, id: position.id || `feed-mosaic-position-${Date.now()}-${Math.random().toString(16).slice(2)}` })) : [legacyPosition];
+    return { ...defaults, positions, selectedPositionId: positions.some((position) => position.id === data.selectedPositionId) ? data.selectedPositionId : positions[0].id };
+  },
+  createRedPacketConfig(data = {}) {
+    return {
+      name: '', deliveryType: 'single', titleArea: false, title: '', subtitle: '', titleImage: '', titleDarkImage: '', unclaimedImage: '', unclaimedDarkImage: '', template: 'with-button',
+      targeting: window.ConfigurationSections.createTargeting(), testPlan: window.ConfigurationSections.createTestPlan(),
+      ...data,
+      targeting: window.ConfigurationSections.normalizeTargeting(data.targeting),
+      testPlan: window.ConfigurationSections.normalizeTestPlan(data.testPlan)
+    };
+  },
+  createProductFeedConfig(data = {}) {
+    return {
+      source: 'app-library',
+      dataKey: '',
+      pid: '',
+      ...data
+    };
+  },
   createTab(data = {}) {
     return {
       id: data.id || `feed-tab-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -13,57 +62,173 @@ window.FeedManagementPage = {
       iconImage: '',
       cornerImage: '',
       tailImage: '',
+      components: [],
+      isSaved: false,
+      productFeed: this.createProductFeedConfig(),
       targeting: window.ConfigurationSections.createTargeting(),
+      testPlan: window.ConfigurationSections.createTestPlan(),
       ...data,
-      targeting: window.ConfigurationSections.normalizeTargeting(data.targeting)
+      components: Array.isArray(data.components) ? data.components.map((component) => ({ ...component, assets: Array.isArray(component.assets) ? component.assets : (component.slots || []).map(() => ''), mosaic: component.type === 'mosaic' ? this.createMosaicConfig(component.mosaic) : component.mosaic, redPacket: component.type === 'red-packet-delivery' ? this.createRedPacketConfig(component.redPacket) : component.redPacket, targeting: component.type === 'mosaic' ? window.ConfigurationSections.normalizeTargeting(component.targeting) : component.targeting, testPlan: component.type === 'mosaic' ? window.ConfigurationSections.normalizeTestPlan(component.testPlan) : component.testPlan, isSaved: component.isSaved ?? true })) : [],
+      isSaved: Boolean(data.isSaved),
+      productFeed: this.createProductFeedConfig(data.productFeed),
+      targeting: window.ConfigurationSections.normalizeTargeting(data.targeting),
+      testPlan: window.ConfigurationSections.normalizeTestPlan(data.testPlan)
     };
+  },
+  createFeedComponent(type) {
+    const definitions = {
+      mosaic: { label: '信息流-拼图', slots: ['福利活动主会场', '限时好礼'] },
+      grid: { label: '信息流-宫格', slots: ['新人福利', '每日好券', '省钱任务', '精选权益'] },
+      'red-packet': { label: '信息流-红包', slots: ['福利红包'] },
+      'red-packet-delivery': { label: '信息流-红包发放功能', slots: ['福利红包'] },
+      'native-slider': { label: '信息流-原生滑块', slots: ['精选返现', '限时好价', '热销推荐'] }
+    };
+    const definition = definitions[type] || definitions.mosaic;
+    return { id: `feed-component-${Date.now()}-${Math.random().toString(16).slice(2)}`, type, recordName: definition.label, assets: definition.slots.map(() => ''), mosaic: type === 'mosaic' ? this.createMosaicConfig() : undefined, redPacket: type === 'red-packet-delivery' ? this.createRedPacketConfig({ name: definition.label }) : undefined, targeting: type === 'mosaic' ? window.ConfigurationSections.createTargeting() : undefined, testPlan: type === 'mosaic' ? window.ConfigurationSections.createTestPlan() : undefined, isSaved: false, ...definition };
   },
   createDefaultState() {
     const tabs = [
-      this.createTab({ id: 'feed-live', tabName: '直播间返现', recordName: '直播间返现', status: '上线中', resourceStatus: '上线中' }),
-      this.createTab({ id: 'feed-jd', tabName: '京东购物车', recordName: '京东购物车（896）', status: '上线中', resourceStatus: '上线中' }),
-      this.createTab({ id: 'feed-takeout', tabName: '外卖返现', recordName: '外卖返现', status: '待上线', resourceStatus: '待上线' }),
-      this.createTab({ id: 'feed-redpacket', tabName: '红包', recordName: '红包', status: '已下线', resourceStatus: '已下线' })
+      this.createTab({ id: 'feed-live', tabName: '直播间返现', recordName: '直播间返现', status: '上线中', resourceStatus: '上线中', isSaved: true }),
+      this.createTab({ id: 'feed-jd', tabName: '京东购物车', recordName: '京东购物车（896）', status: '上线中', resourceStatus: '上线中', isSaved: true }),
+      this.createTab({ id: 'feed-takeout', tabName: '外卖返现', recordName: '外卖返现', status: '待上线', resourceStatus: '待上线', isSaved: true }),
+      this.createTab({ id: 'feed-redpacket', tabName: '红包', recordName: '红包', status: '已下线', resourceStatus: '已下线', isSaved: true })
     ];
     return { tabs, activeTabId: 'feed-jd' };
   },
-  loadState() {
+  loadState(storageKey = this.storageKey) {
     const fallback = this.createDefaultState();
     try {
-      const saved = JSON.parse(window.localStorage.getItem(this.storageKey));
+      const saved = JSON.parse(window.localStorage.getItem(storageKey));
       if (!saved || !Array.isArray(saved.tabs)) return fallback;
-      const tabs = saved.tabs.map((tab) => this.createTab(tab));
+      const tabs = saved.tabs.map((tab) => this.createTab({ ...tab, isSaved: tab.isSaved ?? true }));
       return { tabs: tabs.length ? tabs : fallback.tabs, activeTabId: tabs.some((tab) => tab.id === saved.activeTabId) ? saved.activeTabId : tabs[0]?.id };
     } catch (error) {
       return fallback;
     }
   },
-  saveState(state) {
-    window.localStorage.setItem(this.storageKey, JSON.stringify(state));
+  saveState(state, storageKey = this.storageKey) {
+    window.localStorage.setItem(storageKey, JSON.stringify(state));
   },
   render() {
     return `<section class="content feed-management-page"><div class="page-heading"><div><h1>首页-信息流营销</h1><span class="heading-note">维护首页信息流 Tab、资源位状态及展示配置</span></div><div class="feed-page-actions" id="feed-page-actions"></div></div><section class="panel feed-filter-panel"><div class="feed-status-filter"><strong>Tab状态：</strong><div class="feed-filter-options" data-feed-filter="status"><label><input type="checkbox" value="上线中" checked />上线中</label><label><input type="checkbox" value="待上线" checked />待上线</label><label><input type="checkbox" value="已下线" checked />已下线</label></div></div><div class="feed-status-filter"><strong>资源位状态：</strong><div class="feed-filter-options" data-feed-filter="resourceStatus"><label><input type="checkbox" value="上线中" checked />上线中</label><label><input type="checkbox" value="待上线" checked />待上线</label><label><input type="checkbox" value="已下线" checked />已下线</label></div></div></section><section class="panel feed-tab-management"><div class="feed-tab-nav" id="feed-tab-nav" role="tablist" aria-label="首页信息流 Tab"></div><div class="feed-tab-workspace" id="feed-tab-workspace"></div></section></section>`;
   },
   renderEmbedded() {
-    return `<section class="home-marketing-builder feed-marketing-builder" id="feed-marketing-builder"><aside class="home-marketing-tools feed-marketing-tools"><h2>组件</h2><p>按状态筛选并维护首页信息流 Tab</p><div class="feed-embedded-filters" id="feed-embedded-filters"></div><div class="feed-embedded-tab-list" id="feed-embedded-tab-list" role="tablist" aria-label="首页信息流 Tab"></div></aside><section class="home-marketing-preview feed-marketing-preview"><div class="style-panel-heading"><h2>页面预览</h2><span>当前 Tab 资源位</span></div><div class="feed-embedded-preview" id="feed-embedded-preview"></div></section><aside class="home-marketing-settings feed-marketing-settings"><div class="style-panel-heading"><h2>配置</h2><span id="feed-embedded-config-type">未选择 Tab</span></div><div class="home-config-content" id="feed-embedded-config-content"></div><div class="home-config-actions"><button class="button secondary" id="feed-embedded-undo" type="button">撤销本次修改</button><button class="button primary" id="feed-embedded-save" type="button">保存配置</button></div></aside></section>`;
+    return `<section class="home-marketing-builder feed-marketing-builder" id="feed-marketing-builder"><aside class="home-marketing-tools feed-marketing-tools"><h2>组件</h2><p id="feed-component-tools-note">保存当前 Tab 后可拖入信息流组件</p><div class="home-tool-list"><button class="home-tool" type="button" draggable="true" data-feed-component-add="mosaic"><b>◫</b><span>信息流-拼图</span><small>活动素材组合展示</small></button><button class="home-tool" type="button" draggable="true" data-feed-component-add="red-packet-delivery"><b>￥</b><span>信息流-红包发放功能</span><small>红包权益发放展示</small></button><button class="home-tool" type="button" draggable="true" data-feed-component-add="native-slider"><b>↔</b><span>信息流-原生滑块</span><small>横向内容滑动展示</small></button></div></aside><section class="home-marketing-preview feed-marketing-preview"><div class="style-panel-heading"><h2>页面预览</h2><span>当前 Tab 资源位</span></div><div class="feed-embedded-filter-bar" id="feed-embedded-filters"></div><div class="feed-embedded-preview" id="feed-embedded-preview"></div></section><aside class="home-marketing-settings feed-marketing-settings"><div class="style-panel-heading"><h2>配置</h2><span id="feed-embedded-config-type">未选择 Tab</span></div><div class="home-config-content" id="feed-embedded-config-content"></div><div class="home-config-actions"><span class="home-component-save-tooltip" data-tooltip="保存当前 Tab 配置后，仍需点击页面保存才能提交整页配置。"><button class="button primary" id="save-feed-tab" type="button">保存Tab</button></span></div></aside></section>`;
   },
-  renderEmbeddedPreview(tab) {
-    if (!tab) return '<div class="feed-tab-empty"><b>当前筛选条件下暂无 Tab</b><span>可调整左侧状态筛选，或新增 Tab。</span></div>';
-    const iconPreview = tab.iconImage ? `<img src="${tab.iconImage}" alt="" />` : '<span>Tab</span>';
-    return `<section class="feed-tab-preview feed-embedded-preview-card" aria-label="Tab 前台预览"><div class="feed-app-tabs"><span class="feed-app-tab is-active"><i class="feed-app-icon">${iconPreview}</i>${this.escape(tab.tabName || '未命名 Tab')}${this.renderBadge(tab)}</span><span class="feed-app-tab">推荐</span><span class="feed-app-tab">好价</span></div><div class="feed-preview-card"><b>${this.escape(tab.tabName || '信息流 Tab')}</b><span>这里展示当前 Tab 的信息流资源位内容</span><div><i>精选返现</i><i>限时好价</i><i>热销推荐</i></div></div></section>`;
+  renderEmbeddedComponent(component, selectedComponentId = '') {
+    const slots = component.slots || [];
+    const activeClass = component.id === selectedComponentId ? ' is-active' : '';
+    const unsavedClass = component.isSaved ? '' : ' is-unsaved';
+    if (component.type === 'mosaic') {
+      const mosaic = this.createMosaicConfig(component.mosaic);
+      const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+      const mosaicImage = position.image ? `<img class="feed-preview-mosaic-image" src="${position.image}" alt="拼图素材预览" />` : '';
+      return `<button class="feed-preview-component feed-preview-mosaic${activeClass}${unsavedClass}${position.image ? ' has-image' : ''}" type="button" draggable="true" data-feed-preview-component="${this.escape(component.id)}">${mosaicImage}<span><small>限时福利</small><b>${this.escape(slots[0] || '福利活动主会场')}</b></span><i>${this.escape(slots[1] || '限时好礼')}</i></button>`;
+    }
+    if (component.type === 'grid') return `<button class="feed-preview-component feed-preview-grid${activeClass}${unsavedClass}" type="button" draggable="true" data-feed-preview-component="${this.escape(component.id)}"><b>精选权益</b><span>${slots.map((slot) => `<i>${this.escape(slot)}</i>`).join('')}</span></button>`;
+    if (component.type === 'native-slider') return `<button class="feed-preview-component feed-preview-native-slider${activeClass}${unsavedClass}" type="button" draggable="true" data-feed-preview-component="${this.escape(component.id)}"><span>${slots.map((slot, index) => `<i class="${index === 0 ? 'is-active' : ''}">${this.escape(slot)}</i>`).join('')}</span><small><b></b><b></b><b></b></small></button>`;
+    return `<button class="feed-preview-component feed-preview-red-packet${activeClass}${unsavedClass}" type="button" draggable="true" data-feed-preview-component="${this.escape(component.id)}"><span><small>福利红包</small><b>${this.escape(slots[0] || '福利红包')}</b></span><i>立即领取</i></button>`;
+  },
+  renderEmbeddedPreview(tab, tabs = [], selectedComponentId = '') {
+    if (!tab) return '<div class="feed-tab-empty"><b>当前筛选条件下暂无 Tab</b><span>可调整上方状态筛选，或新增 Tab。</span></div>';
+    const previewTabs = tabs.length ? tabs : [tab];
+    const tabNav = previewTabs.map((item) => {
+      const iconPreview = item.iconImage ? `<img src="${item.iconImage}" alt="" />` : '<span>Tab</span>';
+      const active = item.id === tab.id;
+      return `<button class="feed-app-tab${active ? ' is-active' : ''}" type="button" role="tab" aria-selected="${active}" data-feed-preview-tab="${this.escape(item.id)}"><i class="feed-app-icon">${iconPreview}</i>${this.escape(item.tabName || '未命名 Tab')}${this.renderBadge(item)}</button>`;
+    }).join('');
+    const components = tab.components || [];
+    const content = components.length ? components.map((component) => this.renderEmbeddedComponent(component, selectedComponentId)).join('') : '<div class="feed-preview-empty"><b>+</b><span>从左侧拖入信息流组件</span></div>';
+    return `<section class="feed-tab-preview feed-embedded-preview-card" aria-label="Tab 前台预览"><div class="feed-app-tabs" role="tablist" aria-label="信息流 Tab 预览导航"><div class="feed-app-tab-list">${tabNav}</div><button class="feed-app-tab-add" type="button" title="添加 Tab" aria-label="添加 Tab" data-feed-preview-add>+</button></div><div class="feed-preview-drop-zone" data-feed-preview-drop-zone>${content}</div></section>`;
   },
   renderEmbeddedConfig(tab) {
-    if (!tab) return '<div class="style-config-empty">请选择左侧 Tab，或点击新增 Tab 进行配置</div>';
+    if (!tab) return '<div class="style-config-empty">请选择预览中的 Tab，或点击加号新增 Tab 进行配置</div>';
     const field = (label, control) => `<div class="config-field"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
-    return `<div class="style-config-form feed-tab-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>Tab名称', `<input class="control" data-feed-embedded-field="tabName" value="${this.escape(tab.tabName)}" maxlength="12" placeholder="请输入 Tab 名称" />`)}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-feed-embedded-field="recordName" value="${this.escape(tab.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}${this.renderImageControl('icon图片', 'iconImage', tab.iconImage)}${this.renderImageControl('角标图片', 'cornerImage', tab.cornerImage, '尾标图片优先于角标图片展示；尾标和角标互斥，前台仅展示一个。')}${this.renderImageControl('尾标图片', 'tailImage', tab.tailImage, '仅限 v8.95.0 及以上版本可用。')}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'feed-tab', value: tab.targeting, required: true })}</div>`;
+    const productFeed = this.createProductFeedConfig(tab.productFeed);
+    tab.productFeed = productFeed;
+    const productSourceOptions = productFeed.source === 'third-party'
+      ? [['api-feed-001', '商品流 API-001'], ['api-feed-002', '商品流 API-002']]
+      : [['activity-library', '活动商品库'], ['featured-library', '精选商品库'], ['high-commission-library', '高佣商品库']];
+    const productFeedFields = `${field('商品数据来源', `<select class="control" data-feed-product-flow-field="source"><option value="app-library"${productFeed.source === 'app-library' ? ' selected' : ''}>应用库</option><option value="third-party"${productFeed.source === 'third-party' ? ' selected' : ''}>三方API</option></select>`)}${field('商品数据来源', `<select class="control" data-feed-product-flow-field="dataKey"><option value="">请选择数据商品来源</option>${productSourceOptions.map(([value, label]) => `<option value="${value}"${productFeed.dataKey === value ? ' selected' : ''}>${label}</option>`).join('')}</select>`)}${productFeed.source === 'third-party' ? field('<b class="field-required">*</b>关联PID', `<select class="control" data-feed-product-flow-field="pid"><option value="">请选择关联PID</option><option value="default-pid"${productFeed.pid === 'default-pid' ? ' selected' : ''}>默认PID</option><option value="pid-jd-001"${productFeed.pid === 'pid-jd-001' ? ' selected' : ''}>PID-京东-001</option><option value="pid-taobao-002"${productFeed.pid === 'pid-taobao-002' ? ' selected' : ''}>PID-淘宝-002</option></select>`) : ''}`;
+    return `<div class="style-config-form feed-tab-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>Tab名称 <button class="help-tooltip" type="button" aria-label="Tab名称说明" data-tooltip="用户端可见">?</button>', `<input class="control" data-feed-embedded-field="tabName" value="${this.escape(tab.tabName)}" maxlength="12" placeholder="请输入 Tab 名称" />`)}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-feed-embedded-field="recordName" value="${this.escape(tab.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}${this.renderImageControl('icon图片', 'iconImage', tab.iconImage)}${this.renderImageControl('角标图片', 'cornerImage', tab.cornerImage, '尾标图片优先于角标图片展示；尾标和角标互斥，前台仅展示一个。')}${this.renderImageControl('尾标图片', 'tailImage', tab.tailImage, '仅限 v8.95.0 及以上版本可用。')}</section><section class="home-entry-info-section shared-config-section feed-product-flow-section"><h3>商品流配置</h3>${productFeedFields}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'feed-tab', value: tab.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'feed-tab', value: tab.testPlan, description: '测试 UID 内的用户将在测试有效时间内看到此 Tab，到期自动终止，不影响正式配置。' })}</div>`;
   },
-  bindEmbedded() {
+  renderEmbeddedComponentConfig(component) {
+    const field = (label, control) => `<div class="config-field"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
+    if (component.type === 'mosaic') {
+      const mosaic = this.createMosaicConfig(component.mosaic);
+      component.mosaic = mosaic;
+      const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+      const assetControl = (label, fieldName, image) => `<span class="home-showcase-asset"><span class="home-showcase-asset-preview">${image ? `<img src="${image}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="home-showcase-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-feed-mosaic-image="${fieldName}" /></label><button class="home-entry-delete" type="button" data-feed-mosaic-delete="${fieldName}"${image ? '' : ' disabled'}>删除图片</button></span></span>`;
+      const help = (text) => `<button class="help-tooltip home-showcase-help" type="button" aria-label="字段说明" data-tooltip="${text}">?</button>`;
+      const pieces = mosaic.positions.map((item) => `<button class="feed-mosaic-piece${item.id === position.id ? ' is-selected' : ''}" type="button" data-feed-mosaic-position="${this.escape(item.id)}">${item.image ? `<img src="${item.image}" alt="拼图位置图片" />` : '<span>选择</span>'}${item.id === position.id ? '<b>★</b>' : ''}</button>`).join('');
+      const workspace = `<div class="home-showcase-workspace"><div class="feed-mosaic-canvas" aria-label="拼图配置"><div class="feed-mosaic-piece-list">${pieces}</div><span class="feed-mosaic-position-actions"><button class="feed-mosaic-position-add" type="button" data-feed-mosaic-position-add aria-label="添加位置">+</button><button class="feed-mosaic-position-remove" type="button" data-feed-mosaic-position-remove aria-label="删除选中位置"${mosaic.positions.length === 1 ? ' disabled' : ''}>×</button></span></div><span class="home-showcase-route-example">路由协议填写示例</span><div class="home-showcase-assets">${assetControl('上传图片', 'image', position.image)}${assetControl('暗黑模式', 'darkImage', position.darkImage)}</div><div class="home-showcase-route-row"><select class="control" data-feed-mosaic-field="routeType"><option value="">请选择跳转类型</option><option value="page"${position.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${position.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" data-feed-mosaic-field="routeProtocol" value="${this.escape(position.routeProtocol)}" placeholder="请输入路由协议" /></div><div class="home-showcase-input-help"><input class="control" data-feed-mosaic-field="pid" value="${this.escape(position.pid)}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" />${help('用于商城埋点上报的 PID 配置。')}</div><div class="home-showcase-input-help"><select class="control" data-feed-mosaic-field="selectedPid"><option value="">请选择 pid</option><option value="default"${position.selectedPid === 'default' ? ' selected' : ''}>默认 pid</option><option value="custom"${position.selectedPid === 'custom' ? ' selected' : ''}>自定义 pid</option></select>${help('选择当前拼图展示使用的 PID。')}</div><div class="home-showcase-input-help"><input class="control" data-feed-mosaic-field="skipType" value="${this.escape(position.skipType)}" placeholder="skip_type（用于埋点上报）" />${help('用于记录跳转类型的埋点字段。')}</div><input class="control" data-feed-mosaic-field="mallId" value="${this.escape(position.mallId)}" placeholder="商城 id" /><div class="home-showcase-popup-row">${assetControl('出站弹窗 logo', 'popupLogo', position.popupLogo)}<input class="control" data-feed-mosaic-field="popupCopy" value="${this.escape(position.popupCopy)}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input type="checkbox" data-feed-mosaic-field="requiresLogin"${position.requiresLogin ? ' checked' : ''} />用户需登录</label></div>`;
+      return `<div class="style-config-form feed-component-form feed-mosaic-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control feed-component-type-control" value="信息流-拼图" data-feed-static disabled aria-label="组件类型：信息流-拼图" />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-feed-component-field="recordName" value="${this.escape(component.recordName || component.label)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section home-showcase-feature-section"><h3>素材配置</h3>${field('拼图配置 <button class="help-tooltip" type="button" aria-label="拼图配置说明" data-tooltip="此部分内容复用「美柚返现」；如有修改，则以最新的逻辑为准。">?</button>', workspace, 'home-showcase-config-field')}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'feed-mosaic', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'feed-mosaic', value: component.testPlan, description: '测试 UID 内的用户将在测试有效时间内看到此信息流-拼图组件，到期自动终止，不影响正式配置。' })}<button class="text-button home-remove-component" type="button" data-feed-component-remove="${this.escape(component.id)}">移除组件</button></div>`;
+    }
+    if (component.type === 'red-packet-delivery') {
+      const redPacket = this.createRedPacketConfig(component.redPacket);
+      component.redPacket = redPacket;
+      const asset = (label, key, image) => `<span class="home-red-packet-title-asset"><span class="home-red-packet-title-asset-preview">${image ? `<img src="${image}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="home-red-packet-title-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-feed-red-packet-image="${key}" /></label><button class="home-entry-delete" type="button" data-feed-red-packet-delete="${key}"${image ? '' : ' disabled'}>删除图片</button></span></span>`;
+      const titleArea = redPacket.titleArea ? `<div class="home-red-packet-title-area-fields">${field('标题', `<input class="control" data-feed-red-packet-field="title" value="${this.escape(redPacket.title)}" placeholder="请输入标题" />`)}${field('副标题', `<input class="control" data-feed-red-packet-field="subtitle" value="${this.escape(redPacket.subtitle)}" placeholder="请输入副标题" />`)}${field('标题图片', `<div class="home-red-packet-title-assets">${asset('上传图片', 'titleImage', redPacket.titleImage)}${asset('暗黑模式', 'titleDarkImage', redPacket.titleDarkImage)}</div><p>若同时填写文字标题，以图片优先展示。</p>`, 'home-red-packet-title-image-field')}</div>` : '';
+      const packageInfo = redPacket.deliveryType === 'package' ? `<div class="home-red-packet-package-info"><p class="home-red-packet-package-notice">同一券包配置内，关联红包每人最多可领取一次，无法重复领取</p>${field('<b class="field-required">*</b>未领取图片素材', `<div class="home-red-packet-package-asset-list">${asset('上传图片', 'unclaimedImage', redPacket.unclaimedImage)}${asset('暗黑模式', 'unclaimedDarkImage', redPacket.unclaimedDarkImage)}</div><p class="home-red-packet-package-help">用户未领取时展示整张素材图。未领取态不展示标题区，以图片素材为主视觉。</p>`, 'home-red-packet-package-assets')}</div>` : '';
+      const packageTemplate = redPacket.deliveryType === 'package' ? field('<b class="field-required">*</b>红包模板', `<span class="home-red-packet-template-options"><label class="home-red-packet-template-card${redPacket.template === 'with-button' ? ' is-selected' : ''}"><input type="radio" name="feed-red-packet-template" value="with-button"${redPacket.template === 'with-button' ? ' checked' : ''} /><span class="home-red-packet-template-copy"><b>模板一：有去使用按钮</b><small>已领取/待使用状态下展示“去使用”按钮，点击后按红包自身配置的跳转地址跳转。</small></span><img class="home-red-packet-template-preview" src="assets/marketing-config/red-packet-template-with-button.png" alt="模板一红包样式示意" /></label><label class="home-red-packet-template-card${redPacket.template === 'without-button' ? ' is-selected' : ''}"><input type="radio" name="feed-red-packet-template" value="without-button"${redPacket.template === 'without-button' ? ' checked' : ''} /><span class="home-red-packet-template-copy"><b>模板二：无去使用按钮</b><small>已领取/待使用状态下不展示按钮。适用于红包跳转地址为返现首页，避免用户点击后仍停留首页。</small></span><img class="home-red-packet-template-preview" src="assets/marketing-config/red-packet-template-without-button.png" alt="模板二红包样式示意" /></label></span><p class="home-red-packet-template-help">若关联红包的跳转地址为返现首页，建议选择“无去使用按钮”，避免用户感知为按钮无效。</p>`, 'home-red-packet-template-field') : '';
+      return `<div class="style-config-form feed-component-form home-red-packet-form"><section class="home-entry-info-section shared-config-section"><h3>基础信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control feed-component-type-control" value="信息流-红包发放功能" data-feed-static disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-feed-red-packet-field="name" value="${this.escape(redPacket.name)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section"><h3>功能信息</h3>${field('<b class="field-required">*</b>发放类型', `<span class="home-entry-status-control"><label><input type="radio" name="feed-red-packet-delivery" value="single"${redPacket.deliveryType === 'single' ? ' checked' : ''} />单个发放</label><label><input type="radio" name="feed-red-packet-delivery" value="package"${redPacket.deliveryType === 'package' ? ' checked' : ''} />券包发放</label></span>`)}${packageInfo}${field('是否配置标题区', `<span class="home-entry-status-control"><label><input type="checkbox" data-feed-red-packet-title-area${redPacket.titleArea ? ' checked' : ''} />配置标题区</label></span>`)}${titleArea}${packageTemplate}<div class="home-red-packet-link"><span>关联返现红包</span><div class="home-red-packet-link-control"><button class="button secondary" type="button" disabled title="本原型不展开红包关联明细">+ 关联红包</button><div class="home-red-packet-link-placeholder">关联区</div></div></div></section>${window.ConfigurationSections.renderTargeting({ prefix: 'feed-red-packet', value: redPacket.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'feed-red-packet', value: redPacket.testPlan })}<p>带 * 的字段为必填项。关联红包仅保留入口，不在此处配置选择明细。</p><button class="text-button home-remove-component" type="button" data-feed-component-remove="${this.escape(component.id)}">移除组件</button></div>`;
+    }
+    const slots = component.slots || [];
+    const assets = component.assets || [];
+    const assetControl = (index) => {
+      const image = assets[index] || '';
+      return `<div class="feed-component-asset">${image ? `<span class="feed-component-asset-preview"><img src="${image}" alt="坑位${index + 1}图片" /></span>` : '<span class="feed-component-asset-preview">暂无图片</span>'}<span class="feed-component-asset-actions"><label class="button secondary feed-component-upload">上传图片<input type="file" accept="image/*" data-feed-component-image="${index}" /></label>${image ? `<button class="feed-component-image-delete" type="button" data-feed-component-image-delete="${index}">删除图片</button>` : ''}</span></div>`;
+    };
+    return `<div class="style-config-form feed-component-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>记录名称', `<input class="control" data-feed-component-field="recordName" value="${this.escape(component.recordName || component.label)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}${field('组件类型', `<input class="control feed-component-type-control" value="${this.escape(component.label)}" data-feed-static disabled />`)}</section><section class="home-entry-info-section shared-config-section"><h3>素材配置</h3>${slots.map((slot, index) => `${field(`<b class="field-required">*</b>坑位${index + 1}`, `<input class="control" data-feed-component-slot="${index}" value="${this.escape(slot)}" maxlength="20" placeholder="请输入坑位名称" />`)}${field('图片', assetControl(index))}`).join('')}</section><button class="text-button home-remove-component" type="button" data-feed-component-remove="${this.escape(component.id)}">移除组件</button></div>`;
+  },
+  bindEmbedded({ navigate, storageKey = this.storageKey, pageName = '首页信息流营销' } = {}) {
     const root = document.getElementById('feed-marketing-builder');
     if (!root) return;
-    let saved = this.loadState();
-    let draft = this.clone(saved);
+    let draft = this.clone(this.loadState(storageKey));
     let filters = { status: new Set(['上线中', '待上线', '已下线']), resourceStatus: new Set(['上线中', '待上线', '已下线']) };
+    let draggedToolType = '';
+    let draggedComponentId = '';
+    let selectedComponentId = '';
+    const snapshot = () => ({ tabs: draft.tabs });
+    const editSession = window.EditSession.create({
+      snapshot,
+      clone: (value) => this.clone(value),
+      confirmClose: () => window.BackofficeLayout.confirm({
+        title: '确认关闭编辑？',
+        message: '当前编辑的内容未保存，是否仍然要关闭',
+        confirmText: '仍然关闭',
+        cancelText: '继续编辑'
+      })
+    });
     const activeTab = () => draft.tabs.find((tab) => tab.id === draft.activeTabId);
+    const activeComponent = () => activeTab()?.components.find((component) => component.id === selectedComponentId) || null;
+    const updatePageActions = () => {
+      const actions = document.getElementById('marketing-page-actions');
+      if (!actions) return;
+      const isEditing = editSession.isEditing();
+      actions.innerHTML = `<button class="button secondary" id="cancel-feed-marketing" type="button"${isEditing && editSession.hasPageChanges() ? '' : ' disabled'}>撤销本次修改</button><button class="button primary${isEditing ? '' : ' is-edit-action'}" id="save-feed-marketing" type="button">${isEditing ? '保存页面' : '编辑'}</button>`;
+    };
+    const applyEditState = () => {
+      const isEditing = editSession.isEditing();
+      const tab = activeTab();
+      const canConfigureComponents = isEditing && Boolean(tab?.isSaved);
+      root.classList.toggle('is-editing', isEditing);
+      root.querySelectorAll('.feed-marketing-settings input:not([data-feed-static]), .feed-marketing-settings select:not([data-feed-static]), .feed-marketing-settings textarea:not([data-feed-static])').forEach((control) => { control.disabled = !isEditing; });
+      root.querySelectorAll('[data-feed-component-add]').forEach((control) => { control.disabled = !canConfigureComponents; });
+      root.querySelectorAll('[data-feed-image-delete], [data-feed-component-image-delete], [data-feed-mosaic-delete], [data-feed-red-packet-delete], [data-feed-mosaic-position-add], [data-feed-mosaic-position-remove], [data-feed-component-remove]').forEach((control) => { control.disabled = !isEditing || (control.matches('[data-feed-mosaic-position-remove]') && activeComponent()?.mosaic?.positions?.length <= 1); });
+      root.querySelector('#feed-component-tools-note').textContent = tab?.isSaved ? '拖入当前 Tab 的信息流预览区域' : '请先保存当前 Tab，再拖入信息流组件';
+      root.querySelector('.feed-marketing-tools').classList.toggle('is-locked', !canConfigureComponents);
+      const component = activeComponent();
+      root.querySelectorAll('[data-feed-preview-component]').forEach((element) => {
+        const previewComponent = tab?.components.find((item) => item.id === element.dataset.feedPreviewComponent);
+        element.classList.toggle('is-unsaved', Boolean(previewComponent && !previewComponent.isSaved));
+      });
+      const saveButton = root.querySelector('#save-feed-tab');
+      saveButton.textContent = component ? '保存组件' : '保存Tab';
+      saveButton.closest('.home-component-save-tooltip').dataset.tooltip = component ? '保存当前组件配置后，仍需点击页面保存才能提交整页配置。' : '保存当前 Tab 配置后，仍需点击页面保存才能提交整页配置。';
+      saveButton.disabled = !isEditing || !editSession.hasComponentChanges();
+      updatePageActions();
+    };
     const readTargeting = (tab) => {
       const targeting = window.ConfigurationSections.normalizeTargeting(tab.targeting);
       targeting.identities = [...root.querySelectorAll('[data-feed-tab-identity]:checked')].map((input) => input.value);
@@ -80,38 +245,337 @@ window.FeedManagementPage = {
       targeting.status = root.querySelector('input[name="feed-tab-status"]:checked')?.value || '上线';
       tab.targeting = targeting;
     };
+    const readTestPlan = (tab) => {
+      const testPlan = window.ConfigurationSections.normalizeTestPlan(tab.testPlan);
+      root.querySelectorAll('[data-feed-tab-test]').forEach((input) => {
+        testPlan[input.dataset.feedTabTest] = input.type === 'checkbox' ? input.checked : input.value;
+      });
+      tab.testPlan = testPlan;
+    };
+    const readMosaicTargeting = (component) => {
+      const targeting = window.ConfigurationSections.normalizeTargeting(component.targeting);
+      targeting.identities = [...root.querySelectorAll('[data-feed-mosaic-identity]:checked')].map((input) => input.value);
+      targeting.targetGroup = root.querySelector('[data-feed-mosaic-targeting-field="targetGroup"]')?.value || '';
+      targeting.excludeGroup = root.querySelector('[data-feed-mosaic-targeting-field="excludeGroup"]')?.value || '';
+      targeting.audiences = [...root.querySelectorAll('[data-feed-mosaic-audience]:checked')].map((input) => input.value);
+      targeting.audienceInversion = root.querySelector('input[name="feed-mosaic-audience-inversion"]:checked')?.value || '否';
+      targeting.experimentId = root.querySelector('[data-feed-mosaic-targeting-field="experimentId"]')?.value || '';
+      targeting.excludeExperiment = root.querySelector('[data-feed-mosaic-targeting-field="excludeExperiment"]')?.value || '';
+      root.querySelectorAll('[data-feed-mosaic-platform]').forEach((input) => { targeting.platformVersions[input.dataset.feedMosaicPlatform].enabled = input.checked; });
+      root.querySelectorAll('[data-feed-mosaic-version]').forEach((input) => { const [key, type] = input.dataset.feedMosaicVersion.split(':'); targeting.platformVersions[key][type] = input.value; });
+      targeting.onlineStart = root.querySelector('[data-feed-mosaic-targeting-field="onlineStart"]')?.value || '';
+      targeting.onlineEnd = root.querySelector('[data-feed-mosaic-targeting-field="onlineEnd"]')?.value || '';
+      targeting.status = root.querySelector('input[name="feed-mosaic-status"]:checked')?.value || '上线';
+      component.targeting = targeting;
+    };
+    const readMosaicTestPlan = (component) => {
+      const testPlan = window.ConfigurationSections.normalizeTestPlan(component.testPlan);
+      root.querySelectorAll('[data-feed-mosaic-test]').forEach((input) => {
+        testPlan[input.dataset.feedMosaicTest] = input.type === 'checkbox' ? input.checked : input.value;
+      });
+      component.testPlan = testPlan;
+    };
+    const readRedPacketConfig = (component) => {
+      const redPacket = this.createRedPacketConfig(component.redPacket);
+      root.querySelectorAll('[data-feed-red-packet-field]').forEach((input) => { redPacket[input.dataset.feedRedPacketField] = input.value; });
+      redPacket.deliveryType = root.querySelector('input[name="feed-red-packet-delivery"]:checked')?.value || 'single';
+      redPacket.titleArea = Boolean(root.querySelector('[data-feed-red-packet-title-area]')?.checked);
+      redPacket.template = root.querySelector('input[name="feed-red-packet-template"]:checked')?.value || 'with-button';
+      redPacket.targeting.identities = [...root.querySelectorAll('[data-feed-red-packet-identity]:checked')].map((input) => input.value);
+      root.querySelectorAll('[data-feed-red-packet-targeting-field]').forEach((input) => { redPacket.targeting[input.dataset.feedRedPacketTargetingField] = input.value; });
+      redPacket.targeting.audiences = [...root.querySelectorAll('[data-feed-red-packet-audience]:checked')].map((input) => input.value);
+      redPacket.targeting.audienceInversion = root.querySelector('input[name="feed-red-packet-audience-inversion"]:checked')?.value || '否';
+      redPacket.targeting.status = root.querySelector('input[name="feed-red-packet-status"]:checked')?.value || '上线';
+      root.querySelectorAll('[data-feed-red-packet-platform]').forEach((input) => { redPacket.targeting.platformVersions[input.dataset.feedRedPacketPlatform].enabled = input.checked; });
+      root.querySelectorAll('[data-feed-red-packet-version]').forEach((input) => { const [key, type] = input.dataset.feedRedPacketVersion.split(':'); redPacket.targeting.platformVersions[key][type] = input.value; });
+      root.querySelectorAll('[data-feed-red-packet-test]').forEach((input) => { redPacket.testPlan[input.dataset.feedRedPacketTest] = input.type === 'checkbox' ? input.checked : input.value; });
+      component.redPacket = redPacket;
+    };
     const renderAll = () => {
       const visibleTabs = draft.tabs.filter((tab) => filters.status.has(tab.status) && filters.resourceStatus.has(tab.resourceStatus));
       const active = visibleTabs.find((tab) => tab.id === draft.activeTabId) || visibleTabs[0] || null;
       if (active && active.id !== draft.activeTabId) draft.activeTabId = active.id;
-      const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+      if (!active?.components.some((component) => component.id === selectedComponentId)) selectedComponentId = '';
+      const component = activeComponent();
       root.querySelector('#feed-embedded-filters').innerHTML = `<div class="feed-embedded-filter"><strong>Tab状态</strong><div>${['上线中', '待上线', '已下线'].map((value) => `<label><input type="checkbox" data-feed-embedded-filter="status" value="${value}"${filters.status.has(value) ? ' checked' : ''} />${value}</label>`).join('')}</div></div><div class="feed-embedded-filter"><strong>资源位状态</strong><div>${['上线中', '待上线', '已下线'].map((value) => `<label><input type="checkbox" data-feed-embedded-filter="resourceStatus" value="${value}"${filters.resourceStatus.has(value) ? ' checked' : ''} />${value}</label>`).join('')}</div></div>`;
-      root.querySelector('#feed-embedded-tab-list').innerHTML = `${visibleTabs.map((tab) => `<button class="feed-embedded-tab${tab.id === draft.activeTabId ? ' is-active' : ''}" type="button" data-feed-embedded-tab="${tab.id}">${this.escape(tab.tabName || '未命名 Tab')}${this.renderBadge(tab)}</button>`).join('')}<button class="feed-embedded-add" id="feed-embedded-add" type="button">+ 新增 Tab</button>`;
-      root.querySelector('#feed-embedded-preview').innerHTML = this.renderEmbeddedPreview(active);
-      root.querySelector('#feed-embedded-config-type').textContent = active ? `Tab · ${active.tabName || '未命名'}` : '未选择 Tab';
-      root.querySelector('#feed-embedded-config-content').innerHTML = this.renderEmbeddedConfig(active);
-      root.querySelector('#feed-embedded-undo').disabled = !dirty;
-      root.querySelector('#feed-embedded-save').disabled = !dirty;
+      root.querySelector('#feed-embedded-preview').innerHTML = this.renderEmbeddedPreview(active, draft.tabs, selectedComponentId);
+      root.querySelector('#feed-embedded-config-type').textContent = component ? component.label : active ? `Tab · ${active.tabName || '未命名'}` : '未选择 Tab';
+      root.querySelector('#feed-embedded-config-content').innerHTML = component ? this.renderEmbeddedComponentConfig(component) : this.renderEmbeddedConfig(active);
+      applyEditState();
       window.BackofficeLayout.bindGlobalTooltips();
     };
     root.addEventListener('click', (event) => {
-      const tabButton = event.target.closest('[data-feed-embedded-tab]');
-      if (tabButton) { draft.activeTabId = tabButton.dataset.feedEmbeddedTab; renderAll(); return; }
-      if (event.target.closest('#feed-embedded-add')) { const tab = this.createTab(); draft.tabs.push(tab); draft.activeTabId = tab.id; renderAll(); return; }
+      const previewTabButton = event.target.closest('[data-feed-preview-tab]');
+      if (previewTabButton) { draft.activeTabId = previewTabButton.dataset.feedPreviewTab; selectedComponentId = ''; renderAll(); return; }
+      if (event.target.closest('[data-feed-preview-add]')) { if (!editSession.isEditing()) editSession.startEditing(); const tab = this.createTab(); draft.tabs.push(tab); draft.activeTabId = tab.id; selectedComponentId = ''; renderAll(); return; }
+      const previewComponent = event.target.closest('[data-feed-preview-component]');
+      if (previewComponent) { selectedComponentId = previewComponent.dataset.feedPreviewComponent; renderAll(); return; }
+      const componentTool = event.target.closest('[data-feed-component-add]');
+      if (componentTool) { const tab = activeTab(); if (!editSession.isEditing() || !tab?.isSaved) { window.BackofficeLayout.showToast?.('请先保存Tab', '保存成功后才可拖入信息流组件'); return; } const component = this.createFeedComponent(componentTool.dataset.feedComponentAdd); tab.components.push(component); selectedComponentId = component.id; renderAll(); return; }
+      const mosaicPosition = event.target.closest('[data-feed-mosaic-position]');
+      if (mosaicPosition) {
+        const component = activeComponent();
+        if (component?.type === 'mosaic') {
+          component.mosaic = this.createMosaicConfig(component.mosaic);
+          component.mosaic.selectedPositionId = mosaicPosition.dataset.feedMosaicPosition;
+          renderAll();
+        }
+        return;
+      }
+      const addMosaicPosition = event.target.closest('[data-feed-mosaic-position-add]');
+      if (addMosaicPosition) {
+        if (!editSession.isEditing()) return;
+        const component = activeComponent();
+        if (component?.type === 'mosaic') {
+          const mosaic = this.createMosaicConfig(component.mosaic);
+          const position = this.createMosaicConfig().positions[0];
+          mosaic.positions.push(position);
+          mosaic.selectedPositionId = position.id;
+          component.mosaic = mosaic;
+          component.isSaved = false;
+          renderAll();
+        }
+        return;
+      }
+      const removeMosaicPosition = event.target.closest('[data-feed-mosaic-position-remove]');
+      if (removeMosaicPosition) {
+        if (!editSession.isEditing()) return;
+        const component = activeComponent();
+        if (component?.type === 'mosaic') {
+          const mosaic = this.createMosaicConfig(component.mosaic);
+          if (mosaic.positions.length > 1) {
+            const removedIndex = mosaic.positions.findIndex((item) => item.id === mosaic.selectedPositionId);
+            mosaic.positions.splice(removedIndex < 0 ? mosaic.positions.length - 1 : removedIndex, 1);
+            mosaic.selectedPositionId = mosaic.positions[Math.max(0, Math.min(removedIndex, mosaic.positions.length - 1))].id;
+            component.mosaic = mosaic;
+            component.isSaved = false;
+            renderAll();
+          }
+        }
+        return;
+      }
+      const removeComponent = event.target.closest('[data-feed-component-remove]');
+      if (removeComponent) { if (!editSession.isEditing()) return; const tab = activeTab(); if (tab) { tab.components = tab.components.filter((component) => component.id !== removeComponent.dataset.feedComponentRemove); selectedComponentId = ''; renderAll(); } return; }
       const deleteButton = event.target.closest('[data-feed-image-delete]');
-      if (deleteButton) { const tab = activeTab(); if (tab) { tab[deleteButton.dataset.feedImageDelete] = ''; renderAll(); } return; }
-      if (event.target.closest('#feed-embedded-undo')) { draft = this.clone(saved); renderAll(); return; }
-      if (event.target.closest('#feed-embedded-save')) { const tab = activeTab(); if (tab) readTargeting(tab); const invalid = draft.tabs.map((item) => this.validate(item)).find(Boolean); if (invalid) { window.BackofficeLayout.showToast?.(invalid); return; } saved = this.clone(draft); this.saveState(saved); renderAll(); window.BackofficeLayout.showToast?.('信息流配置已保存'); }
+      if (deleteButton) { if (!editSession.isEditing()) return; const tab = activeTab(); if (tab) { tab[deleteButton.dataset.feedImageDelete] = ''; tab.isSaved = false; renderAll(); } }
+      const componentImageDelete = event.target.closest('[data-feed-component-image-delete]');
+      if (componentImageDelete) { if (!editSession.isEditing()) return; const component = activeComponent(); if (component) { component.assets[Number(componentImageDelete.dataset.feedComponentImageDelete)] = ''; component.isSaved = false; renderAll(); } }
+      const mosaicImageDelete = event.target.closest('[data-feed-mosaic-delete]');
+      if (mosaicImageDelete) { if (!editSession.isEditing()) return; const component = activeComponent(); if (component?.type === 'mosaic') { const mosaic = this.createMosaicConfig(component.mosaic); const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0]; position[mosaicImageDelete.dataset.feedMosaicDelete] = ''; component.mosaic = mosaic; component.isSaved = false; renderAll(); } }
+      const redPacketImageDelete = event.target.closest('[data-feed-red-packet-delete]');
+      if (redPacketImageDelete) { if (!editSession.isEditing()) return; const component = activeComponent(); if (component?.type === 'red-packet-delivery') { component.redPacket = this.createRedPacketConfig(component.redPacket); component.redPacket[redPacketImageDelete.dataset.feedRedPacketDelete] = ''; component.isSaved = false; renderAll(); } }
     });
-    root.addEventListener('input', (event) => { const tab = activeTab(); if (!tab) return; if (event.target.matches('[data-feed-embedded-field]')) { tab[event.target.dataset.feedEmbeddedField] = event.target.value; renderAll(); return; } if (event.target.closest('.feed-tab-form')) { readTargeting(tab); const dirty = JSON.stringify(draft) !== JSON.stringify(saved); root.querySelector('#feed-embedded-undo').disabled = !dirty; root.querySelector('#feed-embedded-save').disabled = !dirty; } });
+    const clearDragState = () => {
+      draggedToolType = '';
+      draggedComponentId = '';
+      root.querySelectorAll('.is-dragging, .is-dragover').forEach((item) => item.classList.remove('is-dragging', 'is-dragover'));
+    };
+    root.addEventListener('dragstart', (event) => {
+      if (!editSession.isEditing()) return;
+      const tool = event.target.closest('[data-feed-component-add]');
+      if (tool) {
+        if (!activeTab()?.isSaved) { event.preventDefault(); window.BackofficeLayout.showToast?.('请先保存Tab', '保存成功后才可拖入信息流组件'); return; }
+        draggedToolType = tool.dataset.feedComponentAdd;
+        tool.classList.add('is-dragging');
+        event.dataTransfer.effectAllowed = 'copy';
+        event.dataTransfer.setData('text/plain', `feed-tool:${draggedToolType}`);
+        return;
+      }
+      const component = event.target.closest('[data-feed-preview-component]');
+      if (component) {
+        draggedComponentId = component.dataset.feedPreviewComponent;
+        component.classList.add('is-dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', `feed-component:${draggedComponentId}`);
+      }
+    });
+    root.addEventListener('dragover', (event) => {
+      const target = event.target.closest('[data-feed-preview-drop-zone], [data-feed-preview-component]');
+      if (!target || (!draggedToolType && !draggedComponentId)) return;
+      event.preventDefault();
+      target.classList.add('is-dragover');
+      event.dataTransfer.dropEffect = draggedToolType ? 'copy' : 'move';
+    });
+    root.addEventListener('dragleave', (event) => {
+      const target = event.target.closest('[data-feed-preview-drop-zone], [data-feed-preview-component]');
+      if (target && !target.contains(event.relatedTarget)) target.classList.remove('is-dragover');
+    });
+    root.addEventListener('drop', (event) => {
+      if (!editSession.isEditing()) return;
+      const target = event.target.closest('[data-feed-preview-drop-zone], [data-feed-preview-component]');
+      const tab = activeTab();
+      if (!target || !tab || (!draggedToolType && !draggedComponentId)) return;
+      if (draggedToolType && !tab.isSaved) { clearDragState(); window.BackofficeLayout.showToast?.('请先保存Tab', '保存成功后才可拖入信息流组件'); return; }
+      event.preventDefault();
+      const targetId = target.dataset.feedPreviewComponent;
+      if (draggedToolType) {
+        const component = this.createFeedComponent(draggedToolType);
+        const targetIndex = targetId ? tab.components.findIndex((item) => item.id === targetId) : -1;
+        tab.components.splice(targetIndex < 0 ? tab.components.length : targetIndex, 0, component);
+      } else if (draggedComponentId && draggedComponentId !== targetId) {
+        const fromIndex = tab.components.findIndex((item) => item.id === draggedComponentId);
+        const targetIndex = targetId ? tab.components.findIndex((item) => item.id === targetId) : tab.components.length - 1;
+        if (fromIndex >= 0 && targetIndex >= 0) {
+          const [component] = tab.components.splice(fromIndex, 1);
+          tab.components.splice(fromIndex < targetIndex ? targetIndex - 1 : targetIndex, 0, component);
+          component.isSaved = false;
+          selectedComponentId = component.id;
+        }
+      }
+      clearDragState();
+      renderAll();
+    });
+    root.addEventListener('dragend', clearDragState);
+    root.addEventListener('input', (event) => {
+      if (!editSession.isEditing()) return;
+      const tab = activeTab();
+      if (!tab) return;
+      if (event.target.matches('[data-feed-embedded-field]')) {
+        tab[event.target.dataset.feedEmbeddedField] = event.target.value;
+        tab.isSaved = false;
+        root.querySelector('#feed-embedded-preview').innerHTML = this.renderEmbeddedPreview(tab, draft.tabs, selectedComponentId);
+        root.querySelector('#feed-embedded-config-type').textContent = `Tab · ${tab.tabName || '未命名'}`;
+        applyEditState();
+        return;
+      }
+      if (event.target.matches('[data-feed-product-flow-field]')) {
+        tab.productFeed = this.createProductFeedConfig(tab.productFeed);
+        tab.productFeed[event.target.dataset.feedProductFlowField] = event.target.value;
+        tab.isSaved = false;
+        applyEditState();
+        return;
+      }
+      const component = activeComponent();
+      if (component && event.target.matches('[data-feed-component-field]')) {
+        component[event.target.dataset.feedComponentField] = event.target.value;
+        component.isSaved = false;
+        applyEditState();
+        return;
+      }
+      if (component && event.target.matches('[data-feed-component-slot]')) {
+        component.slots[Number(event.target.dataset.feedComponentSlot)] = event.target.value;
+        component.isSaved = false;
+        root.querySelector('#feed-embedded-preview').innerHTML = this.renderEmbeddedPreview(tab, draft.tabs, selectedComponentId);
+        applyEditState();
+        return;
+      }
+      if (component?.type === 'red-packet-delivery' && event.target.closest('.home-red-packet-form')) {
+        readRedPacketConfig(component);
+        component.isSaved = false;
+        applyEditState();
+        return;
+      }
+      if (component?.type === 'mosaic' && event.target.matches('[data-feed-mosaic-field]')) {
+        const mosaic = this.createMosaicConfig(component.mosaic);
+        const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+        position[event.target.dataset.feedMosaicField] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        component.mosaic = mosaic;
+        component.isSaved = false;
+        if (event.target.dataset.feedMosaicField === 'routeProtocol') root.querySelector('#feed-embedded-preview').innerHTML = this.renderEmbeddedPreview(tab, draft.tabs, selectedComponentId);
+        applyEditState();
+        return;
+      }
+      if (component?.type === 'mosaic' && event.target.closest('.feed-mosaic-form')) {
+        readMosaicTargeting(component);
+        readMosaicTestPlan(component);
+        component.isSaved = false;
+        applyEditState();
+        return;
+      }
+      if (event.target.closest('.feed-tab-form')) {
+        readTargeting(tab);
+        readTestPlan(tab);
+        tab.isSaved = false;
+        applyEditState();
+      }
+    });
     root.addEventListener('change', async (event) => {
       const filter = event.target.closest('[data-feed-embedded-filter]');
       if (filter) { const group = filter.dataset.feedEmbeddedFilter; filter.checked ? filters[group].add(filter.value) : filters[group].delete(filter.value); renderAll(); return; }
       const imageInput = event.target.closest('[data-feed-image]');
-      if (imageInput?.files?.[0]) { const tab = activeTab(); if (tab) { tab[imageInput.dataset.feedImage] = await this.readImage(imageInput.files[0]); renderAll(); } return; }
-      const tab = activeTab(); if (tab && event.target.closest('.feed-tab-form')) { readTargeting(tab); const dirty = JSON.stringify(draft) !== JSON.stringify(saved); root.querySelector('#feed-embedded-undo').disabled = !dirty; root.querySelector('#feed-embedded-save').disabled = !dirty; }
+      if (!editSession.isEditing()) return;
+      if (imageInput?.files?.[0]) { const tab = activeTab(); if (tab) { tab[imageInput.dataset.feedImage] = await this.readImage(imageInput.files[0]); tab.isSaved = false; renderAll(); } return; }
+      const productFlowField = event.target.closest('[data-feed-product-flow-field]');
+      if (productFlowField) {
+        const tab = activeTab();
+        if (!tab) return;
+        tab.productFeed = this.createProductFeedConfig(tab.productFeed);
+        tab.productFeed[productFlowField.dataset.feedProductFlowField] = productFlowField.value;
+        tab.isSaved = false;
+        if (productFlowField.dataset.feedProductFlowField === 'source') renderAll();
+        else applyEditState();
+        return;
+      }
+      const componentImageInput = event.target.closest('[data-feed-component-image]');
+      if (componentImageInput?.files?.[0]) { const component = activeComponent(); if (component) { component.assets[Number(componentImageInput.dataset.feedComponentImage)] = await this.readImage(componentImageInput.files[0]); component.isSaved = false; renderAll(); } return; }
+      const mosaicImageInput = event.target.closest('[data-feed-mosaic-image]');
+      if (mosaicImageInput?.files?.[0]) { const component = activeComponent(); if (component?.type === 'mosaic') { const mosaic = this.createMosaicConfig(component.mosaic); const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0]; position[mosaicImageInput.dataset.feedMosaicImage] = await this.readImage(mosaicImageInput.files[0]); component.mosaic = mosaic; component.isSaved = false; renderAll(); } return; }
+      const component = activeComponent();
+      const redPacketImageInput = event.target.closest('[data-feed-red-packet-image]');
+      if (redPacketImageInput?.files?.[0]) { if (component?.type === 'red-packet-delivery') { component.redPacket = this.createRedPacketConfig(component.redPacket); component.redPacket[redPacketImageInput.dataset.feedRedPacketImage] = await this.readImage(redPacketImageInput.files[0]); component.isSaved = false; renderAll(); } return; }
+      if (component?.type === 'red-packet-delivery' && event.target.closest('.home-red-packet-form')) { readRedPacketConfig(component); component.isSaved = false; renderAll(); return; }
+      if (component?.type === 'mosaic' && event.target.matches('[data-feed-mosaic-field]')) {
+        const mosaic = this.createMosaicConfig(component.mosaic);
+        const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+        position[event.target.dataset.feedMosaicField] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        component.mosaic = mosaic;
+        component.isSaved = false;
+        renderAll();
+        return;
+      }
+      if (component?.type === 'mosaic' && event.target.closest('.feed-mosaic-form')) { readMosaicTargeting(component); readMosaicTestPlan(component); component.isSaved = false; applyEditState(); return; }
+      const tab = activeTab(); if (tab && event.target.closest('.feed-tab-form')) { readTargeting(tab); readTestPlan(tab); tab.isSaved = false; applyEditState(); }
+    });
+    root.querySelector('#save-feed-tab').addEventListener('click', () => {
+      const tab = activeTab();
+      const component = activeComponent();
+      if (tab && !component) { readTargeting(tab); readTestPlan(tab); tab.productFeed = this.createProductFeedConfig(tab.productFeed); }
+      if (component?.type === 'mosaic') { readMosaicTargeting(component); readMosaicTestPlan(component); }
+      if (component?.type === 'red-packet-delivery') { readRedPacketConfig(component); component.recordName = component.redPacket.name; }
+      const invalid = component ? this.validateComponent(component) : this.validate(tab);
+      if (invalid) { window.BackofficeLayout.showToast?.(invalid); return; }
+      if (component) component.isSaved = true;
+      if (tab && !component) tab.isSaved = true;
+      editSession.markComponentSaved();
+      applyEditState();
+      window.BackofficeLayout.showToast?.(component ? '组件已保存' : 'Tab已保存', '请点击页面保存，提交整页营销配置');
+    });
+    document.getElementById('marketing-page-actions')?.addEventListener('click', async (event) => {
+      const action = event.target.closest('button');
+      if (!action) return;
+      if (action.id === 'save-feed-marketing') {
+        if (!editSession.isEditing()) { editSession.startEditing(); renderAll(); return; }
+        const invalidTab = draft.tabs.map((item) => this.validate(item)).find(Boolean);
+        if (invalidTab) { window.BackofficeLayout.showToast?.(invalidTab); return; }
+        if (draft.tabs.some((item) => !item.isSaved)) { window.BackofficeLayout.showToast?.('请先保存Tab', '所有新增或修改的 Tab 均需先点击保存Tab'); return; }
+        const hasUnsavedComponents = draft.tabs.some((item) => item.components.some((component) => !component.isSaved));
+        if (hasUnsavedComponents || editSession.hasComponentChanges()) {
+          const confirmed = await window.BackofficeLayout.confirm({
+            title: '存在没有保存的资源位，确定要保存吗？',
+            message: '继续保存将把当前页面内未保存的资源位配置一并提交。',
+            confirmText: '继续保存',
+            cancelText: '返回编辑'
+          });
+          if (!confirmed) return;
+          draft.tabs.forEach((item) => item.components.forEach((component) => { component.isSaved = true; }));
+        }
+        const state = { tabs: draft.tabs, activeTabId: draft.activeTabId };
+        try { this.saveState(state, storageKey); } catch (error) { window.BackofficeLayout.showToast?.('页面保存失败', '本地演示数据无法保存，请减少图片素材后重试'); return; }
+        editSession.markPageSaved(snapshot());
+        renderAll();
+        window.BackofficeLayout.showToast?.('页面保存成功', `${pageName}已更新`);
+        return;
+      }
+      if (action.id === 'cancel-feed-marketing' && editSession.isEditing() && editSession.hasPageChanges()) {
+        const savedState = editSession.revertPageChanges();
+        draft.tabs = savedState.tabs;
+        draft.activeTabId = draft.tabs.some((tab) => tab.id === draft.activeTabId) ? draft.activeTabId : draft.tabs[0]?.id;
+        renderAll();
+        window.BackofficeLayout.showToast?.('已撤销修改', '已恢复到最近一次保存的页面配置');
+      }
     });
     renderAll();
+    return { guardNavigation: (destination) => editSession.guardNavigation(destination) };
   },
   renderWorkspace(draft, filters) {
     const nav = document.getElementById('feed-tab-nav');
@@ -138,7 +602,7 @@ window.FeedManagementPage = {
   renderTabDetail(tab) {
     const field = (label, control) => `<div class="config-field"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
     const iconPreview = tab.iconImage ? `<img src="${tab.iconImage}" alt="" />` : '<span>Tab</span>';
-    return `<div class="feed-tab-layout"><section class="feed-tab-preview" aria-label="Tab 前台预览"><div class="feed-app-tabs"><span class="feed-app-tab is-active"><i class="feed-app-icon">${iconPreview}</i>${this.escape(tab.tabName || '未命名 Tab')}${this.renderBadge(tab)}</span><span class="feed-app-tab">推荐</span><span class="feed-app-tab">好价</span></div><div class="feed-preview-card"><b>${this.escape(tab.tabName || '信息流 Tab')}</b><span>这里展示当前 Tab 的信息流资源位内容</span><div><i>精选返现</i><i>限时好价</i><i>热销推荐</i></div></div></section><section class="feed-tab-detail"><h2>Tab详情</h2><div class="style-config-form feed-tab-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>Tab名称', `<input class="control" data-feed-field="tabName" value="${this.escape(tab.tabName)}" maxlength="12" placeholder="请输入 Tab 名称" />`)}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-feed-field="recordName" value="${this.escape(tab.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}${this.renderImageControl('icon图片', 'iconImage', tab.iconImage)}${this.renderImageControl('角标图片', 'cornerImage', tab.cornerImage, '尾标图片优先于角标图片展示；尾标和角标互斥，前台仅展示一个。')}${this.renderImageControl('尾标图片', 'tailImage', tab.tailImage, '仅限 v8.95.0 及以上版本可用。')}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'feed-tab', value: tab.targeting, required: true })}</div></section></div>`;
+    return `<div class="feed-tab-layout"><section class="feed-tab-preview" aria-label="Tab 前台预览"><div class="feed-app-tabs"><span class="feed-app-tab is-active"><i class="feed-app-icon">${iconPreview}</i>${this.escape(tab.tabName || '未命名 Tab')}${this.renderBadge(tab)}</span><span class="feed-app-tab">推荐</span><span class="feed-app-tab">好价</span></div><div class="feed-preview-card"><b>${this.escape(tab.tabName || '信息流 Tab')}</b><span>这里展示当前 Tab 的信息流资源位内容</span><div><i>精选返现</i><i>限时好价</i><i>热销推荐</i></div></div></section><section class="feed-tab-detail"><h2>Tab详情</h2><div class="style-config-form feed-tab-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>Tab名称 <button class="help-tooltip" type="button" aria-label="Tab名称说明" data-tooltip="用户端可见">?</button>', `<input class="control" data-feed-field="tabName" value="${this.escape(tab.tabName)}" maxlength="12" placeholder="请输入 Tab 名称" />`)}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-feed-field="recordName" value="${this.escape(tab.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}${this.renderImageControl('icon图片', 'iconImage', tab.iconImage)}${this.renderImageControl('角标图片', 'cornerImage', tab.cornerImage, '尾标图片优先于角标图片展示；尾标和角标互斥，前台仅展示一个。')}${this.renderImageControl('尾标图片', 'tailImage', tab.tailImage, '仅限 v8.95.0 及以上版本可用。')}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'feed-tab', value: tab.targeting, required: true })}</div></section></div>`;
   },
   readImage(file) {
     return new Promise((resolve, reject) => {
@@ -151,6 +615,18 @@ window.FeedManagementPage = {
   validate(tab) {
     if (!tab.tabName.trim()) return '请填写 Tab名称';
     if (!tab.recordName.trim()) return '请填写 记录名称';
+    if (this.createProductFeedConfig(tab.productFeed).source === 'third-party' && !this.createProductFeedConfig(tab.productFeed).pid.trim()) return '请选择关联PID';
+    return '';
+  },
+  validateComponent(component) {
+    if (component.type === 'red-packet-delivery') {
+      const redPacket = this.createRedPacketConfig(component.redPacket);
+      const hasPlatformVersion = Object.values(redPacket.targeting.platformVersions).some((platform) => platform.enabled && platform.start.trim());
+      if (!redPacket.name.trim() || !redPacket.deliveryType || !hasPlatformVersion || !redPacket.targeting.onlineStart || !redPacket.targeting.onlineEnd || (redPacket.deliveryType === 'package' && (!redPacket.unclaimedImage || !redPacket.template))) return '请补充红包发放功能的记录名称、发放类型、平台版本与上线时间；券包发放还需上传未领取图片素材并选择红包模板';
+      return '';
+    }
+    if (!(component.recordName || component.label || '').trim()) return '请填写 记录名称';
+    if ((component.slots || []).some((slot) => !String(slot).trim())) return '请填写组件坑位名称';
     return '';
   },
   bind() {

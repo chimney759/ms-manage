@@ -16,7 +16,7 @@ window.ForceUpgradeModalPage = {
     this.saveRecords();
   },
   adaptCopy(markup) {
-    return markup.replaceAll('隐私政策更新弹窗', '强制升级弹窗').replaceAll('隐私政策版本', '升级版本').replaceAll('隐私政策有更新', 'App 有新版本可升级').replaceAll('此隐私政策更新弹窗', '此强制升级弹窗').replaceAll('《隐私政策》', '《升级说明》').replaceAll('我已阅读并同意</button>', '去更新</button><button class="privacy-popup-exit" type="button">放弃更新</button>');
+    return markup.replaceAll('隐私政策更新弹窗', '强制升级弹窗').replaceAll('隐私政策版本', '升级版本').replaceAll('隐私政策有更新', 'App 有新版本可升级').replaceAll('此隐私政策更新弹窗', '此强制升级弹窗').replaceAll('《隐私政策》', '《升级说明》').replaceAll('我已阅读并同意</button>', '去更新</button><button class="privacy-popup-exit" type="button">放弃更新并退出App</button>');
   },
   render() { return this.adaptCopy(window.PrivacyPolicyModalPage.render.call(this)); },
   renderForm({ recordId = null } = {}) { return this.adaptCopy(window.PrivacyPolicyModalPage.renderForm.call(this, { recordId })); },

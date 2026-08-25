@@ -2,6 +2,12 @@ window.MarketingConfigPage = {
   storageKey: 'meiyou-cashback-home-marketing-config',
   benefitsFeedStorageKey: 'meiyou-cashback-benefits-feed-management',
   benefitsCheckInStorageKey: 'meiyou-cashback-benefits-check-in-management',
+  benefitsCheckInSuccessStorageKey: 'meiyou-cashback-benefits-check-in-success-management',
+  primaryComponentStorageKeys: {
+    'youzi-street:feed': 'meiyou-cashback-youzi-street-feed-management',
+    'youzi-street:flash-sale': 'meiyou-cashback-youzi-street-flash-sale-management',
+    'mine:feed': 'meiyou-cashback-mine-feed-management'
+  },
   cloneHomeState(state) {
     return JSON.parse(JSON.stringify(state));
   },
@@ -9,12 +15,27 @@ window.MarketingConfigPage = {
     try {
       const saved = JSON.parse(window.localStorage.getItem(this.storageKey));
       if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return this.cloneHomeState(defaultState);
+      const legacyGoldComponent = {
+        id: `gold-zone-legacy`,
+        entries: Array.isArray(saved.fixedEntries) ? saved.fixedEntries : defaultState.fixedEntries,
+        enabled: typeof saved.fixedEntriesComponentEnabled === 'boolean' ? saved.fixedEntriesComponentEnabled : defaultState.fixedEntriesComponentEnabled,
+        targeting: window.ConfigurationSections.normalizeTargeting(saved.fixedEntriesTargeting || defaultState.fixedEntriesTargeting),
+        testPlan: window.ConfigurationSections.normalizeTestPlan(saved.fixedEntriesTestPlan || defaultState.fixedEntriesTestPlan)
+      };
+      const goldComponents = Array.isArray(saved.fixedEntriesComponents)
+        ? saved.fixedEntriesComponents.map((component, index) => ({
+          ...legacyGoldComponent,
+          ...component,
+          id: component.id || `gold-zone-${index}-${Date.now()}`,
+          entries: Array.isArray(component.entries) ? component.entries : legacyGoldComponent.entries,
+          targeting: window.ConfigurationSections.normalizeTargeting(component.targeting || legacyGoldComponent.targeting),
+          testPlan: window.ConfigurationSections.normalizeTestPlan(component.testPlan || legacyGoldComponent.testPlan),
+          isSaved: component.isSaved ?? true
+        }))
+        : (saved.fixedEntriesComponentAdded === false ? [] : [legacyGoldComponent]);
       return {
         components: Array.isArray(saved.components) ? saved.components : defaultState.components,
-        fixedEntries: Array.isArray(saved.fixedEntries) ? saved.fixedEntries : defaultState.fixedEntries,
-        fixedEntriesComponentEnabled: typeof saved.fixedEntriesComponentEnabled === 'boolean'
-          ? saved.fixedEntriesComponentEnabled
-          : defaultState.fixedEntriesComponentEnabled
+        fixedEntriesComponents: goldComponents
       };
     } catch (error) {
       return this.cloneHomeState(defaultState);
@@ -23,14 +44,82 @@ window.MarketingConfigPage = {
   saveHomeState(state) {
     window.localStorage.setItem(this.storageKey, JSON.stringify(state));
   },
+  createGoldComponent(entries) {
+    return {
+      id: `gold-zone-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      entries: this.cloneHomeState(entries),
+      enabled: true,
+      targeting: window.ConfigurationSections.createTargeting(),
+      testPlan: window.ConfigurationSections.createTestPlan(),
+      isSaved: false
+    };
+  },
   cloneBenefitsFeedState(state) {
     return JSON.parse(JSON.stringify(state));
+  },
+  createBenefitsFeedMosaicConfig(data = {}) {
+    const defaults = {
+      image: '', darkImage: '', routeType: '', routeProtocol: '', pid: '', selectedPid: '', skipType: '', mallId: '', popupLogo: '', popupCopy: '', requiresLogin: true,
+      ...data
+    };
+    const legacyPosition = {
+      id: `benefits-feed-mosaic-position-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      image: defaults.image,
+      darkImage: defaults.darkImage,
+      routeType: defaults.routeType || (data.routeValue ? 'page' : ''),
+      routeProtocol: defaults.routeProtocol || data.routeValue || '',
+      pid: defaults.pid,
+      selectedPid: defaults.selectedPid,
+      skipType: defaults.skipType,
+      mallId: defaults.mallId,
+      popupLogo: defaults.popupLogo,
+      popupCopy: defaults.popupCopy,
+      requiresLogin: defaults.requiresLogin
+    };
+    const positions = Array.isArray(data.positions) && data.positions.length
+      ? data.positions.map((position) => ({ ...legacyPosition, ...position, id: position.id || `benefits-feed-mosaic-position-${Date.now()}-${Math.random().toString(16).slice(2)}` }))
+      : [legacyPosition];
+    return { ...defaults, positions, selectedPositionId: positions.some((position) => position.id === data.selectedPositionId) ? data.selectedPositionId : positions[0].id };
+  },
+  createBenefitsFeedGridConfig(data = {}) {
+    const defaults = {
+      title: '', cornerCopy: '', image: '', routeType: '', routeProtocol: '', pid: '', selectedPid: '', skipType: '', mallId: '', popupLogo: '', popupCopy: '', requiresLogin: true,
+      ...data
+    };
+    const legacyPosition = {
+      id: `benefits-feed-grid-position-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      title: defaults.title,
+      cornerCopy: defaults.cornerCopy,
+      image: defaults.image,
+      routeType: defaults.routeType || (data.routeValue ? 'page' : ''),
+      routeProtocol: defaults.routeProtocol || data.routeValue || '',
+      pid: defaults.pid,
+      selectedPid: defaults.selectedPid,
+      skipType: defaults.skipType,
+      mallId: defaults.mallId,
+      popupLogo: defaults.popupLogo,
+      popupCopy: defaults.popupCopy,
+      requiresLogin: defaults.requiresLogin
+    };
+    const positions = Array.isArray(data.positions) && data.positions.length
+      ? data.positions.map((position) => ({ ...legacyPosition, ...position, id: position.id || `benefits-feed-grid-position-${Date.now()}-${Math.random().toString(16).slice(2)}` }))
+      : [legacyPosition];
+    return { ...defaults, positions, selectedPositionId: positions.some((position) => position.id === data.selectedPositionId) ? data.selectedPositionId : positions[0].id };
+  },
+  createBenefitsFeedRedPacketConfig(data = {}) {
+    return {
+      name: '', deliveryType: 'single', titleArea: false, title: '', subtitle: '', titleImage: '', titleDarkImage: '', unclaimedImage: '', unclaimedDarkImage: '', template: 'with-button',
+      targeting: window.ConfigurationSections.createTargeting(), testPlan: window.ConfigurationSections.createTestPlan(),
+      ...data,
+      targeting: window.ConfigurationSections.normalizeTargeting(data.targeting),
+      testPlan: window.ConfigurationSections.normalizeTestPlan(data.testPlan)
+    };
   },
   createBenefitsFeedComponent(type) {
     const definitions = {
       mosaic: { label: '信息流-拼图', hint: '多素材拼接展示，适用于活动主会场' },
       grid: { label: '信息流-宫格', hint: '多入口宫格展示，适用于分类运营' },
-      'red-packet': { label: '信息流-红包', hint: '红包权益展示，适用于福利发放' }
+      'red-packet': { label: '信息流-红包发放功能', hint: '红包权益发放展示' }
     };
     const definition = definitions[type];
     return {
@@ -39,14 +128,17 @@ window.MarketingConfigPage = {
       label: definition.label,
       hint: definition.hint,
       recordName: '',
-      sort: '',
       image: '',
       darkImage: '',
       routeType: 'page',
       routeValue: '',
+      mosaic: type === 'mosaic' ? this.createBenefitsFeedMosaicConfig() : undefined,
+      grid: type === 'grid' ? this.createBenefitsFeedGridConfig() : undefined,
+      redPacket: type === 'red-packet' ? this.createBenefitsFeedRedPacketConfig({ name: definition.label }) : undefined,
       slotOrder: this.getBenefitsFeedSlotDefinitions(type).map((slot) => slot.id),
       targeting: window.ConfigurationSections.createTargeting(),
-      testPlan: window.ConfigurationSections.createTestPlan()
+      testPlan: window.ConfigurationSections.createTestPlan(),
+      isSaved: false
     };
   },
   getBenefitsFeedSlotDefinitions(type) {
@@ -88,9 +180,13 @@ window.MarketingConfigPage = {
         components: saved.components.filter((item) => ['mosaic', 'grid', 'red-packet'].includes(item?.type)).map((item) => ({
           ...this.createBenefitsFeedComponent(item.type),
           ...item,
+          mosaic: item.type === 'mosaic' ? this.createBenefitsFeedMosaicConfig({ ...item, ...item.mosaic }) : item.mosaic,
+          grid: item.type === 'grid' ? this.createBenefitsFeedGridConfig({ ...item, ...item.grid }) : item.grid,
+          redPacket: item.type === 'red-packet' ? this.createBenefitsFeedRedPacketConfig({ name: item.recordName || item.label || '信息流-红包发放功能', ...item.redPacket }) : item.redPacket,
           slotOrder: this.getBenefitsFeedSlots({ type: item.type, slotOrder: item.slotOrder }).map((slot) => slot.id),
           targeting: window.ConfigurationSections.normalizeTargeting(item.targeting),
-          testPlan: window.ConfigurationSections.normalizeTestPlan(item.testPlan)
+          testPlan: window.ConfigurationSections.normalizeTestPlan(item.testPlan),
+          isSaved: item.isSaved ?? true
         }))
       };
     } catch (error) {
@@ -99,6 +195,52 @@ window.MarketingConfigPage = {
   },
   saveBenefitsFeedState(state) {
     window.localStorage.setItem(this.benefitsFeedStorageKey, JSON.stringify(state));
+  },
+  getPrimaryComponentConfig(tab, view = 'feed') {
+    const key = `${tab}:${view}`;
+    const definitions = {
+      'youzi-street:flash-sale': {
+        storageKey: this.primaryComponentStorageKeys[key],
+        title: '柚子街-限时抢购',
+        note: '维护柚子街限时抢购展示配置',
+        previewTitle: '柚子街',
+        previewTag: '限时抢购',
+        palette: ['mosaic', 'grid', 'red-packet']
+      },
+      'mine:feed': {
+        storageKey: this.primaryComponentStorageKeys[key],
+        title: '我-信息流营销',
+        note: '维护我页面信息流资源位展示配置',
+        previewTitle: '我的',
+        previewTag: '精选服务',
+        palette: ['mosaic', 'grid', 'red-packet']
+      }
+    };
+    return definitions[key] || null;
+  },
+  loadPrimaryComponentState(config) {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(config.storageKey));
+      if (!saved || !Array.isArray(saved.components)) return { components: [] };
+      return {
+        components: saved.components.filter((item) => config.palette.includes(item?.type)).map((item) => ({
+          ...this.createBenefitsFeedComponent(item.type),
+          ...item,
+          mosaic: item.type === 'mosaic' ? this.createBenefitsFeedMosaicConfig({ ...item, ...item.mosaic }) : item.mosaic,
+          grid: item.type === 'grid' ? this.createBenefitsFeedGridConfig({ ...item, ...item.grid }) : item.grid,
+          redPacket: item.type === 'red-packet' ? this.createBenefitsFeedRedPacketConfig({ name: item.recordName || item.label || '信息流-红包发放功能', ...item.redPacket }) : item.redPacket,
+          slotOrder: this.getBenefitsFeedSlots({ type: item.type, slotOrder: item.slotOrder }).map((slot) => slot.id),
+          targeting: window.ConfigurationSections.normalizeTargeting(item.targeting),
+          testPlan: window.ConfigurationSections.normalizeTestPlan(item.testPlan),
+          isSaved: item.isSaved ?? true
+        }))
+      };
+    } catch (error) {
+      return { components: [] };
+    }
+  },
+  savePrimaryComponentState(config, state) {
+    window.localStorage.setItem(config.storageKey, JSON.stringify(state));
   },
   createDefaultBenefitsCheckInState() {
     const record = (id, recordName, conflictPriority, createdAt, updatedAt) => ({
@@ -113,6 +255,7 @@ window.MarketingConfigPage = {
       },
       status: '已下线',
       conflictPriority,
+      functionConfig: this.createBenefitsCheckInFunctionConfig(),
       creator: '罗至玲',
       createdAt,
       editor: '罗至玲',
@@ -123,6 +266,23 @@ window.MarketingConfigPage = {
       record('4', 'copy260107预发测试', false, '2026-01-07 14:53:20', '2026-01-07 20:29:44')
     ] };
   },
+  createBenefitsCheckInFunctionConfig(data = {}) {
+    const mainCopy = data.mainCopy || '去下单';
+    return {
+      mainCopy,
+      subCopy: '拿返现叠加补贴',
+      routeType: data.routeType || '',
+      routeProtocol: data.routeProtocol || '',
+      pid: data.pid || '',
+      selectedPid: data.selectedPid || '',
+      skipType: data.skipType || '',
+      mallId: data.mallId || '',
+      materialName: data.materialName || '',
+      popupLogo: data.popupLogo || '',
+      popupCopy: data.popupCopy || '',
+      requiresLogin: data.requiresLogin ?? true
+    };
+  },
   normalizeBenefitsCheckInRecord(record = {}) {
     return {
       id: String(record.id || Date.now()),
@@ -130,6 +290,7 @@ window.MarketingConfigPage = {
       targeting: window.ConfigurationSections.normalizeTargeting(record.targeting),
       status: ['上线中', '待上线', '已下线'].includes(record.status) ? record.status : '待上线',
       conflictPriority: Boolean(record.conflictPriority),
+      functionConfig: this.createBenefitsCheckInFunctionConfig(record.functionConfig),
       creator: record.creator || '当前运营',
       createdAt: record.createdAt || '',
       editor: record.editor || '当前运营',
@@ -181,7 +342,10 @@ window.MarketingConfigPage = {
   renderBenefitsCheckInModal(record, isNew) {
     const value = this.normalizeBenefitsCheckInRecord(record);
     const field = (label, control) => `<div class="config-field"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
-    return `<div class="modal-card check-in-modal-card" role="dialog" aria-modal="true" aria-labelledby="check-in-modal-title"><div class="modal-header"><h2 id="check-in-modal-title">${isNew ? '新增打卡功能营销配置' : '编辑打卡功能营销配置'}</h2><button class="icon-close" id="close-check-in-modal" type="button" aria-label="关闭">×</button></div><div class="modal-body check-in-modal-body"><div class="style-config-form home-component-form check-in-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>记录名称', `<input class="control" id="check-in-record-name" value="${this.escapeHtml(value.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}${field('<b class="field-required">*</b>上线时间', `<div class="config-date-range"><label><span>开始</span><input class="control" id="check-in-online-start" type="datetime-local" value="${this.escapeHtml(value.targeting.onlineStart)}" /></label><label><span>结束</span><input class="control" id="check-in-online-end" type="datetime-local" value="${this.escapeHtml(value.targeting.onlineEnd)}" /></label></div>`)}${field('<b class="field-required">*</b>状态', `<span class="home-entry-status-control"><label><input name="check-in-status" type="radio" value="上线中"${value.status === '上线中' ? ' checked' : ''} />上线中</label><label><input name="check-in-status" type="radio" value="待上线"${value.status === '待上线' ? ' checked' : ''} />待上线</label><label><input name="check-in-status" type="radio" value="已下线"${value.status === '已下线' ? ' checked' : ''} />已下线</label></span>`)}${field('冲突时优先展示', `<label class="check-in-priority-control"><input id="check-in-conflict-priority" type="checkbox"${value.conflictPriority ? ' checked' : ''} />优先展示</label>`)}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'check-in', value: value.targeting, includeSchedule: false, required: true })}</div></div><div class="modal-footer"><button class="button secondary" id="cancel-check-in-modal" type="button">取消</button><button class="button primary" id="save-check-in-modal" type="button">保存</button></div></div>`;
+    const config = value.functionConfig;
+    const asset = `<span class="home-showcase-asset"><span class="home-showcase-asset-preview">${config.popupLogo ? `<img src="${config.popupLogo}" alt="已上传出站弹窗 logo" />` : '<b>图片</b>'}</span><span class="home-showcase-asset-actions"><label class="button secondary home-entry-upload">出站弹窗 logo<input id="check-in-popup-logo" type="file" accept="image/*" /></label><button class="home-entry-delete" id="delete-check-in-popup-logo" type="button"${config.popupLogo ? '' : ' disabled'}>删除图片</button></span></span>`;
+    const preview = `<aside class="check-in-preview-panel" aria-label="手机预览"><span class="check-in-preview-label">手机预览</span><div class="check-in-phone-frame"><div class="check-in-phone-status"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="check-in-preview-hero"><span>‹</span><b>累计获得补贴</b><strong>20.39<small>元</small></strong><em>获得后 7 天内有效</em><i>可用现金补贴：0.68 元 ›</i><div class="check-in-preview-calendar">✓</div></div><section class="check-in-preview-card"><div class="check-in-preview-title"><b>签到打卡，领下单现金补贴</b><span>规则 ?</span></div><p>获得打卡现金补贴，下单和订单返现叠加到账</p><div class="check-in-preview-days"><span>¥ 0.07<br /><i>✓</i><small>06.27</small></span><span>??<br /><i>错过</i><small>06.28</small></span><span>??<br /><i>错过</i><small>06.29</small></span><span>¥ 0.41<br /><i>✓</i><small>今天</small></span><span>??<br /><i>◉</i><small>07.01</small></span></div><button class="check-in-preview-action" type="button"><b data-check-in-preview-main>${this.escapeHtml(config.mainCopy)}</b><small data-check-in-preview-sub>${this.escapeHtml(config.subCopy)}</small></button><div class="check-in-preview-benefits"><b>从商城下单，返现可叠加打卡补贴到账</b><span>多多　唯品会　美团　饿了么　滴滴出行</span><i>2.5%　约返5%　再返2%　再返3.5%　再返3%</i></div><div class="check-in-preview-tips"><b>现金补贴提现技巧</b><span>来签到领取　　下单拿返现　　补贴到账后</span><small>现金补贴　　　叠加现金补贴　　可提现</small></div></section></div></aside>`;
+    return `<div class="modal-card check-in-modal-card" role="dialog" aria-modal="true" aria-labelledby="check-in-modal-title"><div class="modal-header"><h2 id="check-in-modal-title">${isNew ? '新增打卡功能营销配置' : '编辑打卡功能营销配置'}</h2><button class="icon-close" id="close-check-in-modal" type="button" aria-label="关闭">×</button></div><div class="modal-body check-in-modal-body check-in-modal-layout">${preview}<div class="style-config-form home-component-form check-in-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>记录名称', `<input class="control" id="check-in-record-name" value="${this.escapeHtml(value.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}${field('<b class="field-required">*</b>上线时间', `<div class="config-date-range"><label><span>开始</span><input class="control" id="check-in-online-start" type="datetime-local" value="${this.escapeHtml(value.targeting.onlineStart)}" /></label><label><span>结束</span><input class="control" id="check-in-online-end" type="datetime-local" value="${this.escapeHtml(value.targeting.onlineEnd)}" /></label></div>`)}${field('<b class="field-required">*</b>状态', `<span class="home-entry-status-control"><label><input name="check-in-status" type="radio" value="上线中"${value.status === '上线中' ? ' checked' : ''} />上线中</label><label><input name="check-in-status" type="radio" value="待上线"${value.status === '待上线' ? ' checked' : ''} />待上线</label><label><input name="check-in-status" type="radio" value="已下线"${value.status === '已下线' ? ' checked' : ''} />已下线</label></span>`)}${field('冲突时优先展示', `<label class="check-in-priority-control"><input id="check-in-conflict-priority" type="checkbox"${value.conflictPriority ? ' checked' : ''} />优先展示</label>`)}</section><section class="home-entry-info-section shared-config-section check-in-function-section"><h3>功能配置</h3><p class="check-in-function-notice">仅支持打卡状态为已打卡的功能营销配置。按钮副文案为系统固定文案“拿返现叠加补贴”。</p>${field('<b class="field-required">*</b>按钮主文案', `<input class="control" id="check-in-main-copy" value="${this.escapeHtml(config.mainCopy)}" maxlength="12" placeholder="请输入按钮主文案" />`)}${field('按钮副文案', `<input class="control" id="check-in-sub-copy" value="${this.escapeHtml(config.subCopy)}" disabled />`)}${field('按钮跳转', `<div class="check-in-function-workspace"><span class="home-showcase-route-example">路由协议填写示例</span><div class="home-showcase-route-row"><select class="control" id="check-in-route-type"><option value="">请选择跳转类型</option><option value="page"${config.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${config.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" id="check-in-route-protocol" value="${this.escapeHtml(config.routeProtocol)}" placeholder="请输入路由协议" /></div><input class="control" id="check-in-pid" value="${this.escapeHtml(config.pid)}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" /><select class="control" id="check-in-selected-pid"><option value="">请选择 pid</option><option value="default"${config.selectedPid === 'default' ? ' selected' : ''}>默认 pid</option><option value="custom"${config.selectedPid === 'custom' ? ' selected' : ''}>自定义 pid</option></select><input class="control" id="check-in-skip-type" value="${this.escapeHtml(config.skipType)}" placeholder="skip_type（用于埋点上报）" /><input class="control" id="check-in-mall-id" value="${this.escapeHtml(config.mallId)}" placeholder="商城 id" /><input class="control" id="check-in-material-name" value="${this.escapeHtml(config.materialName)}" placeholder="素材名称" /><div class="home-showcase-popup-row">${asset}<input class="control" id="check-in-popup-copy" value="${this.escapeHtml(config.popupCopy)}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input id="check-in-requires-login" type="checkbox"${config.requiresLogin ? ' checked' : ''} />用户需登录</label></div>`)}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'check-in', value: value.targeting, includeSchedule: false, required: true })}</div></div><div class="modal-footer"><button class="button secondary" id="cancel-check-in-modal" type="button">取消</button><button class="button primary" id="save-check-in-modal" type="button">保存</button></div></div>`;
   },
   bindBenefitsCheckInList() {
     const state = this.loadBenefitsCheckInState();
@@ -226,16 +390,60 @@ window.MarketingConfigPage = {
       });
       targeting.onlineStart = modal.querySelector('#check-in-online-start').value;
       targeting.onlineEnd = modal.querySelector('#check-in-online-end').value;
-      return { ...base, recordName: modal.querySelector('#check-in-record-name').value.trim(), targeting, status: modal.querySelector('[name="check-in-status"]:checked')?.value || '待上线', conflictPriority: modal.querySelector('#check-in-conflict-priority').checked };
+      const mainCopy = modal.querySelector('#check-in-main-copy').value.trim();
+      return {
+        ...base,
+        recordName: modal.querySelector('#check-in-record-name').value.trim(),
+        targeting,
+        status: modal.querySelector('[name="check-in-status"]:checked')?.value || '待上线',
+        conflictPriority: modal.querySelector('#check-in-conflict-priority').checked,
+        functionConfig: this.createBenefitsCheckInFunctionConfig({
+          mainCopy,
+          subCopy: '拿返现叠加补贴',
+          routeType: modal.querySelector('#check-in-route-type').value,
+          routeProtocol: modal.querySelector('#check-in-route-protocol').value.trim(),
+          pid: modal.querySelector('#check-in-pid').value.trim(),
+          selectedPid: modal.querySelector('#check-in-selected-pid').value,
+          skipType: modal.querySelector('#check-in-skip-type').value.trim(),
+          mallId: modal.querySelector('#check-in-mall-id').value.trim(),
+          materialName: modal.querySelector('#check-in-material-name').value.trim(),
+          popupLogo: modal.dataset.checkInPopupLogo || '',
+          popupCopy: modal.querySelector('#check-in-popup-copy').value.trim(),
+          requiresLogin: modal.querySelector('#check-in-requires-login').checked
+        })
+      };
     };
     const openModal = (record = null) => {
       const isNew = !record;
       const now = this.currentCheckInTime();
       const draft = this.normalizeBenefitsCheckInRecord(record || { id: String(Date.now()), creator: '当前运营', editor: '当前运营', createdAt: now, updatedAt: now });
       modal.innerHTML = this.renderBenefitsCheckInModal(draft, isNew);
+      modal.dataset.checkInPopupLogo = draft.functionConfig.popupLogo;
       modal.hidden = false;
+      modal.querySelector('#check-in-main-copy').addEventListener('input', (event) => {
+        modal.querySelector('[data-check-in-preview-main]').textContent = event.target.value.trim() || '去下单';
+      });
+      modal.querySelector('#check-in-popup-logo').addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          modal.dataset.checkInPopupLogo = await this.readImageFile(file);
+          const preview = modal.querySelector('.home-showcase-asset-preview');
+          preview.innerHTML = `<img src="${modal.dataset.checkInPopupLogo}" alt="已上传出站弹窗 logo" />`;
+          modal.querySelector('#delete-check-in-popup-logo').disabled = false;
+        } catch (error) {
+          window.BackofficeLayout.showToast('图片读取失败', '请重新选择图片');
+        }
+      });
       const handleModalClick = (event) => {
         if (event.target === modal || event.target.closest('#close-check-in-modal, #cancel-check-in-modal')) { closeModal(); return; }
+        if (event.target.closest('#delete-check-in-popup-logo')) {
+          modal.dataset.checkInPopupLogo = '';
+          const preview = modal.querySelector('.home-showcase-asset-preview');
+          preview.innerHTML = '<b>图片</b>';
+          modal.querySelector('#delete-check-in-popup-logo').disabled = true;
+          return;
+        }
         if (!event.target.closest('#save-check-in-modal')) return;
         const next = readModalRecord(draft);
         if (!next.recordName || !next.targeting.onlineStart || !next.targeting.onlineEnd) {
@@ -282,6 +490,269 @@ window.MarketingConfigPage = {
     });
     renderTable();
   },
+  createDefaultBenefitsCheckInSuccessState() {
+    const record = (id, recordName, createdAt, updatedAt) => ({
+      id,
+      recordName,
+      targeting: { identities: ['经期'], versions: { ios: '9.02.0.0', android: '9.02.0.0' } },
+      onlineStart: '2026-01-07T00:00',
+      onlineEnd: '2026-01-08T23:59',
+      status: '已下线',
+      conflictPriority: true,
+      creator: '罗至玲',
+      createdAt,
+      editor: '罗至玲',
+      updatedAt
+    });
+    return { records: [
+      record('2', '260107预发测试', '2026-01-07 13:43:46', '2026-08-05 16:30:24'),
+      record('3', 'copy260107预发测试01', '2026-01-07 14:18:44', '2026-01-07 20:29:24')
+    ] };
+  },
+  createBenefitsCheckInSuccessRoute(data = {}) {
+    return {
+      routeType: '', routeProtocol: '', pid: '', selectedPid: '', skipType: '', mallId: '', materialName: '', popupLogo: '', popupCopy: '', requiresLogin: true,
+      ...data
+    };
+  },
+  createBenefitsCheckInSuccessFunctionConfig(data = {}) {
+    return {
+      mainCopy: '去下单',
+      subCopy: '拿返现叠加补贴',
+      buttonRoute: this.createBenefitsCheckInSuccessRoute(data.buttonRoute || data),
+      resourceImage: data.resourceImage || '',
+      resourceRoute: this.createBenefitsCheckInSuccessRoute(data.resourceRoute),
+      ...data,
+      buttonRoute: this.createBenefitsCheckInSuccessRoute(data.buttonRoute || data),
+      resourceRoute: this.createBenefitsCheckInSuccessRoute(data.resourceRoute)
+    };
+  },
+  normalizeBenefitsCheckInSuccessRecord(record = {}) {
+    const targeting = window.ConfigurationSections.normalizeTargeting({
+      ...(record.targeting || {}),
+      onlineStart: record.targeting?.onlineStart || record.onlineStart || '',
+      onlineEnd: record.targeting?.onlineEnd || record.onlineEnd || '',
+      status: record.targeting?.status || (record.status === '已下线' ? '下线' : '上线')
+    });
+    return {
+      id: String(record.id || Date.now()),
+      recordName: record.recordName || '',
+      targeting,
+      onlineStart: targeting.onlineStart,
+      onlineEnd: targeting.onlineEnd,
+      status: ['上线中', '待上线', '已下线'].includes(record.status) ? record.status : '待上线',
+      conflictPriority: Boolean(record.conflictPriority),
+      functionConfig: this.createBenefitsCheckInSuccessFunctionConfig(record.functionConfig),
+      testPlan: window.ConfigurationSections.normalizeTestPlan(record.testPlan),
+      creator: record.creator || '当前运营',
+      createdAt: record.createdAt || '',
+      editor: record.editor || '当前运营',
+      updatedAt: record.updatedAt || ''
+    };
+  },
+  loadBenefitsCheckInSuccessState() {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(this.benefitsCheckInSuccessStorageKey));
+      if (!saved || !Array.isArray(saved.records)) return this.createDefaultBenefitsCheckInSuccessState();
+      return { records: saved.records.map((record) => this.normalizeBenefitsCheckInSuccessRecord(record)) };
+    } catch (error) {
+      return this.createDefaultBenefitsCheckInSuccessState();
+    }
+  },
+  saveBenefitsCheckInSuccessState(state) {
+    window.localStorage.setItem(this.benefitsCheckInSuccessStorageKey, JSON.stringify(state));
+  },
+  formatCheckInSuccessTargeting(value) {
+    const identities = value?.identities?.length ? `指定人群身份:${value.identities.join('、')}` : '全部用户';
+    const versions = Object.entries(value?.versions || {}).filter(([, version]) => version).map(([platform, version]) => `${platform}：${version}`);
+    return versions.length ? `${identities} 与 平台和版本：${versions.join('；')}` : identities;
+  },
+  renderBenefitsCheckInSuccessList() {
+    const priorityTip = '当发生人群冲突时：若仅有一条配置勾选此项，则展示有勾选此项的配置；若多条同时勾选或均未勾选，则展示功能基线样式';
+    return `<section class="benefits-check-in-management benefits-check-in-success-management" aria-label="打卡成功弹窗管理">
+      <div class="filters benefits-check-in-filters">
+        <div class="field"><label for="check-in-success-name-filter">记录名称：</label><input class="control" id="check-in-success-name-filter" placeholder="请输入名称进行搜索" /></div>
+        <div class="field"><label for="check-in-success-status-filter">状态：</label><select class="control" id="check-in-success-status-filter"><option value="">请选择状态</option><option value="上线中">上线中</option><option value="待上线">待上线</option><option value="已下线">已下线</option></select></div>
+        <div class="field check-in-date-filter"><label>上线时间：</label><span class="check-in-date-controls"><input class="control" id="check-in-success-start-filter" type="datetime-local" aria-label="上线开始时间" /><i>-</i><input class="control" id="check-in-success-end-filter" type="datetime-local" aria-label="上线结束时间" /></span></div>
+        <div class="filter-checkboxes"><label><input id="check-in-success-priority-filter" type="checkbox" />仅看冲突时优先展示</label></div>
+      </div>
+      <div class="actions benefits-check-in-actions"><button class="button primary" id="search-check-in-success" type="button">查询</button><button class="button check-in-success-add" id="add-check-in-success" type="button">新增弹窗</button></div>
+      <div class="table-wrap"><table class="benefits-check-in-table"><thead><tr><th>ID</th><th>记录名称</th><th>定向信息</th><th><button class="check-in-success-sort" data-check-in-success-sort="onlineStart" type="button">上线时间 <span>↕</span></button></th><th><button class="check-in-success-sort" data-check-in-success-sort="onlineEnd" type="button">下线时间 <span>↕</span></button></th><th>状态</th><th>冲突时优先展示 <button class="help-tooltip" type="button" data-tooltip="${priorityTip}" aria-label="冲突时优先展示说明">?</button></th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th>最后更新时间</th><th>操作</th></tr></thead><tbody id="check-in-success-table-body"></tbody></table></div>
+      <div class="empty" id="check-in-success-empty" hidden><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无配置数据</div></div></div>
+      <div class="check-in-success-pagination" id="check-in-success-pagination"></div>
+      <div class="modal" id="check-in-success-modal" hidden></div>
+    </section>`;
+  },
+  renderBenefitsCheckInSuccessModal(record, isNew) {
+    const value = this.normalizeBenefitsCheckInSuccessRecord(record);
+    const config = value.functionConfig;
+    const field = (label, control, className = '') => `<div class="config-field ${className}"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
+    const asset = (id, image, label) => `<span class="home-showcase-asset"><span class="home-showcase-asset-preview" data-check-in-success-image-preview="${id}">${image ? `<img src="${this.escapeHtml(image)}" alt="${label}" />` : '<b>图片</b>'}</span><span class="home-showcase-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-check-in-success-image="${id}" /></label><button class="home-entry-delete" type="button" data-check-in-success-image-delete="${id}"${image ? '' : ' disabled'}>删除图片</button></span></span>`;
+    const route = (key, label, data) => `<div class="check-in-success-route" data-check-in-success-route="${key}"><span class="home-showcase-route-example">路由协议填写示例</span><div class="home-showcase-route-row"><select class="control" data-check-in-success-route-field="${key}:routeType"><option value="">请选择跳转类型</option><option value="page"${data.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${data.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" data-check-in-success-route-field="${key}:routeProtocol" value="${this.escapeHtml(data.routeProtocol)}" placeholder="请输入路由协议" /></div><div class="home-showcase-input-help"><input class="control" data-check-in-success-route-field="${key}:pid" value="${this.escapeHtml(data.pid)}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" /><button class="help-tooltip" type="button" data-tooltip="填写商城关联 PID，用于跳转与埋点上报。" aria-label="PID说明">?</button></div><div class="home-showcase-input-help"><select class="control" data-check-in-success-route-field="${key}:selectedPid"><option value="">请选择 pid</option><option value="default"${data.selectedPid === 'default' ? ' selected' : ''}>默认 pid</option><option value="custom"${data.selectedPid === 'custom' ? ' selected' : ''}>自定义 pid</option></select><button class="help-tooltip" type="button" data-tooltip="选择当前资源位使用的 PID。" aria-label="选择PID说明">?</button></div><div class="home-showcase-input-help"><input class="control" data-check-in-success-route-field="${key}:skipType" value="${this.escapeHtml(data.skipType)}" placeholder="skip_type（用于埋点上报）" /><button class="help-tooltip" type="button" data-tooltip="用于分析跳转来源的埋点字段。" aria-label="skip type说明">?</button></div><input class="control" data-check-in-success-route-field="${key}:mallId" value="${this.escapeHtml(data.mallId)}" placeholder="商城 id" /><input class="control" data-check-in-success-route-field="${key}:materialName" value="${this.escapeHtml(data.materialName)}" placeholder="素材名称" /><div class="home-showcase-popup-row">${asset(`${key}-popup-logo`, data.popupLogo, '出站弹窗 logo')}<input class="control" data-check-in-success-route-field="${key}:popupCopy" value="${this.escapeHtml(data.popupCopy)}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input type="checkbox" data-check-in-success-route-field="${key}:requiresLogin"${data.requiresLogin ? ' checked' : ''} />用户需登录</label></div>`;
+    const preview = `<aside class="check-in-success-preview-panel" aria-label="手机预览"><span class="check-in-preview-label">手机预览</span><div class="check-in-success-phone"><div class="check-in-success-phone-status"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="check-in-success-page"><span>‹</span><b>累计获得补贴</b><strong>20.39<small>元</small></strong><em>获得后 7 天内有效</em><i>可用现金补贴：0.68 元 ›</i></div><div class="check-in-success-mask"></div><section class="check-in-success-popup"><b>打卡成功</b><strong>最近7天已累计获得 <span>12.83<small>元</small></span></strong><p>今日打卡奖金补贴：+0.41元</p><button type="button"><span data-check-in-success-preview-main>${this.escapeHtml(config.mainCopy)}</span><small data-check-in-success-preview-sub>${this.escapeHtml(config.subCopy)}</small></button><i>去以下商城下单拿返现，可叠加现金补贴</i><div class="check-in-success-store-icons">淘 京 抖 唯 美 饿</div></section></div></aside>`;
+    return `<div class="modal-card check-in-success-modal-card" role="dialog" aria-modal="true" aria-labelledby="check-in-success-modal-title"><div class="modal-header"><h2 id="check-in-success-modal-title">${isNew ? '新增打卡成功弹窗营销配置' : '编辑打卡成功弹窗营销配置'}</h2><button class="icon-close" id="close-check-in-success-modal" type="button" aria-label="关闭">×</button></div><div class="modal-body check-in-success-modal-layout">${preview}<div class="style-config-form home-component-form check-in-success-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>记录名称', `<input class="control" id="check-in-success-record-name" value="${this.escapeHtml(value.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section check-in-success-function-section"><h3>功能信息</h3><p class="check-in-success-notice">提示：仅支持打卡状态=已打卡的功能营销配置<br />若 按钮主文案="去下单"，则按钮副文案默认必填为“拿返现叠加补贴”</p>${field('<b class="field-required">*</b>按钮主文案', `<input class="control" id="check-in-success-main-copy" value="${this.escapeHtml(config.mainCopy)}" maxlength="12" placeholder="请输入按钮主文案" />`)}${field('按钮副文案', `<input class="control" id="check-in-success-sub-copy" value="${this.escapeHtml(config.subCopy)}" disabled />`)}${field('按钮跳转', route('button', '按钮跳转', config.buttonRoute), 'check-in-success-route-field')}${field('<b class="field-required">*</b>资源位素材', `<div class="check-in-success-material">${asset('resource-image', config.resourceImage, '上传图片')}<p>图片限制：宽度222，高度不超过136</p></div>`, 'check-in-success-route-field')}${field('资源位跳转', route('resource', '资源位跳转', config.resourceRoute), 'check-in-success-route-field')}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'check-in-success', value: value.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'check-in-success', value: value.testPlan })}</div></div><div class="modal-footer"><button class="button secondary" id="cancel-check-in-success-modal" type="button">取消</button><button class="button primary" id="save-check-in-success-modal" type="button">保存</button></div></div>`;
+  },
+  bindBenefitsCheckInSuccessList() {
+    const state = this.loadBenefitsCheckInSuccessState();
+    const records = state.records;
+    const tableBody = document.getElementById('check-in-success-table-body');
+    const empty = document.getElementById('check-in-success-empty');
+    const pagination = document.getElementById('check-in-success-pagination');
+    const modal = document.getElementById('check-in-success-modal');
+    let visible = records;
+    let page = 1;
+    let pageSize = 20;
+    let sort = { key: '', direction: 1 };
+    const filters = () => ({
+      name: document.getElementById('check-in-success-name-filter').value.trim().toLowerCase(),
+      status: document.getElementById('check-in-success-status-filter').value,
+      start: document.getElementById('check-in-success-start-filter').value,
+      end: document.getElementById('check-in-success-end-filter').value,
+      priority: document.getElementById('check-in-success-priority-filter').checked
+    });
+    const renderPagination = () => {
+      const count = visible.length;
+      const pageCount = Math.max(1, Math.ceil(count / pageSize));
+      page = Math.min(page, pageCount);
+      pagination.innerHTML = `<span>共 ${count} 条</span><select class="control" id="check-in-success-page-size" aria-label="每页条数"><option value="20"${pageSize === 20 ? ' selected' : ''}>20条/页</option><option value="50"${pageSize === 50 ? ' selected' : ''}>50条/页</option></select><button type="button" data-check-in-success-page="prev"${page === 1 ? ' disabled' : ''} aria-label="上一页">‹</button><button class="is-active" type="button" data-check-in-success-page="1">${page}</button><button type="button" data-check-in-success-page="next"${page === pageCount ? ' disabled' : ''} aria-label="下一页">›</button><label>前往 <input class="control" id="check-in-success-page-input" value="${page}" inputmode="numeric" /> 页</label>`;
+    };
+    const renderTable = () => {
+      const filter = filters();
+      visible = records.filter((record) => (!filter.name || record.recordName.toLowerCase().includes(filter.name))
+        && (!filter.status || record.status === filter.status)
+        && (!filter.start || record.onlineStart >= filter.start)
+        && (!filter.end || record.onlineStart <= filter.end)
+        && (!filter.priority || record.conflictPriority));
+      if (sort.key) visible.sort((left, right) => String(left[sort.key]).localeCompare(String(right[sort.key])) * sort.direction);
+      page = Math.min(page, Math.max(1, Math.ceil(visible.length / pageSize)));
+      const rows = visible.slice((page - 1) * pageSize, page * pageSize);
+      tableBody.innerHTML = rows.map((record) => `<tr><td>${this.escapeHtml(record.id)}</td><td>${this.escapeHtml(record.recordName)}</td><td><span class="check-in-targeting" title="${this.escapeHtml(this.formatCheckInSuccessTargeting(record.targeting))}">${this.escapeHtml(this.formatCheckInSuccessTargeting(record.targeting))}</span></td><td>${this.escapeHtml(this.formatCheckInDate(record.onlineStart))}</td><td>${this.escapeHtml(this.formatCheckInDate(record.onlineEnd))}</td><td><span class="status-badge${record.status === '已下线' ? ' is-inactive' : ''}">${this.escapeHtml(record.status)}</span></td><td>${record.conflictPriority ? '是' : '否'}</td><td>${this.escapeHtml(record.creator)}</td><td>${this.escapeHtml(record.createdAt)}</td><td>${this.escapeHtml(record.editor)}</td><td>${this.escapeHtml(record.updatedAt)}</td><td><div class="check-in-table-actions"><button class="text-button" type="button" data-check-in-success-edit="${this.escapeHtml(record.id)}">编辑</button><button class="text-button" type="button" data-check-in-success-copy="${this.escapeHtml(record.id)}">复制</button></div></td></tr>`).join('');
+      empty.hidden = visible.length > 0;
+      renderPagination();
+    };
+    const closeModal = () => { modal.hidden = true; modal.innerHTML = ''; };
+    const readModalRecord = (base) => {
+      const targeting = window.ConfigurationSections.normalizeTargeting(base.targeting);
+      targeting.identities = [...modal.querySelectorAll('[data-check-in-success-identity]:checked')].map((input) => input.value);
+      targeting.audiences = [...modal.querySelectorAll('[data-check-in-success-audience]:checked')].map((input) => input.value);
+      ['targetGroup', 'excludeGroup', 'experimentId', 'excludeExperiment', 'onlineStart', 'onlineEnd'].forEach((field) => {
+        targeting[field] = modal.querySelector(`[data-check-in-success-targeting-field="${field}"]`)?.value.trim() || '';
+      });
+      targeting.audienceInversion = modal.querySelector('[name="check-in-success-audience-inversion"]:checked')?.value || '否';
+      targeting.status = modal.querySelector('[name="check-in-success-status"]:checked')?.value || '上线';
+      ['ios', 'android', 'harmony'].forEach((platform) => {
+        targeting.platformVersions[platform].enabled = modal.querySelector(`[data-check-in-success-platform="${platform}"]`)?.checked ?? false;
+        targeting.platformVersions[platform].start = modal.querySelector(`[data-check-in-success-version="${platform}:start"]`)?.value.trim() || '';
+        targeting.platformVersions[platform].end = modal.querySelector(`[data-check-in-success-version="${platform}:end"]`)?.value.trim() || '';
+      });
+      const readRoute = (key) => this.createBenefitsCheckInSuccessRoute({
+        routeType: modal.querySelector(`[data-check-in-success-route-field="${key}:routeType"]`)?.value || '',
+        routeProtocol: modal.querySelector(`[data-check-in-success-route-field="${key}:routeProtocol"]`)?.value.trim() || '',
+        pid: modal.querySelector(`[data-check-in-success-route-field="${key}:pid"]`)?.value.trim() || '',
+        selectedPid: modal.querySelector(`[data-check-in-success-route-field="${key}:selectedPid"]`)?.value || '',
+        skipType: modal.querySelector(`[data-check-in-success-route-field="${key}:skipType"]`)?.value.trim() || '',
+        mallId: modal.querySelector(`[data-check-in-success-route-field="${key}:mallId"]`)?.value.trim() || '',
+        materialName: modal.querySelector(`[data-check-in-success-route-field="${key}:materialName"]`)?.value.trim() || '',
+        popupLogo: modal.dataset[`checkInSuccess${key[0].toUpperCase()}${key.slice(1)}PopupLogo`] || '',
+        popupCopy: modal.querySelector(`[data-check-in-success-route-field="${key}:popupCopy"]`)?.value.trim() || '',
+        requiresLogin: modal.querySelector(`[data-check-in-success-route-field="${key}:requiresLogin"]`)?.checked ?? false
+      });
+      const testPlan = window.ConfigurationSections.normalizeTestPlan(base.testPlan);
+      ['uids', 'start', 'end'].forEach((field) => { testPlan[field] = modal.querySelector(`[data-check-in-success-test="${field}"]`)?.value.trim() || ''; });
+      testPlan.enabled = modal.querySelector('[data-check-in-success-test="enabled"]')?.checked ?? false;
+      const config = this.createBenefitsCheckInSuccessFunctionConfig({
+        mainCopy: modal.querySelector('#check-in-success-main-copy').value.trim(),
+        subCopy: modal.querySelector('#check-in-success-sub-copy').value.trim(),
+        buttonRoute: readRoute('button'),
+        resourceImage: modal.dataset.checkInSuccessResourceImage || '',
+        resourceRoute: readRoute('resource')
+      });
+      return this.normalizeBenefitsCheckInSuccessRecord({
+        ...base,
+        recordName: modal.querySelector('#check-in-success-record-name').value.trim(),
+        targeting,
+        testPlan,
+        onlineStart: targeting.onlineStart,
+        onlineEnd: targeting.onlineEnd,
+        status: targeting.status === '下线' ? '已下线' : '上线中',
+        functionConfig: config
+      });
+    };
+    const openModal = (record = null) => {
+      const isNew = !record;
+      const now = this.currentCheckInTime();
+      const draft = this.normalizeBenefitsCheckInSuccessRecord(record || { id: String(Math.max(0, ...records.map((item) => Number(item.id) || 0)) + 1), creator: '当前运营', editor: '当前运营', createdAt: now, updatedAt: now });
+      modal.innerHTML = this.renderBenefitsCheckInSuccessModal(draft, isNew);
+      modal.dataset.checkInSuccessResourceImage = draft.functionConfig.resourceImage;
+      modal.dataset.checkInSuccessButtonPopupLogo = draft.functionConfig.buttonRoute.popupLogo;
+      modal.dataset.checkInSuccessResourcePopupLogo = draft.functionConfig.resourceRoute.popupLogo;
+      modal.hidden = false;
+      modal.querySelector('#check-in-success-main-copy').addEventListener('input', (event) => {
+        modal.querySelector('[data-check-in-success-preview-main]').textContent = event.target.value.trim() || '去下单';
+      });
+      modal.querySelectorAll('[data-check-in-success-image]').forEach((input) => input.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const image = await this.readImageFile(file);
+          const key = event.target.dataset.checkInSuccessImage;
+          const datasetKey = key === 'resource-image' ? 'checkInSuccessResourceImage' : `checkInSuccess${key.replace(/-([a-z])/g, (_, char) => char.toUpperCase()).replace(/^./, (char) => char.toUpperCase())}`;
+          modal.dataset[datasetKey] = image;
+          modal.querySelector(`[data-check-in-success-image-preview="${key}"]`).innerHTML = `<img src="${image}" alt="已上传图片" />`;
+          modal.querySelector(`[data-check-in-success-image-delete="${key}"]`).disabled = false;
+        } catch (error) { window.BackofficeLayout.showToast('图片读取失败', '请重新选择图片'); }
+      }));
+      modal.onclick = (event) => {
+        if (event.target === modal || event.target.closest('#close-check-in-success-modal, #cancel-check-in-success-modal')) { closeModal(); return; }
+        const deleteImage = event.target.closest('[data-check-in-success-image-delete]');
+        if (deleteImage) {
+          const key = deleteImage.dataset.checkInSuccessImageDelete;
+          const datasetKey = key === 'resource-image' ? 'checkInSuccessResourceImage' : `checkInSuccess${key.replace(/-([a-z])/g, (_, char) => char.toUpperCase()).replace(/^./, (char) => char.toUpperCase())}`;
+          modal.dataset[datasetKey] = '';
+          modal.querySelector(`[data-check-in-success-image-preview="${key}"]`).innerHTML = '<b>图片</b>';
+          deleteImage.disabled = true;
+          return;
+        }
+        if (!event.target.closest('#save-check-in-success-modal')) return;
+        const next = readModalRecord(draft);
+        if (!next.recordName || !next.onlineStart || !next.onlineEnd || !next.functionConfig.mainCopy || !next.functionConfig.resourceImage) {
+          window.BackofficeLayout.showToast('请完善必填项', '请填写记录名称、上线时间、按钮主文案并上传资源位图片');
+          return;
+        }
+        if (next.onlineStart > next.onlineEnd) { window.BackofficeLayout.showToast('上线时间有误', '上线结束时间不能早于开始时间'); return; }
+        next.updatedAt = this.currentCheckInTime();
+        if (isNew) records.unshift(next);
+        else Object.assign(records.find((item) => item.id === next.id), next);
+        try { this.saveBenefitsCheckInSuccessState({ records }); } catch (error) { window.BackofficeLayout.showToast('保存失败', '本地演示数据无法保存，请稍后重试'); return; }
+        closeModal(); page = 1; renderTable();
+        window.BackofficeLayout.showToast(isNew ? '新增成功' : '保存成功', '打卡成功弹窗配置已更新');
+      };
+    };
+    document.getElementById('search-check-in-success').addEventListener('click', () => { page = 1; renderTable(); });
+    document.getElementById('check-in-success-name-filter').addEventListener('keydown', (event) => { if (event.key === 'Enter') { page = 1; renderTable(); } });
+    document.getElementById('add-check-in-success').addEventListener('click', () => openModal());
+    document.querySelectorAll('[data-check-in-success-sort]').forEach((button) => button.addEventListener('click', () => { const key = button.dataset.checkInSuccessSort; sort = { key, direction: sort.key === key ? -sort.direction : 1 }; renderTable(); }));
+    tableBody.addEventListener('click', (event) => {
+      const edit = event.target.closest('[data-check-in-success-edit]');
+      if (edit) { openModal(records.find((record) => record.id === edit.dataset.checkInSuccessEdit)); return; }
+      const copy = event.target.closest('[data-check-in-success-copy]');
+      if (!copy) return;
+      const source = records.find((record) => record.id === copy.dataset.checkInSuccessCopy);
+      if (!source) return;
+      const now = this.currentCheckInTime();
+      const cloned = JSON.parse(JSON.stringify(source));
+      cloned.id = String(Math.max(0, ...records.map((record) => Number(record.id) || 0)) + 1);
+      cloned.recordName = `copy${source.recordName}`;
+      cloned.creator = '当前运营'; cloned.editor = '当前运营'; cloned.createdAt = now; cloned.updatedAt = now;
+      records.unshift(cloned);
+      try { this.saveBenefitsCheckInSuccessState({ records }); } catch (error) { window.BackofficeLayout.showToast('复制失败', '本地演示数据无法保存，请稍后重试'); return; }
+      page = 1; renderTable(); window.BackofficeLayout.showToast('已复制配置', '已创建一条新的打卡成功弹窗配置');
+    });
+    pagination.addEventListener('change', (event) => { if (event.target.id === 'check-in-success-page-size') { pageSize = Number(event.target.value); page = 1; renderTable(); } });
+    pagination.addEventListener('click', (event) => { const action = event.target.closest('[data-check-in-success-page]')?.dataset.checkInSuccessPage; if (action === 'prev') page -= 1; if (action === 'next') page += 1; if (action === '1') page = 1; if (action) renderTable(); });
+    pagination.addEventListener('keydown', (event) => { if (event.target.id === 'check-in-success-page-input' && event.key === 'Enter') { page = Math.max(1, Number(event.target.value) || 1); renderTable(); } });
+    renderTable();
+  },
   readImageFile(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -298,7 +769,16 @@ window.MarketingConfigPage = {
     const heading = isFeedView
       ? { title: '首页-信息流营销', note: '维护首页信息流 Tab、资源位状态及展示配置' }
       : { title: '首页-功能区营销', note: '维护首页功能区对应的营销展示配置' };
-    return `<section class="content marketing-config-page"><section class="marketing-navigation panel"><nav class="marketing-tabs" aria-label="底部Tab"><strong class="marketing-tabs-title">底部Tab</strong><div class="marketing-tabs-list" role="tablist"><button class="marketing-tab is-active" type="button" role="tab" aria-selected="true" data-marketing-tab="home">首页 <small>Home</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="benefits">福利页 <small>第2Tab</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="youzi-street">柚子街 <small>第3Tab</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="mine">我 <small>Mine</small></button></div></nav><nav class="marketing-home-subnav" aria-label="页面子导航">${this.renderPrimarySubnav('home', homeView)}</nav></section><section class="marketing-editor-workspace panel"><div class="marketing-workspace-heading"><div><h1>${heading.title}</h1><span class="heading-note">${heading.note}</span></div><div class="marketing-page-actions" id="marketing-page-actions"></div></div><div class="marketing-config-body" id="marketing-config-body">${isFeedView ? window.FeedManagementPage.renderEmbedded() : this.renderHomeBuilder()}</div></section></section>`;
+    const feedBuilder = window.FeedManagementPage?.renderEmbedded?.();
+    const body = isFeedView && feedBuilder
+      ? feedBuilder
+      : isFeedView
+        ? '<div class="style-config-empty">信息流编辑框架加载失败，请刷新页面后重试。</div>'
+        : this.renderHomeBuilder();
+    const initialActions = isFeedView
+      ? '<button class="button secondary" id="cancel-feed-marketing" type="button" disabled>撤销本次修改</button><button class="button primary is-edit-action" id="save-feed-marketing" type="button">编辑</button>'
+      : '';
+    return `<section class="content marketing-config-page"><section class="marketing-navigation panel"><nav class="marketing-tabs" aria-label="底部Tab"><strong class="marketing-tabs-title">底部Tab</strong><div class="marketing-tabs-list" role="tablist"><button class="marketing-tab is-active" type="button" role="tab" aria-selected="true" data-marketing-tab="home">首页 <small>Home</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="benefits">福利页 <small>第2Tab</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="youzi-street">柚子街 <small>第3Tab</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="mine">我 <small>Mine</small></button></div></nav><nav class="marketing-home-subnav" aria-label="页面子导航">${this.renderPrimarySubnav('home', homeView)}</nav><aside class="benefits-feed-reference-note" id="benefits-feed-reference-note" role="note" hidden><ol><li>配置与逛逛首页一致。</li><li>暂不支持 Tab 配置。</li><li>资源位类型调整为“组件”定义。</li></ol></aside></section><section class="marketing-editor-workspace panel"><div class="marketing-workspace-heading"><div><h1>${heading.title}</h1><span class="heading-note">${heading.note}</span></div><div class="marketing-page-actions" id="marketing-page-actions">${initialActions}</div></div><div class="marketing-config-body" id="marketing-config-body">${body}</div></section></section>`;
   },
   renderPrimarySubnav(tab, homeView = 'function') {
     const items = {
@@ -308,12 +788,11 @@ window.MarketingConfigPage = {
       ],
       benefits: [
         { id: 'feed', label: '福利页-信息流', target: 'benefits-feed' },
-        { id: 'check-in', label: '打卡功能营销配置', target: 'benefits-check-in' },
         { id: 'check-in-success', label: '打卡成功弹窗营销配置', target: 'benefits-check-in-success' }
       ],
       'youzi-street': [
         { id: 'feed', label: '柚子街-信息流', target: 'youzi-street-feed' },
-        { id: 'flash-sale', label: '柚子街-限时抢购', target: 'youzi-street-flash-sale' }
+        { id: 'flash-sale', label: '柚子街-限时抢购 （待补充）', target: 'youzi-street-flash-sale' }
       ],
       mine: [{ id: 'feed', label: '我-信息流', target: 'mine-feed' }]
     };
@@ -322,19 +801,154 @@ window.MarketingConfigPage = {
   },
   renderHomeBuilder() {
     return `<section class="home-marketing-builder" id="home-marketing-builder">
-      <aside class="home-marketing-tools"><h2>组件</h2><p>点击组件添加至首页预览区域</p><div class="home-tool-list">
+      <aside class="home-marketing-tools"><h2>组件</h2><p>点击组件进行配置或添加至首页预览区域</p><div class="home-tool-list">
+        <button class="home-tool" type="button" draggable="true" data-home-add="fixed-entries" data-tooltip="拖入或配置首页功能金刚区"><b>▦</b><span>功能金刚区</span></button>
         <button class="home-tool" type="button" draggable="true" data-home-add="search" data-tooltip="支持在功能区排序"><b>⌕</b><span>功能区-橱窗</span></button>
         <button class="home-tool" type="button" draggable="true" data-home-add="shortcut" data-tooltip="支持在功能区排序"><b>▦</b><span>功能区-红包发放功能</span></button>
       </div></aside>
-      <section class="home-marketing-preview"><div class="style-panel-heading"><h2>页面预览</h2><span>所见即所得</span></div><div class="home-phone-stage"><div class="home-component-editor" id="home-component-editor" aria-label="组件编辑入口"></div><p class="home-preview-source-note" role="note">信息流内容来自首页-信息流营销配置，仅供预览</p><div class="home-phone-frame"><section class="home-fixed-header" aria-label="首页固定功能预览"><img class="home-preview-fixed-header-image" src="assets/marketing-config/home-preview-fixed-header.png" alt="美柚省钱首页固定头部" /><div class="home-fixed-entries" id="home-fixed-entries"></div></section><section class="home-static-preview-module home-notification-module" aria-label="通知功能预览"><img class="home-preview-notification-image" src="assets/marketing-config/home-preview-notification.png" alt="红包到期通知" /></section><div class="home-function-slot" id="home-function-slot-after-notification"></div><section class="home-static-preview-module home-search-paste-module" aria-label="搜索粘贴功能预览"><img class="home-preview-search-paste-image" src="assets/marketing-config/home-preview-search-paste.png" alt="复制商品链接快速查返现" /></section><div class="home-function-slot" id="home-function-slot-after-search-paste"></div><div class="home-phone-canvas" id="home-phone-canvas"></div></div></div></section>
+      <section class="home-marketing-preview"><div class="style-panel-heading"><h2>页面预览</h2><span>所见即所得</span></div><div class="home-phone-stage"><div class="home-component-editor" id="home-component-editor" aria-label="组件编辑入口"></div><p class="home-preview-source-note" role="note">信息流内容来自首页-信息流营销配置，仅供预览</p><div class="home-phone-frame"><section class="home-fixed-header" aria-label="功能金刚组件区"><img class="home-preview-fixed-header-image" src="assets/marketing-config/home-preview-fixed-header.png" alt="美柚省钱首页固定头部" /><div class="home-fixed-entries" id="home-fixed-entries" aria-label="功能金刚组件区"></div></section><section class="home-static-preview-module home-notification-module" aria-label="通知功能预览"><img class="home-preview-notification-image" src="assets/marketing-config/home-preview-notification.png" alt="红包到期通知" /></section><div class="home-function-slot" id="home-function-slot-after-notification"></div><section class="home-static-preview-module home-search-paste-module" aria-label="搜索粘贴功能预览"><img class="home-preview-search-paste-image" src="assets/marketing-config/home-preview-search-paste.png" alt="复制商品链接快速查返现" /></section><div class="home-function-slot" id="home-function-slot-after-search-paste"></div><div class="home-phone-canvas" id="home-phone-canvas"></div></div></div></section>
       <aside class="home-marketing-settings"><div class="style-panel-heading"><h2>配置</h2><span id="home-config-type">未选择组件</span></div><div class="home-config-content" id="home-config-content"><div class="style-config-empty">从左侧添加组件，或点击预览中的组件进行配置</div></div><div class="home-config-actions"><span class="home-component-save-tooltip" data-tooltip="保存当前组件配置后，仍需点击页面保存才能提交整页配置。"><button class="button primary" id="save-home-component" type="button">保存组件</button></span></div></aside>
     </section>`;
   },
+  renderHomeConfigurationList({ components, fixedEntriesComponents }) {
+    const joinConditions = (items, fallback = '-') => items.filter(Boolean).join(' 且 ') || fallback;
+    const formatDateTime = (value) => value ? value.replace('T', ' ') : '';
+    const formatTargeting = (value = {}) => {
+      const targeting = window.ConfigurationSections.normalizeTargeting(value);
+      const platformLabels = { ios: 'iOS', android: 'Android', harmony: 'Harmony' };
+      const platforms = Object.entries(targeting.platformVersions)
+        .filter(([, version]) => version.enabled)
+        .map(([key, version]) => {
+          const range = [version.start, version.end].filter(Boolean).join(' 至 ');
+          return `${platformLabels[key]}${range ? ` ${range}` : ''}`;
+        });
+      return joinConditions([
+        targeting.identities.length ? `用户身份：${targeting.identities.join('、')}` : '',
+        targeting.targetGroup ? `指定人群包：${targeting.targetGroup}` : '',
+        targeting.excludeGroup ? `排除人群包：${targeting.excludeGroup}` : '',
+        targeting.audiences.length ? `${targeting.audienceInversion === '是' ? '定制人群取反：' : '定制人群：'}${targeting.audiences.join('、')}` : '',
+        targeting.experimentId ? `指定实验：${targeting.experimentId}` : '',
+        targeting.excludeExperiment ? `排除实验：${targeting.excludeExperiment}` : '',
+        platforms.length ? `平台版本：${platforms.join('、')}` : '',
+        targeting.onlineStart ? `上线开始：${formatDateTime(targeting.onlineStart)}` : '',
+        targeting.onlineEnd ? `上线结束：${formatDateTime(targeting.onlineEnd)}` : '',
+        targeting.status ? `状态：${targeting.status}` : ''
+      ], '全部用户');
+    };
+    const formatTestPlan = (value = {}) => {
+      const testPlan = window.ConfigurationSections.normalizeTestPlan(value);
+      if (!testPlan.enabled) return '未启用';
+      return joinConditions([
+        '测试状态：生效',
+        testPlan.uids ? `测试 UID：${testPlan.uids}` : '',
+        testPlan.start ? `开始：${formatDateTime(testPlan.start)}` : '',
+        testPlan.end ? `结束：${formatDateTime(testPlan.end)}` : ''
+      ], '测试状态：生效');
+    };
+    const formatGoldComponent = (component) => {
+      const entries = Array.isArray(component.entries) ? component.entries : [];
+      const materialConfig = entries.map((entry) => `${entry.title || '未命名入口'}：${entry.image ? '已上传入口素材' : '未上传入口素材'}${entry.darkImage ? '、已上传暗黑素材' : ''}`).join('、');
+      const jumpConfig = entries.map((entry) => {
+        const type = entry.jumpType === 'link' ? '自定义地址/协议' : '页面跳转';
+        const target = entry.jumpType === 'link' ? entry.linkTarget : entry.pageTarget;
+        return `${entry.title || '未命名入口'}：${type}${target ? ` / ${target}` : ''}${entry.jumpDescription ? ` / ${entry.jumpDescription}` : ''}`;
+      }).join('、');
+      return {
+        componentConfig: `入口数量：${entries.length}`,
+        materialConfig: materialConfig || '-',
+        jumpConfig: jumpConfig || '-',
+        enabled: component.enabled ? '开启' : '不开启'
+      };
+    };
+    const formatShowcase = (showcase = {}) => {
+      const windowType = showcase.windowType === 'newcomer' ? '新人滑块商品' : '拼图';
+      const config = showcase[showcase.windowType] || {};
+      const routeType = config.routeType === 'protocol' ? '自定义地址/协议' : config.routeType === 'page' ? '页面跳转' : '未配置';
+      return {
+        componentConfig: `功能类型：橱窗功能；橱窗类型：${windowType}`,
+        materialConfig: joinConditions([
+          `橱窗图片：${config.image ? '已上传' : '未上传'}`,
+          `暗黑素材：${config.darkImage ? '已上传' : '未上传'}`,
+          `出站弹窗 Logo：${config.popupLogo ? '已上传' : '未上传'}`,
+          config.popupCopy ? `出站弹窗文案：${config.popupCopy}` : ''
+        ]),
+        jumpConfig: joinConditions([
+          `跳转类型：${routeType}`,
+          config.routeProtocol ? `路由协议：${config.routeProtocol}` : '',
+          config.pid ? `PID：${config.pid}` : '',
+          config.selectedPid ? `选中 PID：${config.selectedPid}` : '',
+          config.skipType ? `skip_type：${config.skipType}` : '',
+          config.mallId ? `商城 ID：${config.mallId}` : '',
+          typeof config.requiresLogin === 'boolean' ? `用户需登录：${config.requiresLogin ? '是' : '否'}` : ''
+        ]),
+        enabled: window.ConfigurationSections.normalizeTargeting(showcase.targeting).status
+      };
+    };
+    const formatRedPacket = (redPacket = {}) => ({
+      componentConfig: joinConditions([
+        `发放类型：${redPacket.deliveryType === 'package' ? '券包发放' : '单个发放'}`,
+        `标题区：${redPacket.titleArea ? '已配置' : '未配置'}`,
+        redPacket.title ? `标题：${redPacket.title}` : '',
+        redPacket.subtitle ? `副标题：${redPacket.subtitle}` : '',
+        redPacket.template ? `红包模板：${redPacket.template === 'without-button' ? '无去使用按钮' : '有去使用按钮'}` : ''
+      ]),
+      materialConfig: joinConditions([
+        `标题素材：${redPacket.titleImage ? '已上传' : '未上传'}`,
+        `标题暗黑素材：${redPacket.titleDarkImage ? '已上传' : '未上传'}`,
+        `未领取素材：${redPacket.unclaimedImage ? '已上传' : '未上传'}`,
+        `未领取暗黑素材：${redPacket.unclaimedDarkImage ? '已上传' : '未上传'}`
+      ]),
+      jumpConfig: '关联返现红包：关联区',
+      enabled: window.ConfigurationSections.normalizeTargeting(redPacket.targeting).status
+    });
+    const records = [
+      ...fixedEntriesComponents.map((component, index) => {
+        const detail = formatGoldComponent(component);
+        return {
+        id: component.id,
+        kind: 'gold',
+        type: '功能金刚区',
+        name: `功能金刚区 ${index + 1}`,
+        ...detail,
+        targeting: formatTargeting(component.targeting),
+        testPlan: formatTestPlan(component.testPlan)
+        };
+      }),
+      ...components.filter((component) => component.type === 'search').map((component) => {
+        const detail = formatShowcase(component.showcase);
+        return {
+        id: component.id,
+        kind: 'component',
+        type: '功能区-橱窗',
+        name: component.showcase?.name || '未填写记录名称',
+        ...detail,
+        targeting: formatTargeting(component.showcase?.targeting),
+        testPlan: formatTestPlan(component.showcase?.testPlan)
+        };
+      }),
+      ...components.filter((component) => component.type === 'shortcut').map((component) => {
+        const detail = formatRedPacket(component.redPacket);
+        return {
+        id: component.id,
+        kind: 'component',
+        type: '功能区-红包发放功能',
+        name: component.redPacket?.name || '未填写记录名称',
+        ...detail,
+        targeting: formatTargeting(component.redPacket?.targeting),
+        testPlan: formatTestPlan(component.redPacket?.testPlan)
+        };
+      })
+    ];
+    const cell = (value) => `<td title="${this.escapeHtml(value)}">${this.escapeHtml(value)}</td>`;
+    const editCell = (record) => `<td class="home-configuration-list-action"><button class="text-button" type="button" data-edit-home-configuration="${this.escapeHtml(record.id)}" data-edit-home-configuration-kind="${record.kind}">编辑</button></td>`;
+    const body = records.length
+      ? `<div class="home-configuration-list-wrap"><table class="home-configuration-list"><thead><tr><th>组件类型</th><th>记录名称</th><th>组件配置</th><th>素材配置</th><th>跳转配置</th><th>启用状态</th><th>定向信息</th><th>测试计划</th><th>操作</th></tr></thead><tbody>${records.map((record) => `<tr>${cell(record.type)}${cell(record.name)}${cell(record.componentConfig)}${cell(record.materialConfig)}${cell(record.jumpConfig)}${cell(record.enabled)}${cell(record.targeting)}${cell(record.testPlan)}${editCell(record)}</tr>`).join('')}</tbody></table></div>`
+      : '<div class="home-configuration-list-empty">暂未添加组件配置</div>';
+    return `<div class="modal-card home-configuration-list-card" role="dialog" aria-modal="true" aria-labelledby="home-configuration-list-title"><div class="modal-header"><h2 id="home-configuration-list-title">配置列表</h2><button class="icon-close" type="button" data-close-home-configuration-list aria-label="关闭">×</button></div><div class="modal-body home-configuration-list-body"><p>仅可查看到已保存的信息。</p>${body}</div><div class="modal-footer"><button class="button primary" type="button" data-close-home-configuration-list>关闭</button></div></div>`;
+  },
   renderPrimaryTabPlaceholder(tab, view = 'feed') {
     const pages = {
-      benefits: view === 'check-in'
-        ? { title: '打卡功能营销配置', note: '福利页打卡功能的营销配置将在此处维护' }
-        : view === 'check-in-success'
+      benefits: view === 'check-in-success'
           ? { title: '打卡成功弹窗营销配置', note: '福利页打卡成功弹窗的营销配置将在此处维护' }
           : { title: '福利页', note: '第 2 Tab 的营销配置将在此处维护' },
       'youzi-street': view === 'flash-sale'
@@ -350,11 +964,24 @@ window.MarketingConfigPage = {
       <aside class="home-marketing-tools benefits-feed-tools"><h2>组件</h2><p>选择组件添加至福利页信息流预览区域</p><div class="home-tool-list">
         <button class="home-tool" type="button" draggable="true" data-benefits-feed-add="mosaic"><b>◫</b><span>信息流-拼图</span><small>活动素材组合展示</small></button>
         <button class="home-tool" type="button" draggable="true" data-benefits-feed-add="grid"><b>▦</b><span>信息流-宫格</span><small>分类入口组合展示</small></button>
-        <button class="home-tool" type="button" draggable="true" data-benefits-feed-add="red-packet"><b>￥</b><span>信息流-红包</span><small>红包权益内容展示</small></button>
+        <button class="home-tool" type="button" draggable="true" data-benefits-feed-add="red-packet"><b>￥</b><span>信息流-红包发放功能</span><small>红包权益发放展示</small></button>
       </div></aside>
       <section class="home-marketing-preview benefits-feed-preview"><div class="style-panel-heading"><h2>页面预览</h2><span>福利页信息流</span></div><div class="home-phone-stage"><div class="home-phone-frame benefits-feed-phone-frame"><div class="benefits-feed-phone-header"><b>福利中心</b><span>精选好礼</span></div><div class="benefits-feed-phone-content" id="benefits-feed-preview-content"></div></div></div></section>
-      <aside class="home-marketing-settings benefits-feed-settings"><div class="style-panel-heading"><h2>配置</h2><span id="benefits-feed-config-type">未选择组件</span></div><div class="home-config-content" id="benefits-feed-config-content"></div><div class="benefits-feed-settings-overlay" role="note"><ol><li>配置与逛逛首页一致。</li><li>暂不支持 Tab 配置。</li><li>资源位类型调整为“组件”定义。</li></ol></div></aside>
+      <aside class="home-marketing-settings benefits-feed-settings"><div class="style-panel-heading"><h2>配置</h2><span id="benefits-feed-config-type">未选择组件</span></div><div class="home-config-content" id="benefits-feed-config-content"></div><div class="home-config-actions"><span class="home-component-save-tooltip" data-tooltip="保存当前组件配置后，仍需点击页面保存才能提交整页配置。"><button class="button primary" id="save-benefits-feed-component" type="button">保存组件</button></span></div></aside>
     </section>`;
+  },
+  renderPrimaryComponentBuilder(config) {
+    const palette = {
+      mosaic: '<button class="home-tool" type="button" draggable="true" data-benefits-feed-add="mosaic"><b>◫</b><span>信息流-拼图</span><small>活动素材组合展示</small></button>',
+      grid: '<button class="home-tool" type="button" draggable="true" data-benefits-feed-add="grid"><b>▦</b><span>信息流-宫格</span><small>分类入口组合展示</small></button>',
+      'red-packet': '<button class="home-tool" type="button" draggable="true" data-benefits-feed-add="red-packet"><b>￥</b><span>信息流-红包发放功能</span><small>红包权益发放展示</small></button>'
+    };
+    return this.renderBenefitsFeedBuilder()
+      .replace('选择组件添加至福利页信息流预览区域', `选择组件添加至${config.previewTitle}${config.previewTag}预览区域`)
+      .replace(/<div class="home-tool-list">[\s\S]*?<\/div><\/aside>/, `<div class="home-tool-list">${config.palette.map((type) => palette[type]).join('')}</div></aside>`)
+      .replace('福利页信息流', `${config.previewTitle}${config.previewTag}`)
+      .replace('福利中心', config.previewTitle)
+      .replace('精选好礼', config.previewTag);
   },
   renderBenefitsFeedPreview(components, activeId) {
     const container = document.getElementById('benefits-feed-preview-content');
@@ -365,16 +992,30 @@ window.MarketingConfigPage = {
     }
     const preview = (component) => {
       const active = component.id === activeId ? ' is-active' : '';
+      const unsaved = component.isSaved ? '' : ' is-unsaved';
       const image = component.image ? `<img src="${component.image}" alt="${component.label}素材" />` : '';
       const name = this.escapeHtml(component.recordName || component.label);
       const slot = (item, content, className = '') => `<span class="benefits-feed-slot ${className}" draggable="true" data-benefits-feed-slot="${item.id}">${content}</span>`;
       const slots = this.getBenefitsFeedSlots(component);
       if (component.type === 'mosaic') {
-        const [main, ...side] = slots;
-        return `<button class="benefits-feed-card benefits-feed-mosaic${active}" type="button" draggable="true" data-benefits-feed-component="${component.id}">${image || `${slot(main, `<b>${main.id === 'main' ? name : main.label}</b><small>${main.detail || '活动素材坑位'}</small>`, 'benefits-feed-mosaic-main')}<span class="benefits-feed-mosaic-side">${side.map((item) => slot(item, item.label)).join('')}</span>`}</button>`;
+        const mosaic = this.createBenefitsFeedMosaicConfig({ ...component, ...component.mosaic });
+        component.mosaic = mosaic;
+        const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+        const positionImage = position.image ? `<img src="${position.image}" alt="${component.label}素材" />` : '';
+        const pieces = mosaic.positions.map((item, index) => `<span class="benefits-feed-slot${item.id === position.id ? ' is-selected' : ''}" data-benefits-feed-mosaic-preview-position="${this.escapeHtml(item.id)}">${item.image ? `<img src="${item.image}" alt="拼图位置${index + 1}" />` : `<b>${index + 1}</b>`}</span>`).join('');
+        return `<button class="benefits-feed-card benefits-feed-mosaic${active}${unsaved}" type="button" draggable="true" data-benefits-feed-component="${component.id}">${positionImage || `<span class="benefits-feed-mosaic-main"><b>${name}</b><small>活动素材坑位</small></span>`}<span class="benefits-feed-mosaic-side benefits-feed-mosaic-position-preview">${pieces}</span></button>`;
       }
-      if (component.type === 'grid') return `<button class="benefits-feed-card benefits-feed-grid${active}" type="button" draggable="true" data-benefits-feed-component="${component.id}">${image || `<b>${name}</b><span>${slots.map((item) => slot(item, item.label)).join('')}</span>`}</button>`;
-      return `<button class="benefits-feed-card benefits-feed-red-packet${active}" type="button" draggable="true" data-benefits-feed-component="${component.id}">${image || `<span>${slots.map((item) => item.id === 'content' ? slot(item, `<small>福利红包</small><b>${name}</b>`, 'benefits-feed-red-packet-content') : slot(item, item.label, 'benefits-feed-red-packet-action')).join('')}</span>`}</button>`;
+      if (component.type === 'grid') {
+        const grid = this.createBenefitsFeedGridConfig({ ...component, ...component.grid });
+        component.grid = grid;
+        const positions = grid.positions.map((item, index) => `<span class="benefits-feed-slot${item.id === grid.selectedPositionId ? ' is-selected' : ''}" data-benefits-feed-grid-preview-position="${this.escapeHtml(item.id)}">${item.image ? `<img src="${item.image}" alt="宫格展位${index + 1}" />` : `<b>${this.escapeHtml(item.title || `展位 ${index + 1}`)}</b>`}${item.cornerCopy ? `<i>${this.escapeHtml(item.cornerCopy)}</i>` : ''}</span>`).join('');
+        return `<button class="benefits-feed-card benefits-feed-grid${active}${unsaved}" type="button" draggable="true" data-benefits-feed-component="${component.id}">${image || `<b>${name}</b><span>${positions}</span>`}</button>`;
+      }
+      const redPacket = this.createBenefitsFeedRedPacketConfig(component.redPacket);
+      component.redPacket = redPacket;
+      const redPacketName = this.escapeHtml(redPacket.name || component.label);
+      const previewImage = redPacket.deliveryType === 'package' && redPacket.unclaimedImage ? `<img src="${redPacket.unclaimedImage}" alt="${component.label}素材" />` : image;
+      return `<button class="benefits-feed-card benefits-feed-red-packet${active}${unsaved}" type="button" draggable="true" data-benefits-feed-component="${component.id}">${previewImage || `<span>${slots.map((item) => item.id === 'content' ? slot(item, `<small>福利红包</small><b>${redPacketName}</b>`, 'benefits-feed-red-packet-content') : slot(item, item.label, 'benefits-feed-red-packet-action')).join('')}</span>`}</button>`;
     };
     container.innerHTML = components.map(preview).join('');
   },
@@ -389,44 +1030,83 @@ window.MarketingConfigPage = {
     }
     type.textContent = component.label;
     const field = (label, control, className = '') => `<div class="config-field ${className}"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
-    const asset = (label, name, value) => `<span class="benefits-feed-asset"><span class="benefits-feed-asset-preview">${value ? `<img src="${value}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="benefits-feed-asset-actions"><label class="button secondary benefits-feed-upload">上传图片<input type="file" accept="image/*" data-benefits-feed-image="${name}" /></label><button class="home-entry-delete" type="button" data-benefits-feed-delete="${name}"${value ? '' : ' disabled'}>删除图片</button></span></span>`;
-    container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form"><section class="home-entry-info-section shared-config-section"><h3>资源位信息</h3>
-      ${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-field="recordName" value="${this.escapeHtml(component.recordName)}" placeholder="仅用于后台记录，前台不可见" />`)}
-      ${field('<b class="field-required">*</b>组件', `<input class="control benefits-feed-type-control" value="${component.label}" disabled />`)}
-      ${field('<b class="field-required">*</b>排序', `<input class="control" data-benefits-feed-field="sort" value="${this.escapeHtml(component.sort)}" inputmode="numeric" placeholder="越大展示越靠前" />`)}
-      ${field('素材配置', `<div class="benefits-feed-assets">${asset('正常模式', 'image', component.image)}${asset('暗黑模式', 'darkImage', component.darkImage)}</div>`, 'benefits-feed-asset-field')}
-      ${field('跳转类型', `<select class="control" data-benefits-feed-field="routeType"><option value="page"${component.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${component.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select>`)}
-      ${field(component.routeType === 'protocol' ? '地址/协议' : '目标页面', `<input class="control" data-benefits-feed-field="routeValue" value="${this.escapeHtml(component.routeValue)}" placeholder="请输入${component.routeType === 'protocol' ? '地址或协议' : '目标页面'}" />`)}
-    </section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed', value: component.testPlan })}<button class="text-button home-remove-component" type="button" data-benefits-feed-remove="${component.id}">移除组件</button></div>`;
+    if (component.type === 'mosaic') {
+      const mosaic = this.createBenefitsFeedMosaicConfig({ ...component, ...component.mosaic });
+      component.mosaic = mosaic;
+      const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+      const asset = (label, name, value) => `<span class="home-showcase-asset"><span class="home-showcase-asset-preview">${value ? `<img src="${value}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="home-showcase-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-benefits-feed-mosaic-image="${name}" /></label><button class="home-entry-delete" type="button" data-benefits-feed-mosaic-delete="${name}"${value ? '' : ' disabled'}>删除图片</button></span></span>`;
+      const help = (text) => `<button class="help-tooltip home-showcase-help" type="button" aria-label="字段说明" data-tooltip="${text}">?</button>`;
+      const pieces = mosaic.positions.map((item) => `<button class="feed-mosaic-piece${item.id === position.id ? ' is-selected' : ''}" type="button" data-benefits-feed-mosaic-position="${this.escapeHtml(item.id)}">${item.image ? `<img src="${item.image}" alt="拼图位置图片" />` : '<span>选择</span>'}${item.id === position.id ? '<b>★</b>' : ''}</button>`).join('');
+      const workspace = `<div class="home-showcase-workspace"><div class="feed-mosaic-canvas" aria-label="拼图配置"><div class="feed-mosaic-piece-list">${pieces}</div><span class="feed-mosaic-position-actions"><button class="feed-mosaic-position-add" type="button" data-benefits-feed-mosaic-position-add aria-label="添加位置">+</button><button class="feed-mosaic-position-remove" type="button" data-benefits-feed-mosaic-position-remove aria-label="删除选中位置"${mosaic.positions.length === 1 ? ' disabled' : ''}>×</button></span></div><span class="home-showcase-route-example">路由协议填写示例</span><div class="home-showcase-assets">${asset('上传图片', 'image', position.image)}${asset('暗黑模式', 'darkImage', position.darkImage)}</div><div class="home-showcase-route-row"><select class="control" data-benefits-feed-mosaic-field="routeType"><option value="">请选择跳转类型</option><option value="page"${position.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${position.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" data-benefits-feed-mosaic-field="routeProtocol" value="${this.escapeHtml(position.routeProtocol)}" placeholder="请输入路由协议" /></div><div class="home-showcase-input-help"><input class="control" data-benefits-feed-mosaic-field="pid" value="${this.escapeHtml(position.pid)}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" />${help('用于商城埋点上报的 PID 配置。')}</div><div class="home-showcase-input-help"><select class="control" data-benefits-feed-mosaic-field="selectedPid"><option value="">请选择 pid</option><option value="default"${position.selectedPid === 'default' ? ' selected' : ''}>默认 pid</option><option value="custom"${position.selectedPid === 'custom' ? ' selected' : ''}>自定义 pid</option></select>${help('选择当前拼图展示使用的 PID。')}</div><div class="home-showcase-input-help"><input class="control" data-benefits-feed-mosaic-field="skipType" value="${this.escapeHtml(position.skipType)}" placeholder="skip_type（用于埋点上报）" />${help('用于记录跳转类型的埋点字段。')}</div><input class="control" data-benefits-feed-mosaic-field="mallId" value="${this.escapeHtml(position.mallId)}" placeholder="商城 id" /><div class="home-showcase-popup-row">${asset('出站弹窗 logo', 'popupLogo', position.popupLogo)}<input class="control" data-benefits-feed-mosaic-field="popupCopy" value="${this.escapeHtml(position.popupCopy)}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input type="checkbox" data-benefits-feed-mosaic-field="requiresLogin"${position.requiresLogin ? ' checked' : ''} />用户需登录</label></div>`;
+      container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form feed-mosaic-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control benefits-feed-type-control" value="信息流-拼图" disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-field="recordName" value="${this.escapeHtml(component.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section home-showcase-feature-section feed-mosaic-material-section"><h3>素材配置</h3>${field('拼图配置', workspace, 'home-showcase-config-field')}<div class="editor-requirement-overlay" role="note"><div><strong>需求补充说明</strong><p>此部分内容复用「美柚返现」；如有修改，则以最新的逻辑为准。</p></div><button class="button secondary" type="button" data-dismiss-requirement-overlay>我知道了</button></div></section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed', value: component.testPlan })}<button class="text-button home-remove-component" type="button" data-benefits-feed-remove="${component.id}">移除组件</button></div>`;
+      window.BackofficeLayout.bindGlobalTooltips?.();
+      return;
+    }
+    if (component.type === 'grid') {
+      const grid = this.createBenefitsFeedGridConfig({ ...component, ...component.grid });
+      component.grid = grid;
+      const position = grid.positions.find((item) => item.id === grid.selectedPositionId) || grid.positions[0];
+      const asset = (label, name, value) => `<span class="home-showcase-asset"><span class="home-showcase-asset-preview">${value ? `<img src="${value}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="home-showcase-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-benefits-feed-grid-image="${name}" /></label><button class="home-entry-delete" type="button" data-benefits-feed-grid-delete="${name}"${value ? '' : ' disabled'}>删除图片</button></span></span>`;
+      const pieces = grid.positions.map((item, index) => `<button class="feed-grid-piece${item.id === position.id ? ' is-selected' : ''}" type="button" data-benefits-feed-grid-position="${this.escapeHtml(item.id)}">${item.image ? `<img src="${item.image}" alt="宫格展位图片" />` : `<span>${index + 1}</span>`}${item.id === position.id ? '<b>★</b>' : ''}</button>`).join('');
+      const workspace = `<div class="home-showcase-workspace"><div class="feed-grid-canvas" aria-label="宫格素材配置"><div class="feed-grid-piece-list">${pieces}</div><span class="feed-mosaic-position-actions"><button class="feed-mosaic-position-add" type="button" data-benefits-feed-grid-position-add aria-label="添加展位">+</button><button class="feed-mosaic-position-remove" type="button" data-benefits-feed-grid-position-remove aria-label="删除选中展位"${grid.positions.length === 1 ? ' disabled' : ''}>×</button></span></div><div class="feed-grid-position-fields"><div class="home-showcase-route-row"><input class="control" data-benefits-feed-grid-field="title" value="${this.escapeHtml(position.title)}" maxlength="4" placeholder="标题（最多 4 字）" /><input class="control" data-benefits-feed-grid-field="cornerCopy" value="${this.escapeHtml(position.cornerCopy)}" maxlength="3" placeholder="角标文案（最多 3 字）" /></div><div class="home-showcase-assets">${asset('上传图片', 'image', position.image)}</div><div class="home-showcase-route-row"><select class="control" data-benefits-feed-grid-field="routeType"><option value="">请选择跳转类型</option><option value="page"${position.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${position.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" data-benefits-feed-grid-field="routeProtocol" value="${this.escapeHtml(position.routeProtocol)}" placeholder="请输入路由协议" /></div><input class="control" data-benefits-feed-grid-field="pid" value="${this.escapeHtml(position.pid)}" placeholder="PID" /><select class="control" data-benefits-feed-grid-field="selectedPid"><option value="">请选择 PID</option><option value="default"${position.selectedPid === 'default' ? ' selected' : ''}>默认 PID</option><option value="custom"${position.selectedPid === 'custom' ? ' selected' : ''}>自定义 PID</option></select><input class="control" data-benefits-feed-grid-field="skipType" value="${this.escapeHtml(position.skipType)}" placeholder="skip_type" /><input class="control" data-benefits-feed-grid-field="mallId" value="${this.escapeHtml(position.mallId)}" placeholder="商城 ID" /><div class="home-showcase-popup-row">${asset('出站弹窗 logo', 'popupLogo', position.popupLogo)}<input class="control" data-benefits-feed-grid-field="popupCopy" value="${this.escapeHtml(position.popupCopy)}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input type="checkbox" data-benefits-feed-grid-field="requiresLogin"${position.requiresLogin ? ' checked' : ''} />用户需登录</label></div></div>`;
+      container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form feed-grid-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control benefits-feed-type-control" value="信息流-宫格" disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-field="recordName" value="${this.escapeHtml(component.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section home-showcase-feature-section"><h3>素材配置</h3>${field('宫格展位', workspace, 'home-showcase-config-field')}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed', value: component.testPlan })}<button class="text-button home-remove-component" type="button" data-benefits-feed-remove="${component.id}">移除组件</button></div>`;
+      return;
+    }
+    const redPacket = this.createBenefitsFeedRedPacketConfig(component.redPacket);
+    component.redPacket = redPacket;
+    const asset = (label, key, image) => `<span class="home-red-packet-title-asset"><span class="home-red-packet-title-asset-preview">${image ? `<img src="${image}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="home-red-packet-title-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-benefits-feed-red-packet-image="${key}" /></label><button class="home-entry-delete" type="button" data-benefits-feed-red-packet-delete="${key}"${image ? '' : ' disabled'}>删除图片</button></span></span>`;
+    const titleArea = redPacket.titleArea ? `<div class="home-red-packet-title-area-fields">${field('标题', `<input class="control" data-benefits-feed-red-packet-field="title" value="${this.escapeHtml(redPacket.title)}" placeholder="请输入标题" />`)}${field('副标题', `<input class="control" data-benefits-feed-red-packet-field="subtitle" value="${this.escapeHtml(redPacket.subtitle)}" placeholder="请输入副标题" />`)}${field('标题图片', `<div class="home-red-packet-title-assets">${asset('上传图片', 'titleImage', redPacket.titleImage)}${asset('暗黑模式', 'titleDarkImage', redPacket.titleDarkImage)}</div><p>若同时填写文字标题，以图片优先展示。</p>`, 'home-red-packet-title-image-field')}</div>` : '';
+    const packageInfo = redPacket.deliveryType === 'package' ? `<div class="home-red-packet-package-info"><p class="home-red-packet-package-notice">同一券包配置内，关联红包每人最多可领取一次，无法重复领取</p>${field('<b class="field-required">*</b>未领取图片素材', `<div class="home-red-packet-package-asset-list">${asset('上传图片', 'unclaimedImage', redPacket.unclaimedImage)}${asset('暗黑模式', 'unclaimedDarkImage', redPacket.unclaimedDarkImage)}</div><p class="home-red-packet-package-help">用户未领取时展示整张素材图。未领取态不展示标题区，以图片素材为主视觉。</p>`, 'home-red-packet-package-assets')}</div>` : '';
+    const packageTemplate = redPacket.deliveryType === 'package' ? field('<b class="field-required">*</b>红包模板', `<span class="home-red-packet-template-options"><label class="home-red-packet-template-card${redPacket.template === 'with-button' ? ' is-selected' : ''}"><input type="radio" name="benefits-feed-red-packet-template" value="with-button"${redPacket.template === 'with-button' ? ' checked' : ''} /><span class="home-red-packet-template-copy"><b>模板一：有去使用按钮</b><small>已领取/待使用状态下展示“去使用”按钮，点击后按红包自身配置的跳转地址跳转。</small></span><img class="home-red-packet-template-preview" src="assets/marketing-config/red-packet-template-with-button.png" alt="模板一红包样式示意" /></label><label class="home-red-packet-template-card${redPacket.template === 'without-button' ? ' is-selected' : ''}"><input type="radio" name="benefits-feed-red-packet-template" value="without-button"${redPacket.template === 'without-button' ? ' checked' : ''} /><span class="home-red-packet-template-copy"><b>模板二：无去使用按钮</b><small>已领取/待使用状态下不展示按钮。适用于红包跳转地址为返现首页，避免用户点击后仍停留首页。</small></span><img class="home-red-packet-template-preview" src="assets/marketing-config/red-packet-template-without-button.png" alt="模板二红包样式示意" /></label></span><p class="home-red-packet-template-help">若关联红包的跳转地址为返现首页，建议选择“无去使用按钮”，避免用户感知为按钮无效。</p>`, 'home-red-packet-template-field') : '';
+    container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form home-red-packet-form"><section class="home-entry-info-section shared-config-section"><h3>基础信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control benefits-feed-type-control" value="信息流-红包发放功能" disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-red-packet-field="name" value="${this.escapeHtml(redPacket.name)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section"><h3>功能信息</h3>${field('<b class="field-required">*</b>发放类型', `<span class="home-entry-status-control"><label><input type="radio" name="benefits-feed-red-packet-delivery" value="single"${redPacket.deliveryType === 'single' ? ' checked' : ''} />单个发放</label><label><input type="radio" name="benefits-feed-red-packet-delivery" value="package"${redPacket.deliveryType === 'package' ? ' checked' : ''} />券包发放</label></span>`)}${packageInfo}${field('是否配置标题区', `<span class="home-entry-status-control"><label><input type="checkbox" data-benefits-feed-red-packet-title-area${redPacket.titleArea ? ' checked' : ''} />配置标题区</label></span>`)}${titleArea}${packageTemplate}<div class="home-red-packet-link"><span>关联返现红包</span><div class="home-red-packet-link-control"><button class="button secondary" type="button" disabled title="本原型不展开红包关联明细">+ 关联红包</button><div class="home-red-packet-link-placeholder">关联区</div></div></div></section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed-red-packet', value: redPacket.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed-red-packet', value: redPacket.testPlan })}<p>带 * 的字段为必填项。关联红包仅保留入口，不在此处配置选择明细。</p><button class="text-button home-remove-component" type="button" data-benefits-feed-remove="${component.id}">移除组件</button></div>`;
   },
-  bindBenefitsFeedBuilder(navigate) {
-    const state = this.loadBenefitsFeedState();
+  bindBenefitsFeedBuilder(navigate, options = {}) {
+    const primaryConfig = options.primaryConfig || null;
+    const state = primaryConfig ? this.loadPrimaryComponentState(primaryConfig) : this.loadBenefitsFeedState();
     const components = state.components;
     let activeId = components[0]?.id || null;
-    let isEditing = false;
-    let savedState = this.cloneBenefitsFeedState({ components });
+    const editSession = window.EditSession.create({
+      snapshot: () => ({ components }),
+      clone: (value) => this.cloneBenefitsFeedState(value),
+      confirmClose: () => window.BackofficeLayout.confirm({ title: '确认关闭编辑？', message: '当前编辑的内容未保存，是否仍然要关闭', confirmText: '仍然关闭', cancelText: '继续编辑' })
+    });
     let draggedToolType = null;
     let draggedComponentId = null;
     let draggedSlot = null;
     const activeComponent = () => components.find((item) => item.id === activeId);
-    const snapshot = () => ({ components });
-    const hasChanges = () => JSON.stringify(snapshot()) !== JSON.stringify(savedState);
+    const validateComponent = (component) => {
+      if (!component) return '';
+      if (component.type !== 'red-packet') return component.recordName.trim() ? '' : '请补充资源位记录名称';
+      const redPacket = this.createBenefitsFeedRedPacketConfig(component.redPacket);
+      const hasPlatformVersion = Object.values(redPacket.targeting.platformVersions).some((platform) => platform.enabled && platform.start.trim());
+      if (!redPacket.name.trim() || !redPacket.deliveryType || !hasPlatformVersion || !redPacket.targeting.onlineStart || !redPacket.targeting.onlineEnd || (redPacket.deliveryType === 'package' && (!redPacket.unclaimedImage || !redPacket.template))) return '请补充红包发放功能的记录名称、发放类型、平台版本与上线时间；券包发放还需上传未领取图片素材并选择红包模板';
+      return '';
+    };
     const activatePrimaryTab = (tab) => document.querySelectorAll('[data-marketing-tab]').forEach((item) => {
       const active = item === tab;
       item.classList.toggle('is-active', active);
       item.setAttribute('aria-selected', String(active));
     });
     const guardUnsavedNavigation = async (onProceed) => {
-      if (!isEditing || !hasChanges()) { onProceed(); return; }
-      const confirmed = await window.BackofficeLayout.confirm({ title: '确认关闭编辑？', message: '当前编辑的内容未保存，是否仍然要关闭', confirmText: '仍然关闭', cancelText: '继续编辑' });
-      if (confirmed) onProceed();
+      editSession.guardNavigation(onProceed);
     };
     const updateEditState = () => {
       const builder = document.getElementById('benefits-feed-builder');
       const actions = document.getElementById('marketing-page-actions');
+      const isEditing = editSession.isEditing();
       builder.classList.toggle('is-editing', isEditing);
-      actions.innerHTML = `<span class="home-undo-tooltip" data-tooltip="本次修改可以一键恢复到最近一次保存的页面配置。"><button class="button secondary" id="cancel-benefits-feed" type="button"${!isEditing || !hasChanges() ? ' disabled' : ''}>撤销本次修改</button></span><button class="button primary${isEditing ? '' : ' is-edit-action'}" id="save-benefits-feed" type="button">${isEditing ? '保存页面' : '编辑'}</button>`;
-      document.querySelectorAll('[data-benefits-feed-add], #benefits-feed-config-content input, #benefits-feed-config-content select, #benefits-feed-config-content [data-benefits-feed-delete], #benefits-feed-config-content [data-benefits-feed-remove]').forEach((control) => { control.disabled = !isEditing || control.classList.contains('benefits-feed-type-control'); });
+      actions.innerHTML = `<span class="home-undo-tooltip" data-tooltip="本次修改可以一键恢复到最近一次保存的页面配置。"><button class="button secondary" id="cancel-benefits-feed" type="button"${!isEditing || !editSession.hasPageChanges() ? ' disabled' : ''}>撤销本次修改</button></span><button class="button primary${isEditing ? '' : ' is-edit-action'}" id="save-benefits-feed" type="button">${isEditing ? '保存页面' : '编辑'}</button>`;
+      document.getElementById('save-benefits-feed-component').disabled = !isEditing || !editSession.hasComponentChanges();
+      document.querySelectorAll('[data-benefits-feed-component]').forEach((element) => {
+        const component = components.find((item) => item.id === element.dataset.benefitsFeedComponent);
+        element.classList.toggle('is-unsaved', Boolean(component && !component.isSaved));
+      });
+      document.querySelectorAll('[data-benefits-feed-add], #benefits-feed-config-content input, #benefits-feed-config-content select, #benefits-feed-config-content button').forEach((control) => {
+        const isStatic = control.classList.contains('benefits-feed-type-control') || control.hasAttribute('data-tooltip');
+        const isLastMosaicPosition = control.matches('[data-benefits-feed-mosaic-position-remove]') && activeComponent()?.mosaic?.positions?.length <= 1;
+        const isLastGridPosition = control.matches('[data-benefits-feed-grid-position-remove]') && activeComponent()?.grid?.positions?.length <= 1;
+        control.disabled = !isEditing || isStatic || isLastMosaicPosition || isLastGridPosition;
+      });
       document.querySelectorAll('[data-benefits-feed-add], [data-benefits-feed-component], [data-benefits-feed-slot]').forEach((item) => { item.draggable = isEditing; });
     };
     const render = () => { this.renderBenefitsFeedPreview(components, activeId); this.renderBenefitsFeedConfig(activeComponent()); updateEditState(); };
@@ -442,14 +1122,14 @@ window.MarketingConfigPage = {
         if (target === 'home-function') navigate?.('marketing-config');
         else if (target === 'home-feed') navigate?.('feed-management');
         else {
-          const views = { 'youzi-street-flash-sale': 'flash-sale', 'benefits-check-in': 'check-in', 'benefits-check-in-success': 'check-in-success' };
+          const views = { 'youzi-street-flash-sale': 'flash-sale', 'benefits-check-in-success': 'check-in-success' };
           const tab = document.querySelector('[data-marketing-tab].is-active')?.dataset.marketingTab;
           if (tab) this.showPrimaryTabContext(tab, views[target] || 'feed', navigate);
         }
       });
     });
     document.querySelectorAll('[data-benefits-feed-add]').forEach((button) => button.addEventListener('click', () => {
-      if (!isEditing) return;
+      if (!editSession.isEditing()) return;
       const component = this.createBenefitsFeedComponent(button.dataset.benefitsFeedAdd);
       components.push(component);
       activeId = component.id;
@@ -463,7 +1143,7 @@ window.MarketingConfigPage = {
       document.querySelectorAll('.benefits-feed-builder .is-dragging, .benefits-feed-builder .is-dragover').forEach((item) => item.classList.remove('is-dragging', 'is-dragover'));
     };
     document.querySelectorAll('[data-benefits-feed-add]').forEach((button) => button.addEventListener('dragstart', (event) => {
-      if (!isEditing) { event.preventDefault(); return; }
+      if (!editSession.isEditing()) { event.preventDefault(); return; }
       clearDragState();
       draggedToolType = button.dataset.benefitsFeedAdd;
       button.classList.add('is-dragging');
@@ -471,7 +1151,7 @@ window.MarketingConfigPage = {
       event.dataTransfer.setData('text/plain', `benefits-feed-tool:${draggedToolType}`);
     }));
     previewContent.addEventListener('dragstart', (event) => {
-      if (!isEditing) { event.preventDefault(); return; }
+      if (!editSession.isEditing()) { event.preventDefault(); return; }
       const slot = event.target.closest('[data-benefits-feed-slot]');
       const component = event.target.closest('[data-benefits-feed-component]');
       if (!component) return;
@@ -490,7 +1170,7 @@ window.MarketingConfigPage = {
       event.dataTransfer.setData('text/plain', `benefits-feed-component:${draggedComponentId}`);
     });
     previewContent.addEventListener('dragover', (event) => {
-      if (!isEditing || (!draggedToolType && !draggedComponentId && !draggedSlot)) return;
+      if (!editSession.isEditing() || (!draggedToolType && !draggedComponentId && !draggedSlot)) return;
       event.preventDefault();
       const slot = event.target.closest('[data-benefits-feed-slot]');
       const component = event.target.closest('[data-benefits-feed-component]');
@@ -506,7 +1186,7 @@ window.MarketingConfigPage = {
       if (item && !item.contains(event.relatedTarget)) item.classList.remove('is-dragover');
     });
     previewContent.addEventListener('drop', (event) => {
-      if (!isEditing || (!draggedToolType && !draggedComponentId && !draggedSlot)) return;
+      if (!editSession.isEditing() || (!draggedToolType && !draggedComponentId && !draggedSlot)) return;
       event.preventDefault();
       const targetSlot = event.target.closest('[data-benefits-feed-slot]');
       const targetCard = event.target.closest('[data-benefits-feed-component]');
@@ -518,6 +1198,7 @@ window.MarketingConfigPage = {
           const to = order.indexOf(targetSlot.dataset.benefitsFeedSlot);
           [order[from], order[to]] = [order[to], order[from]];
           component.slotOrder = order;
+          component.isSaved = false;
           activeId = component.id;
           render();
         }
@@ -537,6 +1218,7 @@ window.MarketingConfigPage = {
           const [component] = components.splice(from, 1);
           if (!targetCard) to = components.length;
           components.splice(Math.max(0, Math.min(to, components.length)), 0, component);
+          component.isSaved = false;
           activeId = component.id;
           render();
         }
@@ -548,23 +1230,43 @@ window.MarketingConfigPage = {
     previewContent.addEventListener('click', (event) => {
       const component = event.target.closest('[data-benefits-feed-component]');
       if (!component) return;
+      component.isSaved = false;
       activeId = component.dataset.benefitsFeedComponent;
       render();
     });
     document.getElementById('benefits-feed-config-content').addEventListener('input', (event) => {
-      if (!isEditing) return;
+      if (!editSession.isEditing()) return;
       const component = activeComponent();
       if (!component) return;
+      component.isSaved = false;
       if (event.target.dataset.benefitsFeedField) component[event.target.dataset.benefitsFeedField] = event.target.value;
+      if (component.type === 'mosaic' && event.target.matches('[data-benefits-feed-mosaic-field]')) {
+        const mosaic = this.createBenefitsFeedMosaicConfig({ ...component, ...component.mosaic });
+        const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+        position[event.target.dataset.benefitsFeedMosaicField] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        component.mosaic = mosaic;
+      }
+      if (component.type === 'grid' && event.target.matches('[data-benefits-feed-grid-field]')) {
+        const grid = this.createBenefitsFeedGridConfig({ ...component, ...component.grid });
+        const position = grid.positions.find((item) => item.id === grid.selectedPositionId) || grid.positions[0];
+        position[event.target.dataset.benefitsFeedGridField] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        component.grid = grid;
+      }
+      if (component.type === 'red-packet' && event.target.matches('[data-benefits-feed-red-packet-field]')) {
+        component.redPacket = this.createBenefitsFeedRedPacketConfig(component.redPacket);
+        component.redPacket[event.target.dataset.benefitsFeedRedPacketField] = event.target.value;
+        component.recordName = component.redPacket.name;
+      }
       if (event.target.dataset.benefitsFeedTargetingField) component.targeting[event.target.dataset.benefitsFeedTargetingField] = event.target.value;
       if (event.target.dataset.benefitsFeedTest) component.testPlan[event.target.dataset.benefitsFeedTest] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
       this.renderBenefitsFeedPreview(components, activeId);
       updateEditState();
     });
     document.getElementById('benefits-feed-config-content').addEventListener('change', async (event) => {
-      if (!isEditing) return;
+      if (!editSession.isEditing()) return;
       const component = activeComponent();
       if (!component) return;
+      component.isSaved = false;
       if (event.target.matches('[data-benefits-feed-image]')) {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -572,7 +1274,63 @@ window.MarketingConfigPage = {
         this.clearObjectUrl(component[field]);
         component[field] = await this.readImageFile(file);
       }
+      if (event.target.matches('[data-benefits-feed-mosaic-image]')) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const mosaic = this.createBenefitsFeedMosaicConfig({ ...component, ...component.mosaic });
+        const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+        const field = event.target.dataset.benefitsFeedMosaicImage;
+        this.clearObjectUrl(position[field]);
+        position[field] = await this.readImageFile(file);
+        component.mosaic = mosaic;
+      }
+      if (event.target.matches('[data-benefits-feed-grid-image]')) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const grid = this.createBenefitsFeedGridConfig({ ...component, ...component.grid });
+        const position = grid.positions.find((item) => item.id === grid.selectedPositionId) || grid.positions[0];
+        const field = event.target.dataset.benefitsFeedGridImage;
+        this.clearObjectUrl(position[field]);
+        position[field] = await this.readImageFile(file);
+        component.grid = grid;
+      }
       if (event.target.dataset.benefitsFeedField) component[event.target.dataset.benefitsFeedField] = event.target.value;
+      if (component.type === 'mosaic' && event.target.matches('[data-benefits-feed-mosaic-field]')) {
+        const mosaic = this.createBenefitsFeedMosaicConfig({ ...component, ...component.mosaic });
+        const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+        position[event.target.dataset.benefitsFeedMosaicField] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        component.mosaic = mosaic;
+      }
+      if (component.type === 'grid' && event.target.matches('[data-benefits-feed-grid-field]')) {
+        const grid = this.createBenefitsFeedGridConfig({ ...component, ...component.grid });
+        const position = grid.positions.find((item) => item.id === grid.selectedPositionId) || grid.positions[0];
+        position[event.target.dataset.benefitsFeedGridField] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        component.grid = grid;
+      }
+      if (component.type === 'red-packet') {
+        const redPacket = this.createBenefitsFeedRedPacketConfig(component.redPacket);
+        component.redPacket = redPacket;
+        if (event.target.matches('[data-benefits-feed-red-packet-image]')) {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          const field = event.target.dataset.benefitsFeedRedPacketImage;
+          this.clearObjectUrl(redPacket[field]);
+          redPacket[field] = await this.readImageFile(file);
+        }
+        if (event.target.matches('[data-benefits-feed-red-packet-field]')) redPacket[event.target.dataset.benefitsFeedRedPacketField] = event.target.value;
+        if (event.target.name === 'benefits-feed-red-packet-delivery') redPacket.deliveryType = event.target.value;
+        if (event.target.name === 'benefits-feed-red-packet-template') redPacket.template = event.target.value;
+        if (event.target.matches('[data-benefits-feed-red-packet-title-area]')) redPacket.titleArea = event.target.checked;
+        if (event.target.matches('[data-benefits-feed-red-packet-identity]')) redPacket.targeting.identities = [...document.querySelectorAll('[data-benefits-feed-red-packet-identity]:checked')].map((input) => input.value);
+        if (event.target.matches('[data-benefits-feed-red-packet-audience]')) redPacket.targeting.audiences = [...document.querySelectorAll('[data-benefits-feed-red-packet-audience]:checked')].map((input) => input.value);
+        if (event.target.name === 'benefits-feed-red-packet-audience-inversion') redPacket.targeting.audienceInversion = event.target.value;
+        if (event.target.name === 'benefits-feed-red-packet-status') redPacket.targeting.status = event.target.value;
+        if (event.target.matches('[data-benefits-feed-red-packet-platform]')) redPacket.targeting.platformVersions[event.target.dataset.benefitsFeedRedPacketPlatform].enabled = event.target.checked;
+        if (event.target.matches('[data-benefits-feed-red-packet-version]')) { const [platform, edge] = event.target.dataset.benefitsFeedRedPacketVersion.split(':'); redPacket.targeting.platformVersions[platform][edge] = event.target.value; }
+        if (event.target.dataset.benefitsFeedRedPacketTargetingField) redPacket.targeting[event.target.dataset.benefitsFeedRedPacketTargetingField] = event.target.value;
+        if (event.target.dataset.benefitsFeedRedPacketTest) redPacket.testPlan[event.target.dataset.benefitsFeedRedPacketTest] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        component.recordName = redPacket.name;
+      }
       if (event.target.matches('[data-benefits-feed-identity]')) component.targeting.identities = [...document.querySelectorAll('[data-benefits-feed-identity]:checked')].map((input) => input.value);
       if (event.target.matches('[data-benefits-feed-audience]')) component.targeting.audiences = [...document.querySelectorAll('[data-benefits-feed-audience]:checked')].map((input) => input.value);
       if (event.target.name === 'benefits-feed-audience-inversion') component.targeting.audienceInversion = event.target.value;
@@ -584,10 +1342,108 @@ window.MarketingConfigPage = {
       render();
     });
     document.getElementById('benefits-feed-config-content').addEventListener('click', (event) => {
-      if (!isEditing) return;
+      const dismissRequirementOverlay = event.target.closest('[data-dismiss-requirement-overlay]');
+      if (dismissRequirementOverlay) { dismissRequirementOverlay.closest('.editor-requirement-overlay')?.remove(); return; }
+      if (!editSession.isEditing()) return;
       const component = activeComponent();
+      const mosaicPosition = event.target.closest('[data-benefits-feed-mosaic-position]');
+      if (mosaicPosition && component?.type === 'mosaic') {
+        component.mosaic = this.createBenefitsFeedMosaicConfig({ ...component, ...component.mosaic });
+        component.mosaic.selectedPositionId = mosaicPosition.dataset.benefitsFeedMosaicPosition;
+        render();
+        return;
+      }
+      const addMosaicPosition = event.target.closest('[data-benefits-feed-mosaic-position-add]');
+      if (addMosaicPosition && component?.type === 'mosaic') {
+        const mosaic = this.createBenefitsFeedMosaicConfig({ ...component, ...component.mosaic });
+        const position = this.createBenefitsFeedMosaicConfig().positions[0];
+        mosaic.positions.push(position);
+        mosaic.selectedPositionId = position.id;
+        component.mosaic = mosaic;
+        component.isSaved = false;
+        render();
+        return;
+      }
+      const removeMosaicPosition = event.target.closest('[data-benefits-feed-mosaic-position-remove]');
+      if (removeMosaicPosition && component?.type === 'mosaic') {
+        const mosaic = this.createBenefitsFeedMosaicConfig({ ...component, ...component.mosaic });
+        if (mosaic.positions.length > 1) {
+          const removedIndex = mosaic.positions.findIndex((item) => item.id === mosaic.selectedPositionId);
+          mosaic.positions.splice(removedIndex < 0 ? mosaic.positions.length - 1 : removedIndex, 1);
+          mosaic.selectedPositionId = mosaic.positions[Math.max(0, Math.min(removedIndex, mosaic.positions.length - 1))].id;
+          component.mosaic = mosaic;
+          component.isSaved = false;
+          render();
+        }
+        return;
+      }
+      const mosaicDeletion = event.target.closest('[data-benefits-feed-mosaic-delete]');
+      if (mosaicDeletion && component?.type === 'mosaic') {
+        const mosaic = this.createBenefitsFeedMosaicConfig({ ...component, ...component.mosaic });
+        const position = mosaic.positions.find((item) => item.id === mosaic.selectedPositionId) || mosaic.positions[0];
+        const field = mosaicDeletion.dataset.benefitsFeedMosaicDelete;
+        this.clearObjectUrl(position[field]);
+        position[field] = '';
+        component.mosaic = mosaic;
+        component.isSaved = false;
+        render();
+        return;
+      }
+      const gridPosition = event.target.closest('[data-benefits-feed-grid-position]');
+      if (gridPosition && component?.type === 'grid') {
+        component.grid = this.createBenefitsFeedGridConfig({ ...component, ...component.grid });
+        component.grid.selectedPositionId = gridPosition.dataset.benefitsFeedGridPosition;
+        render();
+        return;
+      }
+      const addGridPosition = event.target.closest('[data-benefits-feed-grid-position-add]');
+      if (addGridPosition && component?.type === 'grid') {
+        const grid = this.createBenefitsFeedGridConfig({ ...component, ...component.grid });
+        const position = this.createBenefitsFeedGridConfig().positions[0];
+        grid.positions.push(position);
+        grid.selectedPositionId = position.id;
+        component.grid = grid;
+        component.isSaved = false;
+        render();
+        return;
+      }
+      const removeGridPosition = event.target.closest('[data-benefits-feed-grid-position-remove]');
+      if (removeGridPosition && component?.type === 'grid') {
+        const grid = this.createBenefitsFeedGridConfig({ ...component, ...component.grid });
+        if (grid.positions.length > 1) {
+          const removedIndex = grid.positions.findIndex((item) => item.id === grid.selectedPositionId);
+          grid.positions.splice(removedIndex < 0 ? grid.positions.length - 1 : removedIndex, 1);
+          grid.selectedPositionId = grid.positions[Math.max(0, Math.min(removedIndex, grid.positions.length - 1))].id;
+          component.grid = grid;
+          component.isSaved = false;
+          render();
+        }
+        return;
+      }
+      const gridDeletion = event.target.closest('[data-benefits-feed-grid-delete]');
+      if (gridDeletion && component?.type === 'grid') {
+        const grid = this.createBenefitsFeedGridConfig({ ...component, ...component.grid });
+        const position = grid.positions.find((item) => item.id === grid.selectedPositionId) || grid.positions[0];
+        const field = gridDeletion.dataset.benefitsFeedGridDelete;
+        this.clearObjectUrl(position[field]);
+        position[field] = '';
+        component.grid = grid;
+        component.isSaved = false;
+        render();
+        return;
+      }
       const deletion = event.target.closest('[data-benefits-feed-delete]');
-      if (deletion && component) { const field = deletion.dataset.benefitsFeedDelete; this.clearObjectUrl(component[field]); component[field] = ''; render(); return; }
+      if (deletion && component) { const field = deletion.dataset.benefitsFeedDelete; this.clearObjectUrl(component[field]); component[field] = ''; component.isSaved = false; render(); return; }
+      const redPacketDeletion = event.target.closest('[data-benefits-feed-red-packet-delete]');
+      if (redPacketDeletion && component?.type === 'red-packet') {
+        component.redPacket = this.createBenefitsFeedRedPacketConfig(component.redPacket);
+        const field = redPacketDeletion.dataset.benefitsFeedRedPacketDelete;
+        this.clearObjectUrl(component.redPacket[field]);
+        component.redPacket[field] = '';
+        component.isSaved = false;
+        render();
+        return;
+      }
       const removal = event.target.closest('[data-benefits-feed-remove]');
       if (!removal) return;
       const index = components.findIndex((item) => item.id === removal.dataset.benefitsFeedRemove);
@@ -596,24 +1452,36 @@ window.MarketingConfigPage = {
       activeId = components[index]?.id || components[index - 1]?.id || null;
       render();
     });
+    document.getElementById('save-benefits-feed-component').addEventListener('click', () => {
+      const message = validateComponent(activeComponent());
+      if (message) { window.BackofficeLayout.showToast('请完善必填项', message); return; }
+      if (activeComponent()?.type === 'red-packet') activeComponent().recordName = activeComponent().redPacket.name;
+      components.forEach((component) => { component.isSaved = true; });
+      editSession.markComponentSaved();
+      updateEditState();
+      window.BackofficeLayout.showToast('组件已保存', '请点击页面保存，提交整页营销配置');
+    });
     document.getElementById('marketing-page-actions').addEventListener('click', (event) => {
       const action = event.target.closest('button');
       if (!action) return;
       if (action.id === 'save-benefits-feed') {
-        if (!isEditing) { isEditing = true; updateEditState(); return; }
-        const invalid = components.find((component) => !component.recordName.trim() || !component.sort.trim());
-        if (invalid) { window.BackofficeLayout.showToast('请完善必填项', '请补充资源位记录名称和排序'); return; }
-        try { this.saveBenefitsFeedState(this.cloneBenefitsFeedState(snapshot())); } catch (error) { window.BackofficeLayout.showToast('页面保存失败', '本地演示数据无法保存，请减少图片素材后重试'); return; }
-        savedState = this.cloneBenefitsFeedState(snapshot());
-        isEditing = false;
+        if (!editSession.isEditing()) { editSession.startEditing(); updateEditState(); return; }
+        if (editSession.hasComponentChanges()) { window.BackofficeLayout.showToast('请先保存组件', '右侧组件配置存在未保存的修改'); return; }
+        const invalid = components.map(validateComponent).find(Boolean);
+        if (invalid) { window.BackofficeLayout.showToast('请完善必填项', invalid); return; }
+        const nextState = { components };
+        try {
+          if (primaryConfig) this.savePrimaryComponentState(primaryConfig, this.cloneBenefitsFeedState(nextState));
+          else this.saveBenefitsFeedState(this.cloneBenefitsFeedState(nextState));
+        } catch (error) { window.BackofficeLayout.showToast('页面保存失败', '本地演示数据无法保存，请减少图片素材后重试'); return; }
+        editSession.markPageSaved(nextState);
         render();
-        window.BackofficeLayout.showToast('页面保存成功', '福利页信息流营销已更新');
+        window.BackofficeLayout.showToast('页面保存成功', `${primaryConfig?.title || '福利页信息流营销'}已更新`);
       }
-      if (action.id === 'cancel-benefits-feed' && isEditing && hasChanges()) {
-        const saved = this.cloneBenefitsFeedState(savedState);
+      if (action.id === 'cancel-benefits-feed' && editSession.isEditing() && editSession.hasPageChanges()) {
+        const saved = editSession.revertPageChanges();
         components.splice(0, components.length, ...saved.components);
         activeId = components[0]?.id || null;
-        isEditing = false;
         render();
         window.BackofficeLayout.showToast('已撤销修改', '已恢复到最近一次保存的页面配置');
       }
@@ -624,6 +1492,8 @@ window.MarketingConfigPage = {
     const subnav = document.querySelector('.marketing-home-subnav');
     const body = document.getElementById('marketing-config-body');
     const actions = document.getElementById('marketing-page-actions');
+    const referenceNote = document.getElementById('benefits-feed-reference-note');
+    if (referenceNote) referenceNote.hidden = !(tab === 'benefits' && homeView === 'feed');
     if (tab === 'home') {
       navigate?.(homeView === 'feed' ? 'feed-management' : 'marketing-config');
       return;
@@ -632,11 +1502,10 @@ window.MarketingConfigPage = {
     const title = pageTitles[tab];
     const activeView = tab === 'youzi-street' && homeView === 'flash-sale'
       ? 'flash-sale'
-      : tab === 'benefits' && ['check-in', 'check-in-success'].includes(homeView)
+      : tab === 'benefits' && homeView === 'check-in-success'
         ? homeView
         : 'feed';
     const isFlashSale = tab === 'youzi-street' && activeView === 'flash-sale';
-    const isCheckIn = tab === 'benefits' && activeView === 'check-in';
     const isCheckInSuccess = tab === 'benefits' && activeView === 'check-in-success';
     subnav.innerHTML = this.renderPrimarySubnav(tab, activeView);
     if (tab === 'benefits' && activeView === 'feed') {
@@ -647,26 +1516,44 @@ window.MarketingConfigPage = {
       this.bindBenefitsFeedBuilder(navigate);
       return;
     }
-    if (tab === 'benefits' && activeView === 'check-in') {
-      document.querySelector('.marketing-config-page h1').textContent = '打卡功能营销配置';
-      document.querySelector('.marketing-config-page .heading-note').textContent = '维护福利页打卡功能对应的营销展示配置';
-      body.innerHTML = this.renderBenefitsCheckInList();
+    if (tab === 'youzi-street' && activeView === 'feed') {
+      document.querySelector('.marketing-config-page h1').textContent = '柚子街-信息流营销';
+      document.querySelector('.marketing-config-page .heading-note').textContent = '维护柚子街信息流 Tab、资源位状态及展示配置';
+      body.innerHTML = window.FeedManagementPage?.renderEmbedded?.()
+        || '<div class="style-config-empty">信息流编辑框架加载失败，请刷新页面后重试。</div>';
+      actions.innerHTML = '<button class="button secondary" id="cancel-feed-marketing" type="button" disabled>撤销本次修改</button><button class="button primary is-edit-action" id="save-feed-marketing" type="button">编辑</button>';
+      window.FeedManagementPage?.bindEmbedded?.({
+        navigate,
+        storageKey: 'meiyou-cashback-youzi-street-feed-management',
+        pageName: '柚子街-信息流营销'
+      });
+      return;
+    }
+    if (isCheckInSuccess) {
+      document.querySelector('.marketing-config-page h1').textContent = '打卡成功弹窗管理';
+      document.querySelector('.marketing-config-page .heading-note').textContent = '维护打卡成功后展示的营销弹窗配置';
+      body.innerHTML = this.renderBenefitsCheckInSuccessList();
       actions.innerHTML = '';
-      this.bindBenefitsCheckInList();
+      this.bindBenefitsCheckInSuccessList();
+      return;
+    }
+    const primaryConfig = this.getPrimaryComponentConfig(tab, activeView);
+    if (primaryConfig) {
+      document.querySelector('.marketing-config-page h1').textContent = primaryConfig.title;
+      document.querySelector('.marketing-config-page .heading-note').textContent = primaryConfig.note;
+      body.innerHTML = this.renderPrimaryComponentBuilder(primaryConfig);
+      actions.innerHTML = '';
+      this.bindBenefitsFeedBuilder(navigate, { primaryConfig });
       return;
     }
     document.querySelector('.marketing-config-page h1').textContent = isFlashSale
       ? '柚子街-限时抢购'
-      : isCheckIn
-        ? '打卡功能营销配置'
-        : isCheckInSuccess
+      : isCheckInSuccess
           ? '打卡成功弹窗营销配置'
           : `${title}-信息流营销`;
     document.querySelector('.marketing-config-page .heading-note').textContent = isFlashSale
       ? '维护柚子街限时抢购展示配置'
-      : isCheckIn
-        ? '维护福利页打卡功能对应的营销展示配置'
-        : isCheckInSuccess
+      : isCheckInSuccess
           ? '维护福利页打卡成功弹窗对应的营销展示配置'
           : `维护${title}信息流对应的营销展示配置`;
     body.innerHTML = this.renderPrimaryTabPlaceholder(tab, activeView);
@@ -677,7 +1564,7 @@ window.MarketingConfigPage = {
       search: { type, label: '功能区-橱窗', placeholder: '搜优惠、搜商品', functionSlot: 'after-notification', sortable: true, showcase: { name: '', sort: '', windowType: 'mosaic', mosaic: { image: '', darkImage: '', routeType: '', routeProtocol: '', pid: '', selectedPid: '', skipType: '', mallId: '', popupLogo: '', popupCopy: '', requiresLogin: true }, newcomer: { image: '', darkImage: '', routeType: '', routeProtocol: '', pid: '', selectedPid: '', skipType: '', mallId: '', popupLogo: '', popupCopy: '', requiresLogin: true }, targeting: window.ConfigurationSections.createTargeting(), testPlan: window.ConfigurationSections.createTestPlan() } },
       shortcut: { type, label: '功能区-红包发放功能', subtitle: '领取返现红包', functionSlot: 'after-notification', sortable: true, redPacket: { name: '', sort: '', deliveryType: 'single', titleArea: false, title: '', subtitle: '', titleImage: '', titleDarkImage: '', unclaimedImage: '', unclaimedDarkImage: '', template: 'with-button', targeting: window.ConfigurationSections.createTargeting(), testPlan: window.ConfigurationSections.createTestPlan() } }
     };
-    return { id: `home-component-${Date.now()}-${Math.random().toString(16).slice(2)}`, ...definitions[type] };
+    return { id: `home-component-${Date.now()}-${Math.random().toString(16).slice(2)}`, isSaved: false, ...definitions[type] };
   },
   isFunctionZoneComponent(component) {
     return ['search', 'shortcut'].includes(component.type);
@@ -728,7 +1615,8 @@ window.MarketingConfigPage = {
       const sortable = ' home-preview-component-sortable';
       const draggable = ' draggable="true" data-tooltip="支持在功能区排序"';
       const previewType = component.type === 'search' ? 'showcase' : component.type;
-      return `<button class="home-preview-component home-preview-${previewType}${active}${sortable}" type="button" data-home-component-id="${component.id}"${draggable}>${content}</button>`;
+      const unsaved = component.isSaved ? '' : ' is-unsaved';
+      return `<button class="home-preview-component home-preview-${previewType}${active}${unsaved}${sortable}" type="button" data-home-component-id="${component.id}"${draggable}>${content}</button>`;
     };
     const renderFunctionZone = (slotId) => {
       const zoneComponents = components.filter((component) => this.isFunctionZoneComponent(component) && component.functionSlot === slotId);
@@ -739,20 +1627,17 @@ window.MarketingConfigPage = {
     searchPasteSlot.innerHTML = renderFunctionZone('after-search-paste');
     canvas.innerHTML = this.renderLinkedFeedPreview();
   },
-  renderComponentEditor(components, activeId, isFixedEntriesComponentActive) {
+  renderComponentEditor(components, activeId, activeGoldComponentId, goldComponents) {
     const editor = document.getElementById('home-component-editor');
     if (!editor) return;
-    editor.innerHTML = `<span>功能金刚区-可视状态管理</span><div><button class="home-component-editor-item${isFixedEntriesComponentActive ? ' is-active' : ''}" type="button" data-home-editor-fixed>功能金刚区</button></div>`;
+    editor.innerHTML = goldComponents.length ? `<span>功能金刚区 · ${goldComponents.length} 个组件</span><div>${goldComponents.map((component, index) => `<button class="home-component-editor-item${component.id === activeGoldComponentId ? ' is-active' : ''}" type="button" data-home-editor-gold="${component.id}">功能金刚区 ${index + 1}</button>`).join('')}</div>` : '';
   },
-  renderFixedEntries(entries, activeIndex, componentEnabled = true, componentActive = false) {
+  renderFixedEntries(goldComponents, activeGoldComponentId, activeEntryIndex) {
     const container = document.getElementById('home-fixed-entries');
     if (!container) return;
-    container.classList.toggle('is-active', componentActive || activeIndex !== null);
-    container.classList.toggle('is-component-active', componentActive);
-    container.classList.toggle('is-component-disabled', !componentEnabled);
-    container.innerHTML = componentEnabled
-      ? entries.filter((entry) => entry.enabled !== false).map((entry, index) => `<button class="home-fixed-entry${entries.indexOf(entry) === activeIndex ? ' is-active' : ''}" type="button" data-home-fixed-entry="${entries.indexOf(entry)}"><u>${this.renderFixedEntryImage(entry)}</u><span>${entry.title}</span></button>`).join('')
-      : '<button class="home-fixed-entries-disabled" type="button">功能金刚区未开启</button>';
+    container.classList.toggle('is-empty', !goldComponents.length);
+    container.classList.toggle('is-active', Boolean(activeGoldComponentId));
+    container.innerHTML = `${goldComponents.map((component, componentIndex) => `<section class="home-gold-component${component.id === activeGoldComponentId ? ' is-active' : ''}${component.isSaved ? '' : ' is-unsaved'}" draggable="true" data-home-gold-component="${component.id}" data-tooltip="支持在功能金刚组件区排序"><div class="home-gold-component-label">功能金刚区 ${componentIndex + 1}</div>${component.enabled ? `<div class="home-gold-component-entries">${component.entries.map((entry, index) => `<button class="home-fixed-entry${component.id === activeGoldComponentId && index === activeEntryIndex ? ' is-active' : ''}" type="button" data-home-fixed-entry="${index}"><u>${this.renderFixedEntryImage(entry)}</u><span>${entry.title}</span></button>`).join('')}</div>` : '<button class="home-fixed-entries-disabled" type="button">功能金刚区未开启</button>'}</section>`).join('')}<div class="home-fixed-entries-drop" data-home-drop-zone="fixed-entries"><b>+</b><span>拖入功能金刚区</span></div>`;
   },
   getFixedEntryImage(entry, mode = 'normal') {
     return mode === 'dark' && entry.darkImage ? entry.darkImage : entry.image;
@@ -769,22 +1654,27 @@ window.MarketingConfigPage = {
     const field = (label, control, className = '') => `<div class="config-field ${className}"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
     const renderAsset = (label, inputId, image, required = false) => field(`${required ? '<b class="field-required" aria-label="必填">*</b>' : ''}${label}`, `<span class="home-entry-asset"><span class="home-entry-asset-preview">${image && (image.startsWith('blob:') || image.startsWith('data:image/')) ? `<img src="${image}" alt="已上传素材" />` : '<b>图片</b>'}</span><span class="home-entry-asset-actions"><label class="button secondary home-entry-upload">上传图片<input id="${inputId}" type="file" accept="image/*"${required ? ' required' : ''} /></label><button class="home-entry-delete" type="button" data-home-entry-delete="${inputId}"${image ? '' : ' disabled'}>删除图片</button></span></span>`);
     const jumpTarget = entry.jumpType === 'link' ? entry.linkTarget : entry.pageTarget;
+    const pageTargets = ['福利新开页', '收藏页', '足迹页', '我的订单页', '专属礼金页'];
+    const pageTargetControl = (() => {
+      const currentTarget = jumpTarget || '';
+      const legacyOption = currentTarget && !pageTargets.includes(currentTarget)
+        ? `<option value="${this.escapeHtml(currentTarget)}" selected>${this.escapeHtml(currentTarget)}</option>`
+        : '';
+      return `<select class="control" id="home-fixed-entry-jump-target" required><option value="">请选择目标页面</option>${legacyOption}${pageTargets.map((target) => `<option value="${target}"${target === currentTarget ? ' selected' : ''}>${target}</option>`).join('')}</select>`;
+    })();
     const jumpDescription = entry.jumpType === 'link' ? field('<b class="field-required" aria-label="必填">*</b>地址/协议说明', `<span class="home-jump-input-with-help"><input class="control" id="home-fixed-entry-jump-description" value="${entry.jumpDescription || ''}" required placeholder="请输入地址/协议说明" /><button class="help-tooltip" type="button" aria-label="地址或协议说明" data-tooltip="备注目标地址的相关信息，例如淘宝618会场活动">?</button></span>`) : '';
-    const jumpInfo = `<section class="home-jump-info-section"><h3>跳转配置</h3>${field('<b class="field-required" aria-label="必填">*</b>跳转类型', `<select class="control" id="home-fixed-entry-jump-type" required><option value="page"${entry.jumpType === 'page' ? ' selected' : ''}>页面跳转</option><option value="link"${entry.jumpType === 'link' ? ' selected' : ''}>自定义地址/协议</option></select>`)}${field(`<b class="field-required" aria-label="必填">*</b>${entry.jumpType === 'link' ? '地址/协议' : '目标页面'}`, `<input class="control" id="home-fixed-entry-jump-target" value="${jumpTarget || ''}" required placeholder="${entry.jumpType === 'link' ? '请输入自定义地址或协议' : '请选择或输入目标页面'}" />`)}${jumpDescription}</section>`;
-    const enableInfo = `<section class="home-entry-info-section home-entry-status-section"><h3>启用状态</h3><div class="home-entry-status-row"><span>是否启用</span><span class="home-entry-status-control"><label><input type="radio" name="home-fixed-entry-enabled" value="enabled"${entry.enabled !== false ? ' checked' : ''} />启用</label><label><input type="radio" name="home-fixed-entry-enabled" value="disabled"${entry.enabled === false ? ' checked' : ''} />停用</label></span><button class="help-tooltip" type="button" aria-label="启用状态说明" data-tooltip="启用则当前入口在客户端可见。停用则当前入口在客户端不可见。">?</button></div><p>仅控制当前入口的展示状态，不影响当前组件下的其他坑位。</p></section>`;
-    const targeting = entry.targeting || { identities: [], targetGroup: '', excludeGroup: '' };
-    const identityOptions = ['经期', '怀孕', '备孕', '辣妈', '亲友', '仅注册MS用户'];
-    const targetingInfo = `<section class="home-entry-info-section home-targeting-section"><h3>定向信息</h3>${field('用户身份', `<span class="home-identity-options">${identityOptions.map((identity) => `<label><input type="checkbox" value="${identity}" data-home-fixed-entry-identity ${targeting.identities.includes(identity) ? 'checked' : ''} />${identity}</label>`).join('')}</span>`)}${field('指定人群包', `<input class="control" id="home-fixed-entry-target-group" value="${targeting.targetGroup || ''}" placeholder="不填默认全部用户" />`)}${field('排除人群包', `<input class="control" id="home-fixed-entry-exclude-group" value="${targeting.excludeGroup || ''}" placeholder="不填默认为空" />`)}</section>`;
-    const testPlan = entry.testPlan || { uids: '', start: '', end: '', enabled: false };
-    const testPlanInfo = `<section class="home-entry-info-section home-test-plan-section"><h3>测试计划</h3><p>测试 UID 内的用户将在测试有效时间内看到此入口配置，到期自动终止。</p>${field('测试 UID', `<input class="control" id="home-fixed-entry-test-uids" value="${testPlan.uids || ''}" placeholder="多个 UID 用英文逗号分隔" />`)}${field('测试时间', `<div class="config-date-range"><label><span>开始</span><input class="control" id="home-fixed-entry-test-start" type="datetime-local" value="${testPlan.start || ''}" /></label><label><span>结束</span><input class="control" id="home-fixed-entry-test-end" type="datetime-local" value="${testPlan.end || ''}" /></label></div>`)}${field('测试状态', `<label class="home-test-enabled"><input id="home-fixed-entry-test-enabled" type="checkbox"${testPlan.enabled ? ' checked' : ''} /><span class="switch-track"></span><b>${testPlan.enabled ? '生效' : '未生效'}</b></label>`)}</section>`;
-    container.innerHTML = `<div class="style-config-form home-component-form home-fixed-entry-form"><div class="home-fixed-config-note">功能金刚区的入口支持维护启用状态、图片、标题与跳转配置。</div><section class="home-entry-info-section"><h3>基本展示信息</h3>${renderAsset('入口素材', 'home-fixed-entry-image', entry.image, true)}${renderAsset('入口素材（暗黑模式）', 'home-fixed-entry-dark-image', entry.darkImage)}${field('<b class="field-required" aria-label="必填">*</b>标题', '<input class="control" id="home-fixed-entry-title" value="' + entry.title + '" maxlength="5" required placeholder="请输入标题，最多5个字" />')}</section>${jumpInfo}${targetingInfo}${testPlanInfo}${enableInfo}<p>入口素材、标题、跳转类型和跳转目标为必填项，标题最多支持 5 个字。暗黑模式素材未配置时，默认使用入口素材；修改后会实时同步至中间预览区域。</p></div>`;
+    const jumpTargetControl = entry.jumpType === 'link'
+      ? `<input class="control" id="home-fixed-entry-jump-target" value="${this.escapeHtml(jumpTarget || '')}" required placeholder="请输入自定义地址或协议" />`
+      : pageTargetControl;
+    const jumpInfo = `<section class="home-jump-info-section"><h3>跳转配置</h3>${field('<b class="field-required" aria-label="必填">*</b>跳转类型', `<select class="control" id="home-fixed-entry-jump-type" required><option value="page"${entry.jumpType === 'page' ? ' selected' : ''}>页面跳转</option><option value="link"${entry.jumpType === 'link' ? ' selected' : ''}>自定义地址/协议</option></select>`)}${field(`<b class="field-required" aria-label="必填">*</b>${entry.jumpType === 'link' ? '地址/协议' : '目标页面'}`, jumpTargetControl)}${jumpDescription}</section>`;
+    container.innerHTML = `<div class="style-config-form home-component-form home-fixed-entry-form"><div class="home-fixed-config-note">当前坑位支持维护图片、标题与跳转配置；定向信息和测试计划由功能金刚区整体统一配置。</div><section class="home-entry-info-section"><h3>基本展示信息</h3>${renderAsset('入口素材', 'home-fixed-entry-image', entry.image, true)}${renderAsset('入口素材（暗黑模式）', 'home-fixed-entry-dark-image', entry.darkImage)}${field('<b class="field-required" aria-label="必填">*</b>标题', '<input class="control" id="home-fixed-entry-title" value="' + entry.title + '" maxlength="5" required placeholder="请输入标题，最多5个字" />')}</section>${jumpInfo}<p>入口素材、标题、跳转类型和跳转目标为必填项，标题最多支持 5 个字。暗黑模式素材未配置时，默认使用入口素材；修改后会实时同步至中间预览区域。</p></div>`;
   },
-  renderFixedEntriesComponentConfig(enabled) {
+  renderFixedEntriesComponentConfig(component) {
     const container = document.getElementById('home-config-content');
     const type = document.getElementById('home-config-type');
     if (!container || !type) return;
     type.textContent = '功能金刚区';
-    container.innerHTML = `<div class="style-config-form home-component-form home-fixed-entry-form"><section class="home-entry-info-section home-entry-status-section"><h3>功能金刚区</h3><div class="home-entry-status-row"><span>是否开启组件</span><span class="home-entry-status-control"><label><input type="radio" name="home-fixed-entries-enabled" value="enabled"${enabled ? ' checked' : ''} />开启</label><label><input type="radio" name="home-fixed-entries-enabled" value="disabled"${enabled ? '' : ' checked'} />不开启</label></span><button class="help-tooltip" type="button" aria-label="功能金刚区开启说明" data-tooltip="开启后，功能金刚区将在客户端展示；不开启，则用户端不可见。">?</button></div></section><p>该开关仅控制功能金刚区整体展示，不影响各入口已维护的配置内容。</p></div>`;
+    container.innerHTML = `<div class="style-config-form home-component-form home-fixed-entry-form"><section class="home-entry-info-section home-entry-status-section"><h3>功能金刚区</h3><div class="home-entry-status-row"><span>是否开启组件</span><span class="home-entry-status-control"><label><input type="radio" name="home-fixed-entries-enabled" value="enabled"${component.enabled ? ' checked' : ''} />开启</label><label><input type="radio" name="home-fixed-entries-enabled" value="disabled"${component.enabled ? '' : ' checked'} />不开启</label></span><button class="help-tooltip" type="button" aria-label="功能金刚区开启说明" data-tooltip="开启后，功能金刚区及其全部入口将在客户端展示；不开启，则用户端不可见。">?</button></div></section>${window.ConfigurationSections.renderTargeting({ prefix: 'home-fixed-entries', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'home-fixed-entries', value: component.testPlan, description: '测试 UID 内的用户将在测试有效时间内看到功能金刚区，到期自动终止，不影响正式配置。' })}<p>组件开启时，全部入口统一展示；组件关闭时，全部入口统一隐藏。该开关、定向信息和测试计划仅控制当前功能金刚区，不影响其他功能金刚区。</p><button class="text-button home-remove-component" type="button" data-home-fixed-entries-remove>移除组件</button></div>`;
   },
   renderHomeConfig(component) {
     const container = document.getElementById('home-config-content');
@@ -800,7 +1690,7 @@ window.MarketingConfigPage = {
       const redPacket = component.redPacket || { name: '', sort: '', deliveryType: 'single', titleArea: false, title: '', subtitle: '', titleImage: '', titleDarkImage: '', unclaimedImage: '', unclaimedDarkImage: '', template: 'with-button', targeting: window.ConfigurationSections.createTargeting(), testPlan: window.ConfigurationSections.createTestPlan() };
       component.redPacket = redPacket;
       Object.assign(redPacket, { title: '', subtitle: '', titleImage: '', titleDarkImage: '', unclaimedImage: '', unclaimedDarkImage: '', template: 'with-button', ...redPacket });
-      const baseInfo = `<section class="home-entry-info-section shared-config-section"><h3>基础信息</h3><div class="config-field"><span class="config-field-label"><b class="field-required">*</b>记录名称</span><div class="config-field-control"><input class="control" data-home-red-packet-field="name" value="${redPacket.name}" placeholder="仅用于后台记录，前台不可见" /></div></div><div class="config-field"><span class="config-field-label"><b class="field-required">*</b>排序</span><div class="config-field-control"><input class="control" data-home-red-packet-field="sort" value="${redPacket.sort}" inputmode="numeric" placeholder="越大展示越靠前" /></div></div></section>`;
+      const baseInfo = `<section class="home-entry-info-section shared-config-section"><h3>基础信息</h3><div class="config-field"><span class="config-field-label"><b class="field-required">*</b>记录名称</span><div class="config-field-control"><input class="control" data-home-red-packet-field="name" value="${redPacket.name}" placeholder="仅用于后台记录，前台不可见" /></div></div></section>`;
       const titleImageControl = (label, field, image) => `<div class="home-red-packet-title-asset"><span class="home-red-packet-title-asset-preview">${image ? `<img src="${image}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="home-red-packet-title-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-home-red-packet-image="${field}" /></label><button class="home-entry-delete" type="button" data-home-red-packet-delete="${field}"${image ? '' : ' disabled'}>删除图片</button></span></div>`;
       const titleAreaInfo = redPacket.titleArea ? `<div class="home-red-packet-title-area-fields"><div class="config-field"><span class="config-field-label">标题</span><div class="config-field-control"><input class="control" data-home-red-packet-field="title" value="${redPacket.title}" placeholder="请输入标题" /></div></div><div class="config-field"><span class="config-field-label">副标题</span><div class="config-field-control"><input class="control" data-home-red-packet-field="subtitle" value="${redPacket.subtitle}" placeholder="请输入副标题" /></div></div><div class="config-field home-red-packet-title-image-field"><span class="config-field-label">标题图片</span><div class="config-field-control"><div class="home-red-packet-title-assets">${titleImageControl('上传图片', 'titleImage', redPacket.titleImage)}${titleImageControl('暗黑模式', 'titleDarkImage', redPacket.titleDarkImage)}</div><p>若同时填写文字标题，以图片优先展示。</p></div></div></div>` : '';
       const packageAssetControl = (label, field, image, required = false) => `<div class="home-red-packet-package-asset"><span class="home-red-packet-title-asset-preview">${image ? `<img src="${image}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="home-red-packet-title-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-home-red-packet-image="${field}"${required ? ' required' : ''} /></label><button class="home-entry-delete" type="button" data-home-red-packet-delete="${field}"${image ? '' : ' disabled'}>删除图片</button></span></div>`;
@@ -822,7 +1712,7 @@ window.MarketingConfigPage = {
       const assetControl = (label, fieldName, image) => `<span class="home-showcase-asset"><span class="home-showcase-asset-preview">${image ? `<img src="${image}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="home-showcase-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-home-showcase-image="${fieldName}" /></label><button class="home-entry-delete" type="button" data-home-showcase-delete="${fieldName}"${image ? '' : ' disabled'}>删除图片</button></span></span>`;
       const help = (text) => `<button class="help-tooltip home-showcase-help" type="button" aria-label="字段说明" data-tooltip="${text}">?</button>`;
       const mosaicConfig = `<div class="home-showcase-workspace"><div class="home-showcase-canvas" aria-label="${showcase.windowType === 'mosaic' ? '拼图' : '新人滑块商品'}配置示意"><div class="home-showcase-piece${windowConfig.image ? ' has-image' : ''}">${windowConfig.image ? `<img src="${windowConfig.image}" alt="已上传橱窗素材" />` : '<span>上传橱窗图片</span>'}<b>★</b></div><button class="home-showcase-node" type="button" aria-label="添加拼图位">+</button><div class="home-showcase-canvas-add">+</div></div><span class="home-showcase-route-example">路由协议填写示例</span><div class="home-showcase-assets">${assetControl('上传图片', 'image', windowConfig.image)}${assetControl('暗黑模式', 'darkImage', windowConfig.darkImage)}</div><div class="home-showcase-route-row"><select class="control" data-home-showcase-field="routeType"><option value="">请选择跳转类型</option><option value="page"${windowConfig.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${windowConfig.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" data-home-showcase-field="routeProtocol" value="${windowConfig.routeProtocol}" placeholder="请输入路由协议" /></div><div class="home-showcase-input-help"><input class="control" data-home-showcase-field="pid" value="${windowConfig.pid}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" />${help('用于商城埋点上报的 PID 配置。')}</div><div class="home-showcase-input-help"><select class="control" data-home-showcase-field="selectedPid"><option value="">请选择 pid</option><option value="default"${windowConfig.selectedPid === 'default' ? ' selected' : ''}>默认 pid</option><option value="custom"${windowConfig.selectedPid === 'custom' ? ' selected' : ''}>自定义 pid</option></select>${help('选择当前橱窗展示使用的 PID。')}</div><div class="home-showcase-input-help"><input class="control" data-home-showcase-field="skipType" value="${windowConfig.skipType}" placeholder="skip_type（用于埋点上报）" />${help('用于记录跳转类型的埋点字段。')}</div><input class="control" data-home-showcase-field="mallId" value="${windowConfig.mallId}" placeholder="商城 id" /><div class="home-showcase-popup-row">${assetControl('出站弹窗 logo', 'popupLogo', windowConfig.popupLogo)}<input class="control" data-home-showcase-field="popupCopy" value="${windowConfig.popupCopy}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input type="checkbox" data-home-showcase-field="requiresLogin"${windowConfig.requiresLogin ? ' checked' : ''} />用户需登录</label></div>`;
-      const baseInfo = `<section class="home-entry-info-section shared-config-section"><h3>基础信息</h3>${field('<b class="field-required">*</b>功能类型', '<select class="control home-showcase-function-type" disabled aria-label="功能类型：橱窗功能"><option value="showcase">橱窗功能</option></select>')}${field('<b class="field-required">*</b>名称', `<input class="control" data-home-showcase-base="name" value="${showcase.name}" placeholder="仅用于后台记录，前台不可见" />`)}${field('<b class="field-required">*</b>排序', `<input class="control" data-home-showcase-base="sort" value="${showcase.sort}" inputmode="numeric" placeholder="越大展示越靠前" />`)}</section>`;
+      const baseInfo = `<section class="home-entry-info-section shared-config-section"><h3>基础信息</h3>${field('<b class="field-required">*</b>功能类型', '<input class="control home-showcase-function-type" value="橱窗功能" disabled aria-label="功能类型：橱窗功能" />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-home-showcase-base="name" value="${showcase.name}" placeholder="仅用于后台记录，前台不可见" />`)}</section>`;
       const featureInfo = `<section class="home-entry-info-section shared-config-section home-showcase-feature-section"><h3>功能信息</h3>${field('橱窗类型', `<select class="control" data-home-showcase-window-type><option value="mosaic"${showcase.windowType === 'mosaic' ? ' selected' : ''}>拼图</option><option value="newcomer"${showcase.windowType === 'newcomer' ? ' selected' : ''}>新人滑块商品</option></select>`)}${field(`${showcase.windowType === 'mosaic' ? '拼图' : '新人滑块商品'}配置`, mosaicConfig, 'home-showcase-config-field')}</section>`;
       container.innerHTML = `<div class="style-config-form home-component-form home-showcase-form">${baseInfo}${featureInfo}${window.ConfigurationSections.renderTargeting({ prefix: 'home-showcase', value: showcase.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'home-showcase', value: showcase.testPlan })}<p>带 * 的字段为必填项。橱窗类型切换后会保留各自已填写的配置内容。</p><button class="text-button home-remove-component" type="button" data-home-remove="${component.id}">移除组件</button></div>`;
       return;
@@ -840,35 +1730,43 @@ window.MarketingConfigPage = {
       { image: '✓', darkImage: '', title: '领现金', enabled: true, jumpType: 'page', pageTarget: '领现金', linkTarget: '', jumpDescription: '', targeting: { identities: [], targetGroup: '', excludeGroup: '' }, testPlan: { uids: '', start: '', end: '', enabled: false } },
       { image: 'ϟ', darkImage: '', title: '省钱秘籍', enabled: true, jumpType: 'page', pageTarget: '省钱秘籍', linkTarget: '', jumpDescription: '', targeting: { identities: [], targetGroup: '', excludeGroup: '' }, testPlan: { uids: '', start: '', end: '', enabled: false } }
     ];
-    const defaultState = this.cloneHomeState({ components, fixedEntries, fixedEntriesComponentEnabled: true });
+    const defaultState = this.cloneHomeState({
+      components,
+      fixedEntries,
+      fixedEntriesComponentEnabled: true,
+      fixedEntriesComponentAdded: true,
+      fixedEntriesTargeting: window.ConfigurationSections.createTargeting(),
+      fixedEntriesTestPlan: window.ConfigurationSections.createTestPlan(),
+      fixedEntriesComponents: [{
+        id: 'gold-zone-default',
+        entries: fixedEntries,
+        enabled: true,
+        targeting: window.ConfigurationSections.createTargeting(),
+        testPlan: window.ConfigurationSections.createTestPlan(),
+        isSaved: true
+      }]
+    });
     const storedState = this.loadHomeState(defaultState);
-    components.push(...this.cloneHomeState(storedState.components).filter((component) => this.isFunctionZoneComponent(component)));
-    fixedEntries.splice(0, fixedEntries.length, ...this.cloneHomeState(storedState.fixedEntries));
+    components.push(...this.cloneHomeState(storedState.components).filter((component) => this.isFunctionZoneComponent(component)).map((component) => ({ ...component, isSaved: component.isSaved ?? true })));
     let activeId = null;
     let activeFixedEntryIndex = null;
-    let isFixedEntriesComponentActive = false;
-    let fixedEntriesComponentEnabled = storedState.fixedEntriesComponentEnabled;
-    let isEditing = false;
-    let componentSavedState = this.cloneHomeState({ components, fixedEntries, fixedEntriesComponentEnabled });
-    let pageSavedState = this.cloneHomeState({ components, fixedEntries, fixedEntriesComponentEnabled });
+    let activeGoldComponentId = null;
+    let goldComponents = this.cloneHomeState(storedState.fixedEntriesComponents).map((component) => ({ ...component, isSaved: component.isSaved ?? true }));
     const activeComponent = () => components.find((component) => component.id === activeId);
-    const snapshot = () => ({ components, fixedEntries, fixedEntriesComponentEnabled });
+    const activeGoldComponent = () => goldComponents.find((component) => component.id === activeGoldComponentId);
+    const snapshot = () => ({ components, fixedEntriesComponents: goldComponents });
     const cloneSnapshot = (state) => this.cloneHomeState(state);
-    const hasComponentChanges = () => JSON.stringify(snapshot()) !== JSON.stringify(componentSavedState);
-    const hasPageChanges = () => JSON.stringify(snapshot()) !== JSON.stringify(pageSavedState);
-    const guardUnsavedNavigation = async (onProceed) => {
-      if (!isEditing || !hasPageChanges()) {
-        onProceed();
-        return;
-      }
-      const confirmed = await window.BackofficeLayout.confirm({
+    const editSession = window.EditSession.create({
+      snapshot,
+      clone: cloneSnapshot,
+      confirmClose: () => window.BackofficeLayout.confirm({
         title: '确认关闭编辑？',
         message: '当前编辑的内容未保存，是否仍然要关闭',
         confirmText: '仍然关闭',
         cancelText: '继续编辑'
-      });
-      if (confirmed) onProceed();
-    };
+      })
+    });
+    const guardUnsavedNavigation = (onProceed) => editSession.guardNavigation(onProceed);
     const activatePrimaryTab = (tab) => {
       document.querySelectorAll('[data-marketing-tab]').forEach((item) => {
         const active = item === tab;
@@ -880,18 +1778,28 @@ window.MarketingConfigPage = {
       const builder = document.getElementById('home-marketing-builder');
       const pageActions = document.getElementById('marketing-page-actions');
       const componentSave = document.getElementById('save-home-component');
+      const isEditing = editSession.isEditing();
       builder.classList.toggle('is-editing', isEditing);
-      pageActions.innerHTML = `<span class="home-undo-tooltip" data-tooltip="本次的修改可以一键撤销，恢复到最近一次保存的页面配置。"><button class="button secondary" id="cancel-home-marketing" type="button"${!isEditing || !hasPageChanges() ? ' disabled' : ''}>撤销本次修改</button></span><button class="button primary${isEditing ? '' : ' is-edit-action'}" id="save-home-marketing" type="button">${isEditing ? '保存页面' : '编辑'}</button>`;
-      componentSave.disabled = !isEditing || !hasComponentChanges();
+      pageActions.innerHTML = `<button class="button secondary" id="view-home-configuration-list" type="button">查看配置列表</button><span class="home-undo-tooltip" data-tooltip="本次的修改可以一键撤销，恢复到最近一次保存的页面配置。"><button class="button secondary" id="cancel-home-marketing" type="button"${!isEditing || !editSession.hasPageChanges() ? ' disabled' : ''}>撤销本次修改</button></span><button class="button primary${isEditing ? '' : ' is-edit-action'}" id="save-home-marketing" type="button">${isEditing ? '保存页面' : '编辑'}</button>`;
+      componentSave.disabled = !isEditing || !editSession.hasComponentChanges();
+      document.querySelectorAll('[data-home-component-id]').forEach((element) => {
+        const component = components.find((item) => item.id === element.dataset.homeComponentId);
+        element.classList.toggle('is-unsaved', Boolean(component && !component.isSaved));
+      });
+      document.querySelectorAll('[data-home-gold-component]').forEach((element) => {
+        const component = goldComponents.find((item) => item.id === element.dataset.homeGoldComponent);
+        element.classList.toggle('is-unsaved', Boolean(component && !component.isSaved));
+      });
       document.querySelectorAll('[data-home-add]').forEach((button) => { button.disabled = !isEditing; });
-      document.querySelectorAll('#home-config-content input, #home-config-content select, #home-config-content [data-home-remove], #home-config-content [data-home-entry-delete], #home-config-content [data-home-red-packet-delete]').forEach((control) => { control.disabled = !isEditing; });
+      document.querySelectorAll('#home-config-content input, #home-config-content select, #home-config-content [data-home-remove], #home-config-content [data-home-fixed-entries-remove], #home-config-content [data-home-entry-delete], #home-config-content [data-home-red-packet-delete]').forEach((control) => { control.disabled = !isEditing; });
     };
     const render = () => {
-      this.renderFixedEntries(fixedEntries, activeFixedEntryIndex, fixedEntriesComponentEnabled, isFixedEntriesComponentActive);
+      const goldComponent = activeGoldComponent();
+      this.renderFixedEntries(goldComponents, activeGoldComponentId, activeFixedEntryIndex);
       this.renderHomePreview(components, activeId);
-      this.renderComponentEditor(components, activeId, isFixedEntriesComponentActive);
-      if (activeFixedEntryIndex !== null) this.renderFixedEntryConfig(fixedEntries[activeFixedEntryIndex], activeFixedEntryIndex);
-      else if (isFixedEntriesComponentActive) this.renderFixedEntriesComponentConfig(fixedEntriesComponentEnabled);
+      this.renderComponentEditor(components, activeId, activeGoldComponentId, goldComponents);
+      if (activeFixedEntryIndex !== null && goldComponent) this.renderFixedEntryConfig(goldComponent.entries[activeFixedEntryIndex], activeFixedEntryIndex);
+      else if (goldComponent) this.renderFixedEntriesComponentConfig(goldComponent);
       else this.renderHomeConfig(activeComponent());
       updateEditState();
     };
@@ -911,33 +1819,52 @@ window.MarketingConfigPage = {
       if (!activePrimaryTab || activePrimaryTab.dataset.marketingTab === 'home') return;
       const views = {
         'youzi-street-flash-sale': 'flash-sale',
-        'benefits-check-in': 'check-in',
         'benefits-check-in-success': 'check-in-success'
       };
       const view = views[subtab.dataset.marketingPrimaryView] || 'feed';
       if (subtab.classList.contains('is-active')) return;
       guardUnsavedNavigation(() => this.showPrimaryTabContext(activePrimaryTab.dataset.marketingTab, view, navigate));
     });
-    document.querySelectorAll('[data-home-add]').forEach((button) => button.addEventListener('click', () => { if (!isEditing) return; const component = this.createHomeComponent(button.dataset.homeAdd); components.push(component); activeId = component.id; activeFixedEntryIndex = null; isFixedEntriesComponentActive = false; render(); }));
+    document.querySelectorAll('[data-home-add]').forEach((button) => button.addEventListener('click', () => {
+      if (!editSession.isEditing()) return;
+      if (button.dataset.homeAdd === 'fixed-entries') {
+        const component = this.createGoldComponent(fixedEntries);
+        goldComponents.push(component);
+        activeId = null;
+        activeFixedEntryIndex = null;
+        activeGoldComponentId = component.id;
+        render();
+        return;
+      }
+      const component = this.createHomeComponent(button.dataset.homeAdd);
+      components.push(component);
+      activeId = component.id;
+      activeFixedEntryIndex = null;
+      activeGoldComponentId = null;
+      render();
+    }));
     document.getElementById('home-fixed-entries').addEventListener('click', (event) => {
+      const goldComponent = event.target.closest('[data-home-gold-component]');
+      if (!goldComponent) return;
       const entry = event.target.closest('[data-home-fixed-entry]');
       activeFixedEntryIndex = entry ? Number(entry.dataset.homeFixedEntry) : null;
-      isFixedEntriesComponentActive = !entry;
+      activeGoldComponentId = goldComponent.dataset.homeGoldComponent;
       activeId = null;
       render();
     });
     document.getElementById('home-component-editor').addEventListener('click', (event) => {
-      const fixedEntriesButton = event.target.closest('[data-home-editor-fixed]');
+      const fixedEntriesButton = event.target.closest('[data-home-editor-gold]');
       const componentButton = event.target.closest('[data-home-editor-component]');
       if (!fixedEntriesButton && !componentButton) return;
       activeFixedEntryIndex = null;
-      isFixedEntriesComponentActive = Boolean(fixedEntriesButton);
+      activeGoldComponentId = fixedEntriesButton?.dataset.homeEditorGold || null;
       activeId = componentButton?.dataset.homeEditorComponent || null;
       render();
     });
-    document.querySelector('.home-phone-frame').addEventListener('click', (event) => { const component = event.target.closest('[data-home-component-id]'); if (!component) return; activeId = component.dataset.homeComponentId; activeFixedEntryIndex = null; isFixedEntriesComponentActive = false; render(); });
+    document.querySelector('.home-phone-frame').addEventListener('click', (event) => { const component = event.target.closest('[data-home-component-id]'); if (!component) return; activeId = component.dataset.homeComponentId; activeFixedEntryIndex = null; activeGoldComponentId = null; render(); });
     let draggedComponentId = null;
     let draggedToolType = null;
+    let draggedGoldComponentId = null;
     const phonePreview = document.querySelector('.home-phone-frame');
     const isSamePreviewZone = (firstId, secondId) => {
       const first = components.find((component) => component.id === firstId);
@@ -945,7 +1872,7 @@ window.MarketingConfigPage = {
       return Boolean(first && second) && this.isFunctionZoneComponent(first) === this.isFunctionZoneComponent(second);
     };
     document.querySelectorAll('[data-home-add]').forEach((button) => button.addEventListener('dragstart', (event) => {
-      if (!isEditing) { event.preventDefault(); return; }
+      if (!editSession.isEditing()) { event.preventDefault(); return; }
       draggedToolType = button.dataset.homeAdd;
       event.dataTransfer.effectAllowed = 'copy';
       event.dataTransfer.setData('text/plain', draggedToolType);
@@ -957,7 +1884,15 @@ window.MarketingConfigPage = {
       phonePreview.querySelectorAll('.is-dragover').forEach((element) => element.classList.remove('is-dragover'));
     }));
     phonePreview.addEventListener('dragstart', (event) => {
-      if (!isEditing) return;
+      if (!editSession.isEditing()) return;
+      const goldComponent = event.target.closest('[data-home-gold-component]');
+      if (goldComponent) {
+        draggedGoldComponentId = goldComponent.dataset.homeGoldComponent;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', `gold-component:${draggedGoldComponentId}`);
+        goldComponent.classList.add('is-dragging');
+        return;
+      }
       const component = event.target.closest('.home-preview-component-sortable');
       if (!component) return;
       draggedComponentId = component.dataset.homeComponentId;
@@ -966,8 +1901,23 @@ window.MarketingConfigPage = {
       component.classList.add('is-dragging');
     });
     phonePreview.addEventListener('dragover', (event) => {
-      if (!isEditing) return;
+      if (!editSession.isEditing()) return;
       const zone = event.target.closest('[data-home-drop-zone]');
+      if (draggedGoldComponentId) {
+        const targetGoldComponent = event.target.closest('[data-home-gold-component]');
+        if (!targetGoldComponent || targetGoldComponent.dataset.homeGoldComponent === draggedGoldComponentId) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        targetGoldComponent.classList.add('is-dragover');
+        return;
+      }
+      if (draggedToolType === 'fixed-entries') {
+        if (!zone || zone.dataset.homeDropZone !== 'fixed-entries') return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        zone.classList.add('is-dragover');
+        return;
+      }
       if (draggedToolType && zone) {
         const isFunctionComponent = this.isFunctionZoneComponent({ type: draggedToolType });
         if ((zone.dataset.homeDropZone === 'function') !== isFunctionComponent) return;
@@ -995,13 +1945,43 @@ window.MarketingConfigPage = {
       }
     });
     phonePreview.addEventListener('dragleave', (event) => {
-      const highlighted = event.target.closest('.home-preview-component-sortable, [data-home-drop-zone]');
+      const highlighted = event.target.closest('.home-preview-component-sortable, [data-home-gold-component], [data-home-drop-zone]');
       if (!highlighted || highlighted.contains(event.relatedTarget)) return;
       highlighted.classList.remove('is-dragover');
     });
     phonePreview.addEventListener('drop', (event) => {
-      if (!isEditing) return;
+      if (!editSession.isEditing()) return;
       const zone = event.target.closest('[data-home-drop-zone]');
+      if (draggedGoldComponentId) {
+        const targetGoldComponent = event.target.closest('[data-home-gold-component]');
+        if (!targetGoldComponent) return;
+        const sourceIndex = goldComponents.findIndex((component) => component.id === draggedGoldComponentId);
+        const targetIndex = goldComponents.findIndex((component) => component.id === targetGoldComponent.dataset.homeGoldComponent);
+        if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return;
+        event.preventDefault();
+        const [component] = goldComponents.splice(sourceIndex, 1);
+        const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+        goldComponents.splice(insertIndex, 0, component);
+        component.isSaved = false;
+        activeId = null;
+        activeFixedEntryIndex = null;
+        activeGoldComponentId = component.id;
+        draggedGoldComponentId = null;
+        render();
+        return;
+      }
+      if (draggedToolType === 'fixed-entries') {
+        if (!zone || zone.dataset.homeDropZone !== 'fixed-entries') return;
+        event.preventDefault();
+        const component = this.createGoldComponent(fixedEntries);
+        goldComponents.push(component);
+        activeId = null;
+        activeFixedEntryIndex = null;
+        activeGoldComponentId = component.id;
+        draggedToolType = null;
+        render();
+        return;
+      }
       if (draggedToolType && zone) {
         const isFunctionComponent = this.isFunctionZoneComponent({ type: draggedToolType });
         if ((zone.dataset.homeDropZone === 'function') !== isFunctionComponent) return;
@@ -1011,7 +1991,7 @@ window.MarketingConfigPage = {
         components.push(component);
         activeId = component.id;
         activeFixedEntryIndex = null;
-        isFixedEntriesComponentActive = false;
+        activeGoldComponentId = null;
         draggedToolType = null;
         render();
         return;
@@ -1027,9 +2007,10 @@ window.MarketingConfigPage = {
         const [component] = components.splice(sourceIndex, 1);
         if (this.isFunctionZoneComponent(component)) component.functionSlot = targetComponent.functionSlot || component.functionSlot;
         components.splice(sourceIndex < targetIndex ? targetIndex - 1 : targetIndex, 0, component);
+        component.isSaved = false;
         activeId = component.id;
         activeFixedEntryIndex = null;
-        isFixedEntriesComponentActive = false;
+        activeGoldComponentId = null;
         draggedComponentId = null;
         render();
         return;
@@ -1039,9 +2020,10 @@ window.MarketingConfigPage = {
         if (!zone || !source || ((this.isFunctionZoneComponent(source) && zone.dataset.homeDropZone !== 'function') || (!this.isFunctionZoneComponent(source) && zone.dataset.homeDropZone !== 'feed'))) return;
         event.preventDefault();
         if (this.isFunctionZoneComponent(source)) source.functionSlot = zone.dataset.homeFunctionSlot || source.functionSlot;
+        source.isSaved = false;
         activeId = source.id;
         activeFixedEntryIndex = null;
-        isFixedEntriesComponentActive = false;
+        activeGoldComponentId = null;
         draggedComponentId = null;
         render();
         return;
@@ -1050,29 +2032,41 @@ window.MarketingConfigPage = {
     phonePreview.addEventListener('dragend', () => {
       draggedComponentId = null;
       draggedToolType = null;
+      draggedGoldComponentId = null;
       phonePreview.querySelectorAll('.is-dragging, .is-dragover').forEach((element) => element.classList.remove('is-dragging', 'is-dragover'));
     });
     document.getElementById('home-config-content').addEventListener('input', (event) => {
-      if (!isEditing) return;
+      if (!editSession.isEditing()) return;
+      const goldComponent = activeGoldComponent();
       if (activeFixedEntryIndex !== null) {
-        const entry = fixedEntries[activeFixedEntryIndex];
+        if (!goldComponent) return;
+        goldComponent.isSaved = false;
+        const entry = goldComponent.entries[activeFixedEntryIndex];
         if (event.target.id === 'home-fixed-entry-title') {
           entry.title = event.target.value.slice(0, 5);
           if (event.target.value !== entry.title) event.target.value = entry.title;
         }
         if (event.target.id === 'home-fixed-entry-jump-target') entry[entry.jumpType === 'link' ? 'linkTarget' : 'pageTarget'] = event.target.value;
         if (event.target.id === 'home-fixed-entry-jump-description') entry.jumpDescription = event.target.value;
-        if (event.target.id === 'home-fixed-entry-target-group') entry.targeting.targetGroup = event.target.value;
-        if (event.target.id === 'home-fixed-entry-exclude-group') entry.targeting.excludeGroup = event.target.value;
-        if (event.target.id === 'home-fixed-entry-test-uids') entry.testPlan.uids = event.target.value;
-        if (event.target.id === 'home-fixed-entry-test-start') entry.testPlan.start = event.target.value;
-        if (event.target.id === 'home-fixed-entry-test-end') entry.testPlan.end = event.target.value;
-        this.renderFixedEntries(fixedEntries, activeFixedEntryIndex);
+        this.renderFixedEntries(goldComponents, activeGoldComponentId, activeFixedEntryIndex);
+        updateEditState();
+        return;
+      }
+      if (goldComponent && event.target.dataset.homeFixedEntriesTargetingField) {
+        goldComponent.targeting[event.target.dataset.homeFixedEntriesTargetingField] = event.target.value;
+        goldComponent.isSaved = false;
+        updateEditState();
+        return;
+      }
+      if (goldComponent && event.target.dataset.homeFixedEntriesTest) {
+        goldComponent.testPlan[event.target.dataset.homeFixedEntriesTest] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        goldComponent.isSaved = false;
         updateEditState();
         return;
       }
       const component = activeComponent();
       if (!component) return;
+      component.isSaved = false;
       if (component.type === 'search' && event.target.dataset.homeShowcaseBase) {
         component.showcase[event.target.dataset.homeShowcaseBase] = event.target.value;
         updateEditState();
@@ -1119,8 +2113,10 @@ window.MarketingConfigPage = {
     });
     document.getElementById('home-config-content').addEventListener('change', async (event) => {
       const component = activeComponent();
-      if (!isEditing) return;
+      const goldComponent = activeGoldComponent();
+      if (!editSession.isEditing()) return;
       if (component?.type === 'search') {
+        component.isSaved = false;
         const showcase = component.showcase;
         const config = showcase[showcase.windowType];
         if (event.target.matches('[data-home-showcase-image]')) {
@@ -1144,6 +2140,7 @@ window.MarketingConfigPage = {
         return;
       }
       if (component?.type === 'shortcut') {
+        component.isSaved = false;
         const redPacket = component.redPacket;
         if (event.target.matches('[data-home-red-packet-image]')) {
           const file = event.target.files?.[0];
@@ -1167,49 +2164,97 @@ window.MarketingConfigPage = {
         return;
       }
       if (event.target.id === 'home-fixed-entry-jump-type' && activeFixedEntryIndex !== null) {
-        fixedEntries[activeFixedEntryIndex].jumpType = event.target.value;
+        goldComponent.entries[activeFixedEntryIndex].jumpType = event.target.value;
+        goldComponent.isSaved = false;
         render();
         return;
       }
-      if (event.target.name === 'home-fixed-entries-enabled' && isFixedEntriesComponentActive) {
-        fixedEntriesComponentEnabled = event.target.value === 'enabled';
+      if (event.target.id === 'home-fixed-entry-jump-target' && activeFixedEntryIndex !== null) {
+        const entry = goldComponent.entries[activeFixedEntryIndex];
+        entry[entry.jumpType === 'link' ? 'linkTarget' : 'pageTarget'] = event.target.value;
+        goldComponent.isSaved = false;
         render();
         return;
       }
-      if (event.target.name === 'home-fixed-entry-enabled' && activeFixedEntryIndex !== null) {
-        fixedEntries[activeFixedEntryIndex].enabled = event.target.value === 'enabled';
+      if (event.target.name === 'home-fixed-entries-enabled' && goldComponent) {
+        goldComponent.enabled = event.target.value === 'enabled';
+        goldComponent.isSaved = false;
         render();
         return;
       }
-      if (event.target.matches('[data-home-fixed-entry-identity]') && activeFixedEntryIndex !== null) {
-        const entry = fixedEntries[activeFixedEntryIndex];
-        entry.targeting.identities = [...document.querySelectorAll('[data-home-fixed-entry-identity]:checked')].map((input) => input.value);
+      if (goldComponent && event.target.matches('[data-home-fixed-entries-identity]')) {
+        goldComponent.targeting.identities = [...document.querySelectorAll('[data-home-fixed-entries-identity]:checked')].map((input) => input.value);
+        goldComponent.isSaved = false;
         updateEditState();
         return;
       }
-      if (event.target.id === 'home-fixed-entry-test-enabled' && activeFixedEntryIndex !== null) {
-        fixedEntries[activeFixedEntryIndex].testPlan.enabled = event.target.checked;
+      if (goldComponent && event.target.matches('[data-home-fixed-entries-audience]')) {
+        goldComponent.targeting.audiences = [...document.querySelectorAll('[data-home-fixed-entries-audience]:checked')].map((input) => input.value);
+        goldComponent.isSaved = false;
+        updateEditState();
+        return;
+      }
+      if (goldComponent && event.target.name === 'home-fixed-entries-audience-inversion') {
+        goldComponent.targeting.audienceInversion = event.target.value;
+        goldComponent.isSaved = false;
+        render();
+        return;
+      }
+      if (goldComponent && event.target.name === 'home-fixed-entries-status') {
+        goldComponent.targeting.status = event.target.value;
+        goldComponent.isSaved = false;
+        render();
+        return;
+      }
+      if (goldComponent && event.target.matches('[data-home-fixed-entries-platform]')) {
+        goldComponent.targeting.platformVersions[event.target.dataset.homeFixedEntriesPlatform].enabled = event.target.checked;
+        goldComponent.isSaved = false;
+        render();
+        return;
+      }
+      if (goldComponent && event.target.matches('[data-home-fixed-entries-version]')) {
+        const [platform, edge] = event.target.dataset.homeFixedEntriesVersion.split(':');
+        goldComponent.targeting.platformVersions[platform][edge] = event.target.value;
+        goldComponent.isSaved = false;
+        render();
+        return;
+      }
+      if (goldComponent && event.target.matches('[data-home-fixed-entries-test]')) {
+        goldComponent.testPlan[event.target.dataset.homeFixedEntriesTest] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+        goldComponent.isSaved = false;
         render();
         return;
       }
       if (activeFixedEntryIndex === null || !['home-fixed-entry-image', 'home-fixed-entry-dark-image'].includes(event.target.id)) return;
       const file = event.target.files?.[0];
       if (!file) return;
-      const entry = fixedEntries[activeFixedEntryIndex];
+      const entry = goldComponent.entries[activeFixedEntryIndex];
       const field = event.target.id === 'home-fixed-entry-image' ? 'image' : 'darkImage';
       this.clearObjectUrl(entry[field]);
       entry[field] = await this.readImageFile(file);
+      goldComponent.isSaved = false;
       render();
     });
     document.getElementById('home-config-content').addEventListener('click', (event) => {
-      if (!isEditing) return;
+      if (!editSession.isEditing()) return;
       const component = activeComponent();
+      const removeFixedEntries = event.target.closest('[data-home-fixed-entries-remove]');
+      if (removeFixedEntries && activeGoldComponentId) {
+        const index = goldComponents.findIndex((item) => item.id === activeGoldComponentId);
+        if (index >= 0) goldComponents.splice(index, 1);
+        activeId = null;
+        activeFixedEntryIndex = null;
+        activeGoldComponentId = null;
+        render();
+        return;
+      }
       const deleteShowcaseImage = event.target.closest('[data-home-showcase-delete]');
       if (deleteShowcaseImage && component?.type === 'search') {
         const config = component.showcase[component.showcase.windowType];
         const field = deleteShowcaseImage.dataset.homeShowcaseDelete;
         this.clearObjectUrl(config[field]);
         config[field] = '';
+        component.isSaved = false;
         render();
         return;
       }
@@ -1218,23 +2263,28 @@ window.MarketingConfigPage = {
         const field = deleteRedPacketImage.dataset.homeRedPacketDelete;
         this.clearObjectUrl(component.redPacket[field]);
         component.redPacket[field] = '';
+        component.isSaved = false;
         render();
         return;
       }
       const deleteAsset = event.target.closest('[data-home-entry-delete]');
       if (deleteAsset && activeFixedEntryIndex !== null) {
-        const entry = fixedEntries[activeFixedEntryIndex];
+        const entry = activeGoldComponent()?.entries[activeFixedEntryIndex];
+        if (!entry) return;
         const field = deleteAsset.dataset.homeEntryDelete === 'home-fixed-entry-image' ? 'image' : 'darkImage';
         this.clearObjectUrl(entry[field]);
         entry[field] = '';
+        const goldComponent = activeGoldComponent();
+        if (goldComponent) goldComponent.isSaved = false;
         render();
         return;
       }
       const remove = event.target.closest('[data-home-remove]'); if (!remove) return; const index = components.findIndex((component) => component.id === remove.dataset.homeRemove); if (index < 0) return; components.splice(index, 1); activeId = components[index]?.id || components[index - 1]?.id || null; render();
     });
     document.getElementById('save-home-component').addEventListener('click', () => {
-      if (!isEditing || !hasComponentChanges()) return;
-      if (fixedEntries.some((entry) => !entry.image || !entry.title.trim() || !entry.jumpType || !(entry.jumpType === 'link' ? entry.linkTarget : entry.pageTarget)?.trim() || (entry.jumpType === 'link' && !entry.jumpDescription?.trim()))) {
+      if (!editSession.isEditing() || !editSession.hasComponentChanges()) return;
+      const invalidGoldComponent = goldComponents.find((goldComponent) => goldComponent.entries.some((entry) => !entry.image || !entry.title.trim() || !entry.jumpType || !(entry.jumpType === 'link' ? entry.linkTarget : entry.pageTarget)?.trim() || (entry.jumpType === 'link' && !entry.jumpDescription?.trim())));
+      if (invalidGoldComponent) {
         window.BackofficeLayout.showToast('请完善必填项', '请为每个固定入口补充素材、标题和跳转信息');
         return;
       }
@@ -1243,10 +2293,10 @@ window.MarketingConfigPage = {
         const redPacket = component.redPacket || {};
         const platforms = Object.values(redPacket.targeting?.platformVersions || {});
         const hasPlatformVersion = platforms.some((platform) => platform.enabled && platform.start?.trim());
-        return !redPacket.name?.trim() || !redPacket.sort?.trim() || !redPacket.deliveryType || !hasPlatformVersion || !redPacket.targeting?.onlineStart || !redPacket.targeting?.onlineEnd || (redPacket.deliveryType === 'package' && (!redPacket.unclaimedImage || !redPacket.template));
+        return !redPacket.name?.trim() || !redPacket.deliveryType || !hasPlatformVersion || !redPacket.targeting?.onlineStart || !redPacket.targeting?.onlineEnd || (redPacket.deliveryType === 'package' && (!redPacket.unclaimedImage || !redPacket.template));
       });
       if (invalidRedPacket) {
-        window.BackofficeLayout.showToast('请完善必填项', '请补充红包发放功能的记录名称、排序、发放类型、平台版本与上线时间；券包发放还需上传未领取图片素材并选择红包模板');
+        window.BackofficeLayout.showToast('请完善必填项', '请补充红包发放功能的记录名称、发放类型、平台版本与上线时间；券包发放还需上传未领取图片素材并选择红包模板');
         return;
       }
       const invalidShowcase = components.find((component) => {
@@ -1254,22 +2304,58 @@ window.MarketingConfigPage = {
         const showcase = component.showcase || {};
         const platforms = Object.values(showcase.targeting?.platformVersions || {});
         const hasPlatformVersion = platforms.some((platform) => platform.enabled && platform.start?.trim());
-        return !showcase.name?.trim() || !showcase.sort?.trim() || !showcase.windowType || !hasPlatformVersion || !showcase.targeting?.onlineStart || !showcase.targeting?.onlineEnd;
+        return !showcase.name?.trim() || !showcase.windowType || !hasPlatformVersion || !showcase.targeting?.onlineStart || !showcase.targeting?.onlineEnd;
       });
       if (invalidShowcase) {
-        window.BackofficeLayout.showToast('请完善必填项', '请补充橱窗功能的名称、排序、橱窗类型、平台版本与上线时间');
+        window.BackofficeLayout.showToast('请完善必填项', '请补充橱窗功能的记录名称、橱窗类型、平台版本与上线时间');
         return;
       }
-      componentSavedState = cloneSnapshot(snapshot());
+      components.forEach((component) => { component.isSaved = true; });
+      goldComponents.forEach((component) => { component.isSaved = true; });
+      editSession.markComponentSaved();
       updateEditState();
       window.BackofficeLayout.showToast('组件已保存', '请点击页面保存，提交整页营销配置');
     });
     document.getElementById('marketing-page-actions').addEventListener('click', (event) => {
       const action = event.target.closest('button');
       if (!action) return;
+      if (action.id === 'view-home-configuration-list') {
+        const existing = document.getElementById('home-configuration-list-modal');
+        existing?.remove();
+        const modal = document.createElement('div');
+        modal.className = 'modal home-configuration-list-modal';
+        modal.id = 'home-configuration-list-modal';
+        modal.innerHTML = this.renderHomeConfigurationList(editSession.getPageSavedState());
+        const close = () => modal.remove();
+        modal.addEventListener('click', (modalEvent) => {
+          if (modalEvent.target === modal || modalEvent.target.closest('[data-close-home-configuration-list]')) close();
+          const edit = modalEvent.target.closest('[data-edit-home-configuration]');
+          if (!edit) return;
+          const targetId = edit.dataset.editHomeConfiguration;
+          if (edit.dataset.editHomeConfigurationKind === 'gold') {
+            activeGoldComponentId = targetId;
+            activeId = null;
+          } else {
+            activeId = targetId;
+            activeGoldComponentId = null;
+          }
+          activeFixedEntryIndex = null;
+          editSession.startEditing();
+          close();
+          render();
+          const previewTarget = edit.dataset.editHomeConfigurationKind === 'gold'
+            ? document.querySelector(`[data-home-gold-component="${targetId}"]`)
+            : document.querySelector(`[data-home-component-id="${targetId}"]`);
+          previewTarget?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          document.querySelector('.home-marketing-settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        document.body.append(modal);
+        modal.querySelector('[data-close-home-configuration-list]')?.focus();
+        return;
+      }
       if (action.id === 'save-home-marketing') {
-        if (!isEditing) { isEditing = true; updateEditState(); return; }
-        if (hasComponentChanges()) {
+        if (!editSession.isEditing()) { editSession.startEditing(); updateEditState(); return; }
+        if (editSession.hasComponentChanges()) {
           window.BackofficeLayout.showToast('请先保存组件', '右侧组件配置存在未保存的修改');
           return;
         }
@@ -1280,22 +2366,18 @@ window.MarketingConfigPage = {
           window.BackofficeLayout.showToast('页面保存失败', '本地演示数据无法保存，请减少图片素材后重试');
           return;
         }
-        pageSavedState = nextPageSavedState;
-        isEditing = false;
+        editSession.markPageSaved(nextPageSavedState);
         render();
         window.BackofficeLayout.showToast('页面保存成功', '首页功能区营销已更新');
         return;
       }
-      if (action.id !== 'cancel-home-marketing' || !isEditing || !hasPageChanges()) return;
-      const saved = cloneSnapshot(pageSavedState);
+      if (action.id !== 'cancel-home-marketing' || !editSession.isEditing() || !editSession.hasPageChanges()) return;
+      const saved = editSession.revertPageChanges();
       components.splice(0, components.length, ...saved.components);
-      fixedEntries.splice(0, fixedEntries.length, ...saved.fixedEntries);
-      fixedEntriesComponentEnabled = saved.fixedEntriesComponentEnabled;
-      componentSavedState = cloneSnapshot(pageSavedState);
+      goldComponents = saved.fixedEntriesComponents;
       activeId = null;
       activeFixedEntryIndex = null;
-      isFixedEntriesComponentActive = false;
-      isEditing = false;
+      activeGoldComponentId = null;
       render();
       window.BackofficeLayout.showToast('已撤销修改', '已恢复到最近一次保存的页面配置');
     });
@@ -1303,30 +2385,37 @@ window.MarketingConfigPage = {
   },
   bind({ navigate, homeView = 'function' } = {}) {
     if (homeView === 'feed') {
+      const feedSession = window.FeedManagementPage?.bindEmbedded?.();
+      if (!feedSession) {
+        window.BackofficeLayout.showToast?.('信息流编辑框架未加载', '请刷新页面后重试');
+      }
+      const guardNavigation = (destination) => feedSession?.guardNavigation?.(destination) || destination();
       document.querySelectorAll('[data-marketing-tab]').forEach((tab) => tab.addEventListener('click', () => {
+        guardNavigation(() => {
         document.querySelectorAll('[data-marketing-tab]').forEach((item) => {
           const active = item === tab;
           item.classList.toggle('is-active', active);
           item.setAttribute('aria-selected', String(active));
         });
         this.showPrimaryTabContext(tab.dataset.marketingTab, 'feed', navigate);
+        });
       }));
       document.querySelector('.marketing-home-subnav')?.addEventListener('click', (event) => {
         const subtab = event.target.closest('[data-marketing-primary-view]');
         if (!subtab) return;
-        if (subtab.dataset.marketingPrimaryView === 'home-function') navigate?.('marketing-config');
-        if (subtab.dataset.marketingPrimaryView === 'home-feed') navigate?.('feed-management');
-        const activePrimaryTab = document.querySelector('[data-marketing-tab].is-active');
-        if (!activePrimaryTab || activePrimaryTab.dataset.marketingTab === 'home' || subtab.classList.contains('is-active')) return;
-        const views = {
-          'youzi-street-flash-sale': 'flash-sale',
-          'benefits-check-in': 'check-in',
-          'benefits-check-in-success': 'check-in-success'
-        };
-        const view = views[subtab.dataset.marketingPrimaryView] || 'feed';
-        this.showPrimaryTabContext(activePrimaryTab.dataset.marketingTab, view, navigate);
+        guardNavigation(() => {
+          if (subtab.dataset.marketingPrimaryView === 'home-function') { navigate?.('marketing-config'); return; }
+          if (subtab.dataset.marketingPrimaryView === 'home-feed') { navigate?.('feed-management'); return; }
+          const activePrimaryTab = document.querySelector('[data-marketing-tab].is-active');
+          if (!activePrimaryTab || activePrimaryTab.dataset.marketingTab === 'home' || subtab.classList.contains('is-active')) return;
+          const views = {
+            'youzi-street-flash-sale': 'flash-sale',
+            'benefits-check-in-success': 'check-in-success'
+          };
+          const view = views[subtab.dataset.marketingPrimaryView] || 'feed';
+          this.showPrimaryTabContext(activePrimaryTab.dataset.marketingTab, view, navigate);
+        });
       });
-      window.FeedManagementPage.bindEmbedded();
       return;
     }
     this.bindHomeBuilder(navigate);
