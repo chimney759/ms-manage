@@ -18,7 +18,6 @@ window.MarketingConfigPage = {
       const legacyGoldComponent = {
         id: `gold-zone-legacy`,
         entries: Array.isArray(saved.fixedEntries) ? saved.fixedEntries : defaultState.fixedEntries,
-        enabled: typeof saved.fixedEntriesComponentEnabled === 'boolean' ? saved.fixedEntriesComponentEnabled : defaultState.fixedEntriesComponentEnabled,
         targeting: window.ConfigurationSections.normalizeTargeting(saved.fixedEntriesTargeting || defaultState.fixedEntriesTargeting),
         testPlan: window.ConfigurationSections.normalizeTestPlan(saved.fixedEntriesTestPlan || defaultState.fixedEntriesTestPlan)
       };
@@ -48,10 +47,10 @@ window.MarketingConfigPage = {
     return {
       id: `gold-zone-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       entries: this.cloneHomeState(entries),
-      enabled: true,
       targeting: window.ConfigurationSections.createTargeting(),
       testPlan: window.ConfigurationSections.createTestPlan(),
-      isSaved: false
+      isSaved: false,
+      hasBeenSaved: false
     };
   },
   cloneBenefitsFeedState(state) {
@@ -138,7 +137,8 @@ window.MarketingConfigPage = {
       slotOrder: this.getBenefitsFeedSlotDefinitions(type).map((slot) => slot.id),
       targeting: window.ConfigurationSections.createTargeting(),
       testPlan: window.ConfigurationSections.createTestPlan(),
-      isSaved: false
+      isSaved: false,
+      hasBeenSaved: false
     };
   },
   getBenefitsFeedSlotDefinitions(type) {
@@ -186,7 +186,8 @@ window.MarketingConfigPage = {
           slotOrder: this.getBenefitsFeedSlots({ type: item.type, slotOrder: item.slotOrder }).map((slot) => slot.id),
           targeting: window.ConfigurationSections.normalizeTargeting(item.targeting),
           testPlan: window.ConfigurationSections.normalizeTestPlan(item.testPlan),
-          isSaved: item.isSaved ?? true
+          isSaved: item.isSaved ?? true,
+          hasBeenSaved: item.hasBeenSaved ?? true
         }))
       };
     } catch (error) {
@@ -232,7 +233,8 @@ window.MarketingConfigPage = {
           slotOrder: this.getBenefitsFeedSlots({ type: item.type, slotOrder: item.slotOrder }).map((slot) => slot.id),
           targeting: window.ConfigurationSections.normalizeTargeting(item.targeting),
           testPlan: window.ConfigurationSections.normalizeTestPlan(item.testPlan),
-          isSaved: item.isSaved ?? true
+          isSaved: item.isSaved ?? true,
+          hasBeenSaved: item.hasBeenSaved ?? true
         }))
       };
     } catch (error) {
@@ -589,7 +591,7 @@ window.MarketingConfigPage = {
     const field = (label, control, className = '') => `<div class="config-field ${className}"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
     const asset = (id, image, label) => `<span class="home-showcase-asset"><span class="home-showcase-asset-preview" data-check-in-success-image-preview="${id}">${image ? `<img src="${this.escapeHtml(image)}" alt="${label}" />` : '<b>图片</b>'}</span><span class="home-showcase-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-check-in-success-image="${id}" /></label><button class="home-entry-delete" type="button" data-check-in-success-image-delete="${id}"${image ? '' : ' disabled'}>删除图片</button></span></span>`;
     const route = (key, label, data) => `<div class="check-in-success-route" data-check-in-success-route="${key}"><span class="home-showcase-route-example">路由协议填写示例</span><div class="home-showcase-route-row"><select class="control" data-check-in-success-route-field="${key}:routeType"><option value="">请选择跳转类型</option><option value="page"${data.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${data.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" data-check-in-success-route-field="${key}:routeProtocol" value="${this.escapeHtml(data.routeProtocol)}" placeholder="请输入路由协议" /></div><div class="home-showcase-input-help"><input class="control" data-check-in-success-route-field="${key}:pid" value="${this.escapeHtml(data.pid)}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" /><button class="help-tooltip" type="button" data-tooltip="填写商城关联 PID，用于跳转与埋点上报。" aria-label="PID说明">?</button></div><div class="home-showcase-input-help"><select class="control" data-check-in-success-route-field="${key}:selectedPid"><option value="">请选择 pid</option><option value="default"${data.selectedPid === 'default' ? ' selected' : ''}>默认 pid</option><option value="custom"${data.selectedPid === 'custom' ? ' selected' : ''}>自定义 pid</option></select><button class="help-tooltip" type="button" data-tooltip="选择当前资源位使用的 PID。" aria-label="选择PID说明">?</button></div><div class="home-showcase-input-help"><input class="control" data-check-in-success-route-field="${key}:skipType" value="${this.escapeHtml(data.skipType)}" placeholder="skip_type（用于埋点上报）" /><button class="help-tooltip" type="button" data-tooltip="用于分析跳转来源的埋点字段。" aria-label="skip type说明">?</button></div><input class="control" data-check-in-success-route-field="${key}:mallId" value="${this.escapeHtml(data.mallId)}" placeholder="商城 id" /><input class="control" data-check-in-success-route-field="${key}:materialName" value="${this.escapeHtml(data.materialName)}" placeholder="素材名称" /><div class="home-showcase-popup-row">${asset(`${key}-popup-logo`, data.popupLogo, '出站弹窗 logo')}<input class="control" data-check-in-success-route-field="${key}:popupCopy" value="${this.escapeHtml(data.popupCopy)}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input type="checkbox" data-check-in-success-route-field="${key}:requiresLogin"${data.requiresLogin ? ' checked' : ''} />用户需登录</label></div>`;
-    const preview = `<aside class="check-in-success-preview-panel" aria-label="手机预览"><span class="check-in-preview-label">手机预览</span><div class="check-in-success-phone"><div class="check-in-success-phone-status"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="check-in-success-page"><span>‹</span><b>累计获得补贴</b><strong>20.39<small>元</small></strong><em>获得后 7 天内有效</em><i>可用现金补贴：0.68 元 ›</i></div><div class="check-in-success-mask"></div><section class="check-in-success-popup"><b>打卡成功</b><strong>最近7天已累计获得 <span>12.83<small>元</small></span></strong><p>今日打卡奖金补贴：+0.41元</p><button type="button"><span data-check-in-success-preview-main>${this.escapeHtml(config.mainCopy)}</span><small data-check-in-success-preview-sub>${this.escapeHtml(config.subCopy)}</small></button><i>去以下商城下单拿返现，可叠加现金补贴</i><div class="check-in-success-store-icons">淘 京 抖 唯 美 饿</div></section></div></aside>`;
+    const preview = `<aside class="check-in-success-preview-panel" aria-label="预览"><span class="check-in-preview-label">预览</span><div class="check-in-success-phone"><div class="check-in-success-phone-status"><span>9:41</span><span>▮▮▮ ◔ ▭</span></div><div class="check-in-success-page"><span>‹</span><b>累计获得补贴</b><strong>20.39<small>元</small></strong><em>获得后 7 天内有效</em><i>可用现金补贴：0.68 元 ›</i></div><div class="check-in-success-mask"></div><section class="check-in-success-popup"><b>打卡成功</b><strong>最近7天已累计获得 <span>12.83<small>元</small></span></strong><p>今日打卡奖金补贴：+0.41元</p><button type="button"><span data-check-in-success-preview-main>${this.escapeHtml(config.mainCopy)}</span><small data-check-in-success-preview-sub>${this.escapeHtml(config.subCopy)}</small></button><i>去以下商城下单拿返现，可叠加现金补贴</i><div class="check-in-success-store-icons">淘 京 抖 唯 美 饿</div></section></div></aside>`;
     return `<div class="modal-card check-in-success-modal-card" role="dialog" aria-modal="true" aria-labelledby="check-in-success-modal-title"><div class="modal-header"><h2 id="check-in-success-modal-title">${isNew ? '新增打卡成功弹窗营销配置' : '编辑打卡成功弹窗营销配置'}</h2><button class="icon-close" id="close-check-in-success-modal" type="button" aria-label="关闭">×</button></div><div class="modal-body check-in-success-modal-layout">${preview}<div class="style-config-form home-component-form check-in-success-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>记录名称', `<input class="control" id="check-in-success-record-name" value="${this.escapeHtml(value.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section check-in-success-function-section"><h3>功能信息</h3><p class="check-in-success-notice">提示：仅支持打卡状态=已打卡的功能营销配置<br />若 按钮主文案="去下单"，则按钮副文案默认必填为“拿返现叠加补贴”</p>${field('<b class="field-required">*</b>按钮主文案', `<input class="control" id="check-in-success-main-copy" value="${this.escapeHtml(config.mainCopy)}" maxlength="12" placeholder="请输入按钮主文案" />`)}${field('按钮副文案', `<input class="control" id="check-in-success-sub-copy" value="${this.escapeHtml(config.subCopy)}" disabled />`)}${field('按钮跳转', route('button', '按钮跳转', config.buttonRoute), 'check-in-success-route-field')}${field('<b class="field-required">*</b>资源位素材', `<div class="check-in-success-material">${asset('resource-image', config.resourceImage, '上传图片')}<p>图片限制：宽度222，高度不超过136</p></div>`, 'check-in-success-route-field')}${field('资源位跳转', route('resource', '资源位跳转', config.resourceRoute), 'check-in-success-route-field')}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'check-in-success', value: value.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'check-in-success', value: value.testPlan })}</div></div><div class="modal-footer"><button class="button secondary" id="cancel-check-in-success-modal" type="button">取消</button><button class="button primary" id="save-check-in-success-modal" type="button">保存</button></div></div>`;
   },
   bindBenefitsCheckInSuccessList() {
@@ -775,10 +777,8 @@ window.MarketingConfigPage = {
       : isFeedView
         ? '<div class="style-config-empty">信息流编辑框架加载失败，请刷新页面后重试。</div>'
         : this.renderHomeBuilder();
-    const initialActions = isFeedView
-      ? '<button class="button secondary" id="cancel-feed-marketing" type="button" disabled>撤销本次修改</button><button class="button primary is-edit-action" id="save-feed-marketing" type="button">编辑</button>'
-      : '';
-    return `<section class="content marketing-config-page"><section class="marketing-navigation panel"><nav class="marketing-tabs" aria-label="底部Tab"><strong class="marketing-tabs-title">底部Tab</strong><div class="marketing-tabs-list" role="tablist"><button class="marketing-tab is-active" type="button" role="tab" aria-selected="true" data-marketing-tab="home">首页 <small>Home</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="benefits">福利页 <small>第2Tab</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="youzi-street">柚子街 <small>第3Tab</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="mine">我 <small>Mine</small></button></div></nav><nav class="marketing-home-subnav" aria-label="页面子导航">${this.renderPrimarySubnav('home', homeView)}</nav><aside class="benefits-feed-reference-note" id="benefits-feed-reference-note" role="note" hidden><ol><li>配置与逛逛首页一致。</li><li>暂不支持 Tab 配置。</li><li>资源位类型调整为“组件”定义。</li></ol></aside></section><section class="marketing-editor-workspace panel"><div class="marketing-workspace-heading"><div><h1>${heading.title}</h1><span class="heading-note">${heading.note}</span></div><div class="marketing-page-actions" id="marketing-page-actions">${initialActions}</div></div><div class="marketing-config-body" id="marketing-config-body">${body}</div></section></section>`;
+    const initialActions = '';
+    return `<section class="content marketing-config-page"><section class="marketing-navigation panel"><nav class="marketing-tabs" aria-label="底部Tab"><strong class="marketing-tabs-title">底部Tab</strong><div class="marketing-tabs-list" role="tablist"><button class="marketing-tab is-active" type="button" role="tab" aria-selected="true" data-marketing-tab="home">首页 <small>Home</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="benefits">福利页 <small>第2Tab</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="youzi-street">柚子街 <small>第3Tab</small></button><button class="marketing-tab" type="button" role="tab" aria-selected="false" data-marketing-tab="mine">我 <small>Mine</small></button></div></nav><nav class="marketing-home-subnav" aria-label="页面子导航">${this.renderPrimarySubnav('home', homeView)}</nav><aside class="benefits-feed-reference-note" id="benefits-feed-reference-note" role="note" hidden><ol><li>配置与逛逛首页一致。</li><li>暂不支持 Tab 配置。</li><li>资源位类型调整为“组件”定义。</li></ol></aside></section><section class="marketing-editor-workspace panel"><div class="marketing-workspace-heading"><div><h1>${heading.title}</h1><span class="heading-note">${heading.note}</span></div><div class="marketing-workspace-tools"><div class="marketing-page-actions" id="marketing-page-actions">${initialActions}</div><section class="marketing-recent-edits" id="marketing-recent-edits" aria-label="最近编辑"></section></div></div><div class="marketing-config-body" id="marketing-config-body">${body}</div></section></section>`;
   },
   renderPrimarySubnav(tab, homeView = 'function') {
     const items = {
@@ -807,7 +807,7 @@ window.MarketingConfigPage = {
         <button class="home-tool" type="button" draggable="true" data-home-add="shortcut" data-tooltip="支持在功能区排序"><b>▦</b><span>功能区-红包发放功能</span></button>
       </div></aside>
       <section class="home-marketing-preview"><div class="style-panel-heading"><h2>页面预览</h2><span>所见即所得</span></div><div class="home-phone-stage"><div class="home-component-editor" id="home-component-editor" aria-label="组件编辑入口"></div><p class="home-preview-source-note" role="note">信息流内容来自首页-信息流营销配置，仅供预览</p><div class="home-phone-frame"><section class="home-fixed-header" aria-label="功能金刚组件区"><img class="home-preview-fixed-header-image" src="assets/marketing-config/home-preview-fixed-header.png" alt="美柚省钱首页固定头部" /><div class="home-fixed-entries" id="home-fixed-entries" aria-label="功能金刚组件区"></div></section><section class="home-static-preview-module home-notification-module" aria-label="通知功能预览"><img class="home-preview-notification-image" src="assets/marketing-config/home-preview-notification.png" alt="红包到期通知" /></section><div class="home-function-slot" id="home-function-slot-after-notification"></div><section class="home-static-preview-module home-search-paste-module" aria-label="搜索粘贴功能预览"><img class="home-preview-search-paste-image" src="assets/marketing-config/home-preview-search-paste.png" alt="复制商品链接快速查返现" /></section><div class="home-function-slot" id="home-function-slot-after-search-paste"></div><div class="home-phone-canvas" id="home-phone-canvas"></div></div></div></section>
-      <aside class="home-marketing-settings"><div class="style-panel-heading"><h2>配置</h2><span id="home-config-type">未选择组件</span></div><div class="home-config-content" id="home-config-content"><div class="style-config-empty">从左侧添加组件，或点击预览中的组件进行配置</div></div><div class="home-config-actions"><span class="home-component-save-tooltip" data-tooltip="保存当前组件配置后，仍需点击页面保存才能提交整页配置。"><button class="button primary" id="save-home-component" type="button">保存组件</button></span></div></aside>
+      <aside class="home-marketing-settings"><div class="style-panel-heading"><h2>配置</h2><span id="home-config-type">未选择组件</span></div><div class="home-config-content" id="home-config-content"><div class="style-config-empty">从左侧添加组件，或点击预览中的组件进行配置</div></div><div class="home-config-actions"><div class="home-config-action-copy" id="home-config-action-copy" hidden>保存展位配置后，点击组件进行组件的整体保存。</div><button class="button secondary home-remove-component-action" id="remove-home-component-action" type="button" hidden>移除组件</button><button class="button primary is-edit-action" id="save-home-component" type="button">编辑</button></div></aside>
     </section>`;
   },
   renderHomeConfigurationList({ components, fixedEntriesComponents }) {
@@ -857,7 +857,7 @@ window.MarketingConfigPage = {
         componentConfig: `入口数量：${entries.length}`,
         materialConfig: materialConfig || '-',
         jumpConfig: jumpConfig || '-',
-        enabled: component.enabled ? '开启' : '不开启'
+        enabled: window.ConfigurationSections.normalizeTargeting(component.targeting).status
       };
     };
     const formatShowcase = (showcase = {}) => {
@@ -967,7 +967,7 @@ window.MarketingConfigPage = {
         <button class="home-tool" type="button" draggable="true" data-benefits-feed-add="red-packet"><b>￥</b><span>信息流-红包发放功能</span><small>红包权益发放展示</small></button>
       </div></aside>
       <section class="home-marketing-preview benefits-feed-preview"><div class="style-panel-heading"><h2>页面预览</h2><span>福利页信息流</span></div><div class="home-phone-stage"><div class="home-phone-frame benefits-feed-phone-frame"><div class="benefits-feed-phone-header"><b>福利中心</b><span>精选好礼</span></div><div class="benefits-feed-phone-content" id="benefits-feed-preview-content"></div></div></div></section>
-      <aside class="home-marketing-settings benefits-feed-settings"><div class="style-panel-heading"><h2>配置</h2><span id="benefits-feed-config-type">未选择组件</span></div><div class="home-config-content" id="benefits-feed-config-content"></div><div class="home-config-actions"><span class="home-component-save-tooltip" data-tooltip="保存当前组件配置后，仍需点击页面保存才能提交整页配置。"><button class="button primary" id="save-benefits-feed-component" type="button">保存组件</button></span></div></aside>
+      <aside class="home-marketing-settings benefits-feed-settings"><div class="style-panel-heading"><h2>配置</h2><span id="benefits-feed-config-type">未选择组件</span></div><div class="home-config-content" id="benefits-feed-config-content"></div><div class="home-config-actions"><button class="button secondary home-remove-component-action" id="remove-benefits-feed-component" type="button" hidden>移除组件</button><button class="button primary is-edit-action" id="save-benefits-feed-component" type="button">编辑</button></div></aside>
     </section>`;
   },
   renderPrimaryComponentBuilder(config) {
@@ -1038,7 +1038,7 @@ window.MarketingConfigPage = {
       const help = (text) => `<button class="help-tooltip home-showcase-help" type="button" aria-label="字段说明" data-tooltip="${text}">?</button>`;
       const pieces = mosaic.positions.map((item) => `<button class="feed-mosaic-piece${item.id === position.id ? ' is-selected' : ''}" type="button" data-benefits-feed-mosaic-position="${this.escapeHtml(item.id)}">${item.image ? `<img src="${item.image}" alt="拼图位置图片" />` : '<span>选择</span>'}${item.id === position.id ? '<b>★</b>' : ''}</button>`).join('');
       const workspace = `<div class="home-showcase-workspace"><div class="feed-mosaic-canvas" aria-label="拼图配置"><div class="feed-mosaic-piece-list">${pieces}</div><span class="feed-mosaic-position-actions"><button class="feed-mosaic-position-add" type="button" data-benefits-feed-mosaic-position-add aria-label="添加位置">+</button><button class="feed-mosaic-position-remove" type="button" data-benefits-feed-mosaic-position-remove aria-label="删除选中位置"${mosaic.positions.length === 1 ? ' disabled' : ''}>×</button></span></div><span class="home-showcase-route-example">路由协议填写示例</span><div class="home-showcase-assets">${asset('上传图片', 'image', position.image)}${asset('暗黑模式', 'darkImage', position.darkImage)}</div><div class="home-showcase-route-row"><select class="control" data-benefits-feed-mosaic-field="routeType"><option value="">请选择跳转类型</option><option value="page"${position.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${position.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" data-benefits-feed-mosaic-field="routeProtocol" value="${this.escapeHtml(position.routeProtocol)}" placeholder="请输入路由协议" /></div><div class="home-showcase-input-help"><input class="control" data-benefits-feed-mosaic-field="pid" value="${this.escapeHtml(position.pid)}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" />${help('用于商城埋点上报的 PID 配置。')}</div><div class="home-showcase-input-help"><select class="control" data-benefits-feed-mosaic-field="selectedPid"><option value="">请选择 pid</option><option value="default"${position.selectedPid === 'default' ? ' selected' : ''}>默认 pid</option><option value="custom"${position.selectedPid === 'custom' ? ' selected' : ''}>自定义 pid</option></select>${help('选择当前拼图展示使用的 PID。')}</div><div class="home-showcase-input-help"><input class="control" data-benefits-feed-mosaic-field="skipType" value="${this.escapeHtml(position.skipType)}" placeholder="skip_type（用于埋点上报）" />${help('用于记录跳转类型的埋点字段。')}</div><input class="control" data-benefits-feed-mosaic-field="mallId" value="${this.escapeHtml(position.mallId)}" placeholder="商城 id" /><div class="home-showcase-popup-row">${asset('出站弹窗 logo', 'popupLogo', position.popupLogo)}<input class="control" data-benefits-feed-mosaic-field="popupCopy" value="${this.escapeHtml(position.popupCopy)}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input type="checkbox" data-benefits-feed-mosaic-field="requiresLogin"${position.requiresLogin ? ' checked' : ''} />用户需登录</label></div>`;
-      container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form feed-mosaic-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control benefits-feed-type-control" value="信息流-拼图" disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-field="recordName" value="${this.escapeHtml(component.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section home-showcase-feature-section feed-mosaic-material-section"><h3>素材配置</h3>${field('拼图配置', workspace, 'home-showcase-config-field')}<div class="editor-requirement-overlay" role="note"><div><strong>需求补充说明</strong><p>此部分内容复用「美柚返现」；如有修改，则以最新的逻辑为准。</p></div><button class="button secondary" type="button" data-dismiss-requirement-overlay>我知道了</button></div></section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed', value: component.testPlan })}<button class="text-button home-remove-component" type="button" data-benefits-feed-remove="${component.id}">移除组件</button></div>`;
+      container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form feed-mosaic-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control benefits-feed-type-control" value="信息流-拼图" disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-field="recordName" value="${this.escapeHtml(component.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section home-showcase-feature-section feed-mosaic-material-section"><h3>素材配置</h3>${field('拼图配置', workspace, 'home-showcase-config-field')}<div class="editor-requirement-overlay" role="note"><div><strong>需求补充说明</strong><p>此部分内容复用「美柚返现」；如有修改，则以最新的逻辑为准。</p></div><button class="button secondary" type="button" data-dismiss-requirement-overlay>我知道了</button></div></section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed', value: component.testPlan })}</div>`;
       window.BackofficeLayout.bindGlobalTooltips?.();
       return;
     }
@@ -1049,7 +1049,7 @@ window.MarketingConfigPage = {
       const asset = (label, name, value) => `<span class="home-showcase-asset"><span class="home-showcase-asset-preview">${value ? `<img src="${value}" alt="已上传${label}" />` : '<b>图片</b>'}</span><span class="home-showcase-asset-actions"><label class="button secondary home-entry-upload">${label}<input type="file" accept="image/*" data-benefits-feed-grid-image="${name}" /></label><button class="home-entry-delete" type="button" data-benefits-feed-grid-delete="${name}"${value ? '' : ' disabled'}>删除图片</button></span></span>`;
       const pieces = grid.positions.map((item, index) => `<button class="feed-grid-piece${item.id === position.id ? ' is-selected' : ''}" type="button" data-benefits-feed-grid-position="${this.escapeHtml(item.id)}">${item.image ? `<img src="${item.image}" alt="宫格展位图片" />` : `<span>${index + 1}</span>`}${item.id === position.id ? '<b>★</b>' : ''}</button>`).join('');
       const workspace = `<div class="home-showcase-workspace"><div class="feed-grid-canvas" aria-label="宫格素材配置"><div class="feed-grid-piece-list">${pieces}</div><span class="feed-mosaic-position-actions"><button class="feed-mosaic-position-add" type="button" data-benefits-feed-grid-position-add aria-label="添加展位">+</button><button class="feed-mosaic-position-remove" type="button" data-benefits-feed-grid-position-remove aria-label="删除选中展位"${grid.positions.length === 1 ? ' disabled' : ''}>×</button></span></div><div class="feed-grid-position-fields"><div class="home-showcase-route-row"><input class="control" data-benefits-feed-grid-field="title" value="${this.escapeHtml(position.title)}" maxlength="4" placeholder="标题（最多 4 字）" /><input class="control" data-benefits-feed-grid-field="cornerCopy" value="${this.escapeHtml(position.cornerCopy)}" maxlength="3" placeholder="角标文案（最多 3 字）" /></div><div class="home-showcase-assets">${asset('上传图片', 'image', position.image)}</div><div class="home-showcase-route-row"><select class="control" data-benefits-feed-grid-field="routeType"><option value="">请选择跳转类型</option><option value="page"${position.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${position.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" data-benefits-feed-grid-field="routeProtocol" value="${this.escapeHtml(position.routeProtocol)}" placeholder="请输入路由协议" /></div><input class="control" data-benefits-feed-grid-field="pid" value="${this.escapeHtml(position.pid)}" placeholder="PID" /><select class="control" data-benefits-feed-grid-field="selectedPid"><option value="">请选择 PID</option><option value="default"${position.selectedPid === 'default' ? ' selected' : ''}>默认 PID</option><option value="custom"${position.selectedPid === 'custom' ? ' selected' : ''}>自定义 PID</option></select><input class="control" data-benefits-feed-grid-field="skipType" value="${this.escapeHtml(position.skipType)}" placeholder="skip_type" /><input class="control" data-benefits-feed-grid-field="mallId" value="${this.escapeHtml(position.mallId)}" placeholder="商城 ID" /><div class="home-showcase-popup-row">${asset('出站弹窗 logo', 'popupLogo', position.popupLogo)}<input class="control" data-benefits-feed-grid-field="popupCopy" value="${this.escapeHtml(position.popupCopy)}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input type="checkbox" data-benefits-feed-grid-field="requiresLogin"${position.requiresLogin ? ' checked' : ''} />用户需登录</label></div></div>`;
-      container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form feed-grid-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control benefits-feed-type-control" value="信息流-宫格" disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-field="recordName" value="${this.escapeHtml(component.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section home-showcase-feature-section"><h3>素材配置</h3>${field('宫格展位', workspace, 'home-showcase-config-field')}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed', value: component.testPlan })}<button class="text-button home-remove-component" type="button" data-benefits-feed-remove="${component.id}">移除组件</button></div>`;
+      container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form feed-grid-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control benefits-feed-type-control" value="信息流-宫格" disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-field="recordName" value="${this.escapeHtml(component.recordName)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section home-showcase-feature-section"><h3>素材配置</h3>${field('宫格展位', workspace, 'home-showcase-config-field')}</section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed', value: component.testPlan })}</div>`;
       return;
     }
     const redPacket = this.createBenefitsFeedRedPacketConfig(component.redPacket);
@@ -1058,7 +1058,7 @@ window.MarketingConfigPage = {
     const titleArea = redPacket.titleArea ? `<div class="home-red-packet-title-area-fields">${field('标题', `<input class="control" data-benefits-feed-red-packet-field="title" value="${this.escapeHtml(redPacket.title)}" placeholder="请输入标题" />`)}${field('副标题', `<input class="control" data-benefits-feed-red-packet-field="subtitle" value="${this.escapeHtml(redPacket.subtitle)}" placeholder="请输入副标题" />`)}${field('标题图片', `<div class="home-red-packet-title-assets">${asset('上传图片', 'titleImage', redPacket.titleImage)}${asset('暗黑模式', 'titleDarkImage', redPacket.titleDarkImage)}</div><p>若同时填写文字标题，以图片优先展示。</p>`, 'home-red-packet-title-image-field')}</div>` : '';
     const packageInfo = redPacket.deliveryType === 'package' ? `<div class="home-red-packet-package-info"><p class="home-red-packet-package-notice">同一券包配置内，关联红包每人最多可领取一次，无法重复领取</p>${field('<b class="field-required">*</b>未领取图片素材', `<div class="home-red-packet-package-asset-list">${asset('上传图片', 'unclaimedImage', redPacket.unclaimedImage)}${asset('暗黑模式', 'unclaimedDarkImage', redPacket.unclaimedDarkImage)}</div><p class="home-red-packet-package-help">用户未领取时展示整张素材图。未领取态不展示标题区，以图片素材为主视觉。</p>`, 'home-red-packet-package-assets')}</div>` : '';
     const packageTemplate = redPacket.deliveryType === 'package' ? field('<b class="field-required">*</b>红包模板', `<span class="home-red-packet-template-options"><label class="home-red-packet-template-card${redPacket.template === 'with-button' ? ' is-selected' : ''}"><input type="radio" name="benefits-feed-red-packet-template" value="with-button"${redPacket.template === 'with-button' ? ' checked' : ''} /><span class="home-red-packet-template-copy"><b>模板一：有去使用按钮</b><small>已领取/待使用状态下展示“去使用”按钮，点击后按红包自身配置的跳转地址跳转。</small></span><img class="home-red-packet-template-preview" src="assets/marketing-config/red-packet-template-with-button.png" alt="模板一红包样式示意" /></label><label class="home-red-packet-template-card${redPacket.template === 'without-button' ? ' is-selected' : ''}"><input type="radio" name="benefits-feed-red-packet-template" value="without-button"${redPacket.template === 'without-button' ? ' checked' : ''} /><span class="home-red-packet-template-copy"><b>模板二：无去使用按钮</b><small>已领取/待使用状态下不展示按钮。适用于红包跳转地址为返现首页，避免用户点击后仍停留首页。</small></span><img class="home-red-packet-template-preview" src="assets/marketing-config/red-packet-template-without-button.png" alt="模板二红包样式示意" /></label></span><p class="home-red-packet-template-help">若关联红包的跳转地址为返现首页，建议选择“无去使用按钮”，避免用户感知为按钮无效。</p>`, 'home-red-packet-template-field') : '';
-    container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form home-red-packet-form"><section class="home-entry-info-section shared-config-section"><h3>基础信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control benefits-feed-type-control" value="信息流-红包发放功能" disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-red-packet-field="name" value="${this.escapeHtml(redPacket.name)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section"><h3>功能信息</h3>${field('<b class="field-required">*</b>发放类型', `<span class="home-entry-status-control"><label><input type="radio" name="benefits-feed-red-packet-delivery" value="single"${redPacket.deliveryType === 'single' ? ' checked' : ''} />单个发放</label><label><input type="radio" name="benefits-feed-red-packet-delivery" value="package"${redPacket.deliveryType === 'package' ? ' checked' : ''} />券包发放</label></span>`)}${packageInfo}${field('是否配置标题区', `<span class="home-entry-status-control"><label><input type="checkbox" data-benefits-feed-red-packet-title-area${redPacket.titleArea ? ' checked' : ''} />配置标题区</label></span>`)}${titleArea}${packageTemplate}<div class="home-red-packet-link"><span>关联返现红包</span><div class="home-red-packet-link-control"><button class="button secondary" type="button" disabled title="本原型不展开红包关联明细">+ 关联红包</button><div class="home-red-packet-link-placeholder">关联区</div></div></div></section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed-red-packet', value: redPacket.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed-red-packet', value: redPacket.testPlan })}<p>带 * 的字段为必填项。关联红包仅保留入口，不在此处配置选择明细。</p><button class="text-button home-remove-component" type="button" data-benefits-feed-remove="${component.id}">移除组件</button></div>`;
+    container.innerHTML = `<div class="style-config-form home-component-form benefits-feed-form home-red-packet-form"><section class="home-entry-info-section shared-config-section"><h3>基础信息</h3>${field('<b class="field-required">*</b>组件类型', '<input class="control benefits-feed-type-control" value="信息流-红包发放功能" disabled />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-benefits-feed-red-packet-field="name" value="${this.escapeHtml(redPacket.name)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}</section><section class="home-entry-info-section shared-config-section"><h3>功能信息</h3>${field('<b class="field-required">*</b>发放类型', `<span class="home-entry-status-control"><label><input type="radio" name="benefits-feed-red-packet-delivery" value="single"${redPacket.deliveryType === 'single' ? ' checked' : ''} />单个发放</label><label><input type="radio" name="benefits-feed-red-packet-delivery" value="package"${redPacket.deliveryType === 'package' ? ' checked' : ''} />券包发放</label></span>`)}${packageInfo}${field('是否配置标题区', `<span class="home-entry-status-control"><label><input type="checkbox" data-benefits-feed-red-packet-title-area${redPacket.titleArea ? ' checked' : ''} />配置标题区</label></span>`)}${titleArea}${packageTemplate}<div class="home-red-packet-link"><span>关联返现红包</span><div class="home-red-packet-link-control"><button class="button secondary" type="button" disabled title="本原型不展开红包关联明细">+ 关联红包</button><div class="home-red-packet-link-placeholder">关联区</div></div></div></section>${window.ConfigurationSections.renderTargeting({ prefix: 'benefits-feed-red-packet', value: redPacket.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'benefits-feed-red-packet', value: redPacket.testPlan })}<p>带 * 的字段为必填项。关联红包仅保留入口，不在此处配置选择明细。</p></div>`;
   },
   bindBenefitsFeedBuilder(navigate, options = {}) {
     const primaryConfig = options.primaryConfig || null;
@@ -1074,6 +1074,21 @@ window.MarketingConfigPage = {
     let draggedComponentId = null;
     let draggedSlot = null;
     const activeComponent = () => components.find((item) => item.id === activeId);
+    const recentScope = primaryConfig ? `primary:${primaryConfig.storageKey || primaryConfig.title}` : 'benefits-feed';
+    const refreshRecentEdits = (recordCurrent = false) => {
+      const component = activeComponent();
+      const name = component?.type === 'red-packet' ? component.redPacket?.name : component?.recordName || component?.label;
+      if (recordCurrent && component && name) window.RecentEdits?.record({ scope: recentScope, id: component.id, name });
+      window.RecentEdits?.render(document.getElementById('marketing-recent-edits'), recentScope, {
+        filter: (item) => components.some((component) => component.id === item.id),
+        onSelect: (item) => {
+          if (!components.some((component) => component.id === item.id)) return;
+          activeId = item.id;
+          render();
+          requestAnimationFrame(() => document.querySelector(`[data-benefits-feed-component="${item.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+        }
+      });
+    };
     const validateComponent = (component) => {
       if (!component) return '';
       if (component.type !== 'red-packet') return component.recordName.trim() ? '' : '请补充资源位记录名称';
@@ -1092,11 +1107,17 @@ window.MarketingConfigPage = {
     };
     const updateEditState = () => {
       const builder = document.getElementById('benefits-feed-builder');
-      const actions = document.getElementById('marketing-page-actions');
       const isEditing = editSession.isEditing();
       builder.classList.toggle('is-editing', isEditing);
-      actions.innerHTML = `<span class="home-undo-tooltip" data-tooltip="本次修改可以一键恢复到最近一次保存的页面配置。"><button class="button secondary" id="cancel-benefits-feed" type="button"${!isEditing || !editSession.hasPageChanges() ? ' disabled' : ''}>撤销本次修改</button></span><button class="button primary${isEditing ? '' : ' is-edit-action'}" id="save-benefits-feed" type="button">${isEditing ? '保存页面' : '编辑'}</button>`;
-      document.getElementById('save-benefits-feed-component').disabled = !isEditing || !editSession.hasComponentChanges();
+      const componentSave = document.getElementById('save-benefits-feed-component');
+      const componentRemove = document.getElementById('remove-benefits-feed-component');
+      const component = activeComponent();
+      const canRemoveNewComponent = isEditing && Boolean(component) && !component.hasBeenSaved;
+      componentSave.textContent = isEditing ? '保存组件' : '编辑';
+      componentSave.classList.toggle('is-edit-action', !isEditing);
+      componentSave.disabled = isEditing && !editSession.hasComponentChanges();
+      componentRemove.hidden = !canRemoveNewComponent;
+      componentRemove.disabled = !canRemoveNewComponent;
       document.querySelectorAll('[data-benefits-feed-component]').forEach((element) => {
         const component = components.find((item) => item.id === element.dataset.benefitsFeedComponent);
         element.classList.toggle('is-unsaved', Boolean(component && !component.isSaved));
@@ -1109,7 +1130,7 @@ window.MarketingConfigPage = {
       });
       document.querySelectorAll('[data-benefits-feed-add], [data-benefits-feed-component], [data-benefits-feed-slot]').forEach((item) => { item.draggable = isEditing; });
     };
-    const render = () => { this.renderBenefitsFeedPreview(components, activeId); this.renderBenefitsFeedConfig(activeComponent()); updateEditState(); };
+    const render = () => { this.renderBenefitsFeedPreview(components, activeId); this.renderBenefitsFeedConfig(activeComponent()); updateEditState(); refreshRecentEdits(); };
     document.querySelectorAll('[data-marketing-tab]').forEach((tab) => tab.addEventListener('click', () => {
       if (tab.classList.contains('is-active')) return;
       guardUnsavedNavigation(() => { activatePrimaryTab(tab); this.showPrimaryTabContext(tab.dataset.marketingTab, 'feed', navigate); });
@@ -1133,6 +1154,7 @@ window.MarketingConfigPage = {
       const component = this.createBenefitsFeedComponent(button.dataset.benefitsFeedAdd);
       components.push(component);
       activeId = component.id;
+      refreshRecentEdits(true);
       render();
     }));
     const previewContent = document.getElementById('benefits-feed-preview-content');
@@ -1232,6 +1254,7 @@ window.MarketingConfigPage = {
       if (!component) return;
       component.isSaved = false;
       activeId = component.dataset.benefitsFeedComponent;
+      refreshRecentEdits(true);
       render();
     });
     document.getElementById('benefits-feed-config-content').addEventListener('input', (event) => {
@@ -1341,7 +1364,7 @@ window.MarketingConfigPage = {
       if (event.target.dataset.benefitsFeedTest) component.testPlan[event.target.dataset.benefitsFeedTest] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
       render();
     });
-    document.getElementById('benefits-feed-config-content').addEventListener('click', (event) => {
+    document.getElementById('benefits-feed-config-content').addEventListener('click', async (event) => {
       const dismissRequirementOverlay = event.target.closest('[data-dismiss-requirement-overlay]');
       if (dismissRequirementOverlay) { dismissRequirementOverlay.closest('.editor-requirement-overlay')?.remove(); return; }
       if (!editSession.isEditing()) return;
@@ -1444,47 +1467,38 @@ window.MarketingConfigPage = {
         render();
         return;
       }
-      const removal = event.target.closest('[data-benefits-feed-remove]');
-      if (!removal) return;
-      const index = components.findIndex((item) => item.id === removal.dataset.benefitsFeedRemove);
+    });
+    document.getElementById('remove-benefits-feed-component').addEventListener('click', () => {
+      const component = activeComponent();
+      if (!editSession.isEditing() || !component || component.hasBeenSaved) return;
+      const index = components.findIndex((item) => item.id === component.id);
       if (index < 0) return;
       components.splice(index, 1);
       activeId = components[index]?.id || components[index - 1]?.id || null;
       render();
+      window.BackofficeLayout.showToast('组件已移除');
     });
     document.getElementById('save-benefits-feed-component').addEventListener('click', () => {
+      if (!editSession.isEditing()) {
+        editSession.startEditing();
+        refreshRecentEdits(true);
+        updateEditState();
+        return;
+      }
+      if (!editSession.hasComponentChanges()) return;
       const message = validateComponent(activeComponent());
       if (message) { window.BackofficeLayout.showToast('请完善必填项', message); return; }
       if (activeComponent()?.type === 'red-packet') activeComponent().recordName = activeComponent().redPacket.name;
-      components.forEach((component) => { component.isSaved = true; });
-      editSession.markComponentSaved();
+      components.forEach((component) => { component.isSaved = true; component.hasBeenSaved = true; });
+      const nextState = { components };
+      try {
+        if (primaryConfig) this.savePrimaryComponentState(primaryConfig, this.cloneBenefitsFeedState(nextState));
+        else this.saveBenefitsFeedState(this.cloneBenefitsFeedState(nextState));
+      } catch (error) { window.BackofficeLayout.showToast('组件保存失败', '本地演示数据无法保存，请减少图片素材后重试'); return; }
+      editSession.finishComponentEditing(nextState);
+      refreshRecentEdits(true);
       updateEditState();
-      window.BackofficeLayout.showToast('组件已保存', '请点击页面保存，提交整页营销配置');
-    });
-    document.getElementById('marketing-page-actions').addEventListener('click', (event) => {
-      const action = event.target.closest('button');
-      if (!action) return;
-      if (action.id === 'save-benefits-feed') {
-        if (!editSession.isEditing()) { editSession.startEditing(); updateEditState(); return; }
-        if (editSession.hasComponentChanges()) { window.BackofficeLayout.showToast('请先保存组件', '右侧组件配置存在未保存的修改'); return; }
-        const invalid = components.map(validateComponent).find(Boolean);
-        if (invalid) { window.BackofficeLayout.showToast('请完善必填项', invalid); return; }
-        const nextState = { components };
-        try {
-          if (primaryConfig) this.savePrimaryComponentState(primaryConfig, this.cloneBenefitsFeedState(nextState));
-          else this.saveBenefitsFeedState(this.cloneBenefitsFeedState(nextState));
-        } catch (error) { window.BackofficeLayout.showToast('页面保存失败', '本地演示数据无法保存，请减少图片素材后重试'); return; }
-        editSession.markPageSaved(nextState);
-        render();
-        window.BackofficeLayout.showToast('页面保存成功', `${primaryConfig?.title || '福利页信息流营销'}已更新`);
-      }
-      if (action.id === 'cancel-benefits-feed' && editSession.isEditing() && editSession.hasPageChanges()) {
-        const saved = editSession.revertPageChanges();
-        components.splice(0, components.length, ...saved.components);
-        activeId = components[0]?.id || null;
-        render();
-        window.BackofficeLayout.showToast('已撤销修改', '已恢复到最近一次保存的页面配置');
-      }
+      window.BackofficeLayout.showToast('组件已保存', `${primaryConfig?.title || '福利页信息流营销'}已更新`);
     });
     render();
   },
@@ -1521,7 +1535,7 @@ window.MarketingConfigPage = {
       document.querySelector('.marketing-config-page .heading-note').textContent = '维护柚子街信息流 Tab、资源位状态及展示配置';
       body.innerHTML = window.FeedManagementPage?.renderEmbedded?.()
         || '<div class="style-config-empty">信息流编辑框架加载失败，请刷新页面后重试。</div>';
-      actions.innerHTML = '<button class="button secondary" id="cancel-feed-marketing" type="button" disabled>撤销本次修改</button><button class="button primary is-edit-action" id="save-feed-marketing" type="button">编辑</button>';
+      actions.innerHTML = '';
       window.FeedManagementPage?.bindEmbedded?.({
         navigate,
         storageKey: 'meiyou-cashback-youzi-street-feed-management',
@@ -1564,7 +1578,7 @@ window.MarketingConfigPage = {
       search: { type, label: '功能区-橱窗', placeholder: '搜优惠、搜商品', functionSlot: 'after-notification', sortable: true, showcase: { name: '', sort: '', windowType: 'mosaic', mosaic: { image: '', darkImage: '', routeType: '', routeProtocol: '', pid: '', selectedPid: '', skipType: '', mallId: '', popupLogo: '', popupCopy: '', requiresLogin: true }, newcomer: { image: '', darkImage: '', routeType: '', routeProtocol: '', pid: '', selectedPid: '', skipType: '', mallId: '', popupLogo: '', popupCopy: '', requiresLogin: true }, targeting: window.ConfigurationSections.createTargeting(), testPlan: window.ConfigurationSections.createTestPlan() } },
       shortcut: { type, label: '功能区-红包发放功能', subtitle: '领取返现红包', functionSlot: 'after-notification', sortable: true, redPacket: { name: '', sort: '', deliveryType: 'single', titleArea: false, title: '', subtitle: '', titleImage: '', titleDarkImage: '', unclaimedImage: '', unclaimedDarkImage: '', template: 'with-button', targeting: window.ConfigurationSections.createTargeting(), testPlan: window.ConfigurationSections.createTestPlan() } }
     };
-    return { id: `home-component-${Date.now()}-${Math.random().toString(16).slice(2)}`, isSaved: false, ...definitions[type] };
+    return { id: `home-component-${Date.now()}-${Math.random().toString(16).slice(2)}`, isSaved: false, hasBeenSaved: false, ...definitions[type] };
   },
   isFunctionZoneComponent(component) {
     return ['search', 'shortcut'].includes(component.type);
@@ -1637,7 +1651,7 @@ window.MarketingConfigPage = {
     if (!container) return;
     container.classList.toggle('is-empty', !goldComponents.length);
     container.classList.toggle('is-active', Boolean(activeGoldComponentId));
-    container.innerHTML = `${goldComponents.map((component, componentIndex) => `<section class="home-gold-component${component.id === activeGoldComponentId ? ' is-active' : ''}${component.isSaved ? '' : ' is-unsaved'}" draggable="true" data-home-gold-component="${component.id}" data-tooltip="支持在功能金刚组件区排序"><div class="home-gold-component-label">功能金刚区 ${componentIndex + 1}</div>${component.enabled ? `<div class="home-gold-component-entries">${component.entries.map((entry, index) => `<button class="home-fixed-entry${component.id === activeGoldComponentId && index === activeEntryIndex ? ' is-active' : ''}" type="button" data-home-fixed-entry="${index}"><u>${this.renderFixedEntryImage(entry)}</u><span>${entry.title}</span></button>`).join('')}</div>` : '<button class="home-fixed-entries-disabled" type="button">功能金刚区未开启</button>'}</section>`).join('')}<div class="home-fixed-entries-drop" data-home-drop-zone="fixed-entries"><b>+</b><span>拖入功能金刚区</span></div>`;
+    container.innerHTML = `${goldComponents.map((component, componentIndex) => `<section class="home-gold-component${component.id === activeGoldComponentId ? ' is-active' : ''}${component.isSaved ? '' : ' is-unsaved'}" draggable="true" data-home-gold-component="${component.id}" data-tooltip="支持在功能金刚组件区排序"><div class="home-gold-component-label">功能金刚区 ${componentIndex + 1}</div><div class="home-gold-component-entries">${component.entries.map((entry, index) => `<button class="home-fixed-entry${component.id === activeGoldComponentId && index === activeEntryIndex ? ' is-active' : ''}" type="button" data-home-fixed-entry="${index}"><u>${this.renderFixedEntryImage(entry)}</u><span>${entry.title}</span></button>`).join('')}</div></section>`).join('')}<div class="home-fixed-entries-drop" data-home-drop-zone="fixed-entries"><b>+</b><span>拖入功能金刚区</span></div>`;
   },
   getFixedEntryImage(entry, mode = 'normal') {
     return mode === 'dark' && entry.darkImage ? entry.darkImage : entry.image;
@@ -1674,7 +1688,7 @@ window.MarketingConfigPage = {
     const type = document.getElementById('home-config-type');
     if (!container || !type) return;
     type.textContent = '功能金刚区';
-    container.innerHTML = `<div class="style-config-form home-component-form home-fixed-entry-form"><section class="home-entry-info-section home-entry-status-section"><h3>功能金刚区</h3><div class="home-entry-status-row"><span>是否开启组件</span><span class="home-entry-status-control"><label><input type="radio" name="home-fixed-entries-enabled" value="enabled"${component.enabled ? ' checked' : ''} />开启</label><label><input type="radio" name="home-fixed-entries-enabled" value="disabled"${component.enabled ? '' : ' checked'} />不开启</label></span><button class="help-tooltip" type="button" aria-label="功能金刚区开启说明" data-tooltip="开启后，功能金刚区及其全部入口将在客户端展示；不开启，则用户端不可见。">?</button></div></section>${window.ConfigurationSections.renderTargeting({ prefix: 'home-fixed-entries', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'home-fixed-entries', value: component.testPlan, description: '测试 UID 内的用户将在测试有效时间内看到功能金刚区，到期自动终止，不影响正式配置。' })}<p>组件开启时，全部入口统一展示；组件关闭时，全部入口统一隐藏。该开关、定向信息和测试计划仅控制当前功能金刚区，不影响其他功能金刚区。</p><button class="text-button home-remove-component" type="button" data-home-fixed-entries-remove>移除组件</button></div>`;
+    container.innerHTML = `<div class="style-config-form home-component-form home-fixed-entry-form">${window.ConfigurationSections.renderTargeting({ prefix: 'home-fixed-entries', value: component.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'home-fixed-entries', value: component.testPlan, description: '测试 UID 内的用户将在测试有效时间内看到功能金刚区，到期自动终止，不影响正式配置。' })}<p>定向信息和测试计划仅控制当前功能金刚区，不影响其他功能金刚区。</p></div>`;
   },
   renderHomeConfig(component) {
     const container = document.getElementById('home-config-content');
@@ -1697,7 +1711,7 @@ window.MarketingConfigPage = {
       const packageInfo = redPacket.deliveryType === 'package' ? `<div class="home-red-packet-package-info"><p class="home-red-packet-package-notice">同一券包配置内，关联红包每人最多可领取一次，无法重复领取</p><div class="config-field home-red-packet-package-assets"><span class="config-field-label"><b class="field-required">*</b>未领取图片素材</span><div class="config-field-control"><div class="home-red-packet-package-asset-list">${packageAssetControl('上传图片', 'unclaimedImage', redPacket.unclaimedImage, true)}${packageAssetControl('暗黑模式', 'unclaimedDarkImage', redPacket.unclaimedDarkImage)}</div><p class="home-red-packet-package-help">用户未领取时展示整张素材图。未领取态不展示标题区，以图片素材为主视觉。</p></div></div></div>` : '';
       const packageTemplateInfo = redPacket.deliveryType === 'package' ? `<div class="config-field home-red-packet-template-field"><span class="config-field-label"><b class="field-required">*</b>红包模板</span><div class="config-field-control"><span class="home-red-packet-template-options"><label class="home-red-packet-template-card${redPacket.template === 'with-button' ? ' is-selected' : ''}"><input type="radio" name="home-red-packet-template" value="with-button"${redPacket.template === 'with-button' ? ' checked' : ''} /><span class="home-red-packet-template-copy"><b>模板一：有去使用按钮</b><small>已领取/待使用状态下展示“去使用”按钮，点击后按红包自身配置的跳转地址跳转。</small></span><img class="home-red-packet-template-preview" src="assets/marketing-config/red-packet-template-with-button.png" alt="模板一红包样式示意" /></label><label class="home-red-packet-template-card${redPacket.template === 'without-button' ? ' is-selected' : ''}"><input type="radio" name="home-red-packet-template" value="without-button"${redPacket.template === 'without-button' ? ' checked' : ''} /><span class="home-red-packet-template-copy"><b>模板二：无去使用按钮</b><small>已领取/待使用状态下不展示按钮。适用于红包跳转地址为返现首页，避免用户点击后仍停留首页。</small></span><img class="home-red-packet-template-preview" src="assets/marketing-config/red-packet-template-without-button.png" alt="模板二红包样式示意" /></label></span><p class="home-red-packet-template-help">若关联红包的跳转地址为返现首页，建议选择“无去使用按钮”，避免用户感知为按钮无效。</p></div></div>` : '';
       const featureInfo = `<section class="home-entry-info-section shared-config-section"><h3>功能信息</h3><div class="config-field"><span class="config-field-label"><b class="field-required">*</b>发放类型</span><div class="config-field-control"><span class="home-entry-status-control"><label><input type="radio" name="home-red-packet-delivery" value="single"${redPacket.deliveryType === 'single' ? ' checked' : ''} />单个发放</label><label><input type="radio" name="home-red-packet-delivery" value="package"${redPacket.deliveryType === 'package' ? ' checked' : ''} />券包发放</label></span></div></div>${packageInfo}<div class="config-field"><span class="config-field-label">是否配置标题区</span><div class="config-field-control"><span class="home-entry-status-control"><label><input type="checkbox" data-home-red-packet-title-area${redPacket.titleArea ? ' checked' : ''} />配置标题区</label></span></div></div>${titleAreaInfo}${packageTemplateInfo}<div class="home-red-packet-link"><span>关联返现红包</span><div class="home-red-packet-link-control"><button class="button secondary" type="button" disabled title="本原型不展开红包关联明细">+ 关联红包</button><div class="home-red-packet-link-placeholder">关联区</div></div></div></section>`;
-      container.innerHTML = `<div class="style-config-form home-component-form home-red-packet-form">${baseInfo}${featureInfo}${window.ConfigurationSections.renderTargeting({ prefix: 'home-red-packet', value: redPacket.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'home-red-packet', value: redPacket.testPlan })}<p>带 * 的字段为必填项。关联红包仅保留入口，不在此处配置选择明细。</p><button class="text-button home-remove-component" type="button" data-home-remove="${component.id}">移除组件</button></div>`;
+      container.innerHTML = `<div class="style-config-form home-component-form home-red-packet-form">${baseInfo}${featureInfo}${window.ConfigurationSections.renderTargeting({ prefix: 'home-red-packet', value: redPacket.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'home-red-packet', value: redPacket.testPlan })}<p>带 * 的字段为必填项。关联红包仅保留入口，不在此处配置选择明细。</p></div>`;
       return;
     }
     if (component.type === 'search') {
@@ -1714,12 +1728,12 @@ window.MarketingConfigPage = {
       const mosaicConfig = `<div class="home-showcase-workspace"><div class="home-showcase-canvas" aria-label="${showcase.windowType === 'mosaic' ? '拼图' : '新人滑块商品'}配置示意"><div class="home-showcase-piece${windowConfig.image ? ' has-image' : ''}">${windowConfig.image ? `<img src="${windowConfig.image}" alt="已上传橱窗素材" />` : '<span>上传橱窗图片</span>'}<b>★</b></div><button class="home-showcase-node" type="button" aria-label="添加拼图位">+</button><div class="home-showcase-canvas-add">+</div></div><span class="home-showcase-route-example">路由协议填写示例</span><div class="home-showcase-assets">${assetControl('上传图片', 'image', windowConfig.image)}${assetControl('暗黑模式', 'darkImage', windowConfig.darkImage)}</div><div class="home-showcase-route-row"><select class="control" data-home-showcase-field="routeType"><option value="">请选择跳转类型</option><option value="page"${windowConfig.routeType === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${windowConfig.routeType === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select><input class="control" data-home-showcase-field="routeProtocol" value="${windowConfig.routeProtocol}" placeholder="请输入路由协议" /></div><div class="home-showcase-input-help"><input class="control" data-home-showcase-field="pid" value="${windowConfig.pid}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" />${help('用于商城埋点上报的 PID 配置。')}</div><div class="home-showcase-input-help"><select class="control" data-home-showcase-field="selectedPid"><option value="">请选择 pid</option><option value="default"${windowConfig.selectedPid === 'default' ? ' selected' : ''}>默认 pid</option><option value="custom"${windowConfig.selectedPid === 'custom' ? ' selected' : ''}>自定义 pid</option></select>${help('选择当前橱窗展示使用的 PID。')}</div><div class="home-showcase-input-help"><input class="control" data-home-showcase-field="skipType" value="${windowConfig.skipType}" placeholder="skip_type（用于埋点上报）" />${help('用于记录跳转类型的埋点字段。')}</div><input class="control" data-home-showcase-field="mallId" value="${windowConfig.mallId}" placeholder="商城 id" /><div class="home-showcase-popup-row">${assetControl('出站弹窗 logo', 'popupLogo', windowConfig.popupLogo)}<input class="control" data-home-showcase-field="popupCopy" value="${windowConfig.popupCopy}" placeholder="出站弹窗文案" /></div><label class="home-showcase-login"><input type="checkbox" data-home-showcase-field="requiresLogin"${windowConfig.requiresLogin ? ' checked' : ''} />用户需登录</label></div>`;
       const baseInfo = `<section class="home-entry-info-section shared-config-section"><h3>基础信息</h3>${field('<b class="field-required">*</b>功能类型', '<input class="control home-showcase-function-type" value="橱窗功能" disabled aria-label="功能类型：橱窗功能" />')}${field('<b class="field-required">*</b>记录名称', `<input class="control" data-home-showcase-base="name" value="${showcase.name}" placeholder="仅用于后台记录，前台不可见" />`)}</section>`;
       const featureInfo = `<section class="home-entry-info-section shared-config-section home-showcase-feature-section"><h3>功能信息</h3>${field('橱窗类型', `<select class="control" data-home-showcase-window-type><option value="mosaic"${showcase.windowType === 'mosaic' ? ' selected' : ''}>拼图</option><option value="newcomer"${showcase.windowType === 'newcomer' ? ' selected' : ''}>新人滑块商品</option></select>`)}${field(`${showcase.windowType === 'mosaic' ? '拼图' : '新人滑块商品'}配置`, mosaicConfig, 'home-showcase-config-field')}</section>`;
-      container.innerHTML = `<div class="style-config-form home-component-form home-showcase-form">${baseInfo}${featureInfo}${window.ConfigurationSections.renderTargeting({ prefix: 'home-showcase', value: showcase.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'home-showcase', value: showcase.testPlan })}<p>带 * 的字段为必填项。橱窗类型切换后会保留各自已填写的配置内容。</p><button class="text-button home-remove-component" type="button" data-home-remove="${component.id}">移除组件</button></div>`;
+      container.innerHTML = `<div class="style-config-form home-component-form home-showcase-form">${baseInfo}${featureInfo}${window.ConfigurationSections.renderTargeting({ prefix: 'home-showcase', value: showcase.targeting, required: true })}${window.ConfigurationSections.renderTestPlan({ prefix: 'home-showcase', value: showcase.testPlan })}<p>带 * 的字段为必填项。橱窗类型切换后会保留各自已填写的配置内容。</p></div>`;
       return;
     }
     const nameField = component.type === 'search' ? `<label>底纹词<input class="control" id="home-component-label" value="${component.placeholder}" placeholder="请输入搜索底纹词" /></label>` : `<label>组件标题<input class="control" id="home-component-label" value="${component.label}" placeholder="请输入组件标题" /></label>`;
     const subField = ['banner', 'product-flow', 'shortcut'].includes(component.type) ? `<label>辅助文案<input class="control" id="home-component-subtitle" value="${component.subtitle || ''}" placeholder="请输入辅助文案" /></label>` : '';
-    container.innerHTML = `<div class="style-config-form home-component-form">${nameField}${subField}<p>修改后会实时同步至中间预览区域。</p><button class="text-button home-remove-component" type="button" data-home-remove="${component.id}">移除组件</button></div>`;
+    container.innerHTML = `<div class="style-config-form home-component-form">${nameField}${subField}<p>修改后会实时同步至中间预览区域。</p></div>`;
   },
   bindHomeBuilder(navigate) {
     const components = [];
@@ -1733,27 +1747,56 @@ window.MarketingConfigPage = {
     const defaultState = this.cloneHomeState({
       components,
       fixedEntries,
-      fixedEntriesComponentEnabled: true,
       fixedEntriesComponentAdded: true,
       fixedEntriesTargeting: window.ConfigurationSections.createTargeting(),
       fixedEntriesTestPlan: window.ConfigurationSections.createTestPlan(),
       fixedEntriesComponents: [{
         id: 'gold-zone-default',
         entries: fixedEntries,
-        enabled: true,
         targeting: window.ConfigurationSections.createTargeting(),
         testPlan: window.ConfigurationSections.createTestPlan(),
         isSaved: true
       }]
     });
     const storedState = this.loadHomeState(defaultState);
-    components.push(...this.cloneHomeState(storedState.components).filter((component) => this.isFunctionZoneComponent(component)).map((component) => ({ ...component, isSaved: component.isSaved ?? true })));
+    components.push(...this.cloneHomeState(storedState.components).filter((component) => this.isFunctionZoneComponent(component)).map((component) => ({ ...component, isSaved: component.isSaved ?? true, hasBeenSaved: component.hasBeenSaved ?? true })));
     let activeId = null;
     let activeFixedEntryIndex = null;
     let activeGoldComponentId = null;
-    let goldComponents = this.cloneHomeState(storedState.fixedEntriesComponents).map((component) => ({ ...component, isSaved: component.isSaved ?? true }));
+    let goldComponents = this.cloneHomeState(storedState.fixedEntriesComponents).map((component) => ({ ...component, isSaved: component.isSaved ?? true, hasBeenSaved: component.hasBeenSaved ?? true }));
     const activeComponent = () => components.find((component) => component.id === activeId);
     const activeGoldComponent = () => goldComponents.find((component) => component.id === activeGoldComponentId);
+    const recentScope = 'home-function';
+    const currentRecentEdit = () => {
+      const goldComponent = activeGoldComponent();
+      if (goldComponent) return { id: goldComponent.id, name: `功能金刚区${goldComponents.findIndex((component) => component.id === goldComponent.id) + 1}` };
+      const component = activeComponent();
+      if (component) return { id: component.id, name: component.type === 'shortcut' ? component.redPacket?.name : component.type === 'search' ? component.showcase?.name : component.recordName || component.label };
+      return null;
+    };
+    const refreshRecentEdits = (recordCurrent = false) => {
+      const item = recordCurrent && currentRecentEdit();
+      if (item) window.RecentEdits?.record({ scope: recentScope, ...item });
+      window.RecentEdits?.render(document.getElementById('marketing-recent-edits'), recentScope, {
+        filter: (item) => goldComponents.some((component) => component.id === item.id) || components.some((component) => component.id === item.id),
+        onSelect: (item) => {
+          if (goldComponents.some((component) => component.id === item.id)) {
+            activeGoldComponentId = item.id;
+            activeFixedEntryIndex = null;
+            activeId = null;
+          } else if (components.some((component) => component.id === item.id)) {
+            activeId = item.id;
+            activeGoldComponentId = null;
+            activeFixedEntryIndex = null;
+          } else return;
+          render();
+          requestAnimationFrame(() => {
+            const selector = activeGoldComponentId ? `[data-home-gold-component="${activeGoldComponentId}"]` : `[data-home-component-id="${activeId}"]`;
+            document.querySelector(selector)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          });
+        }
+      });
+    };
     const snapshot = () => ({ components, fixedEntriesComponents: goldComponents });
     const cloneSnapshot = (state) => this.cloneHomeState(state);
     const editSession = window.EditSession.create({
@@ -1774,14 +1817,50 @@ window.MarketingConfigPage = {
         item.setAttribute('aria-selected', String(active));
       });
     };
+    const removeActiveComponent = () => {
+      if (!editSession.isEditing() || activeFixedEntryIndex !== null) return;
+      const goldComponent = activeGoldComponent();
+      if (goldComponent) {
+        if (goldComponent.hasBeenSaved) return;
+        const index = goldComponents.findIndex((item) => item.id === goldComponent.id);
+        if (index < 0) return;
+        goldComponents.splice(index, 1);
+        activeId = null;
+        activeFixedEntryIndex = null;
+        activeGoldComponentId = null;
+        render();
+        window.BackofficeLayout.showToast('组件已移除');
+        return;
+      }
+      const component = activeComponent();
+      if (!component || component.hasBeenSaved) return;
+      const index = components.findIndex((item) => item.id === component.id);
+      if (index < 0) return;
+      components.splice(index, 1);
+      activeId = components[index]?.id || components[index - 1]?.id || null;
+      render();
+      window.BackofficeLayout.showToast('组件已移除');
+    };
     const updateEditState = () => {
       const builder = document.getElementById('home-marketing-builder');
       const pageActions = document.getElementById('marketing-page-actions');
       const componentSave = document.getElementById('save-home-component');
+      const componentRemove = document.getElementById('remove-home-component-action');
       const isEditing = editSession.isEditing();
       builder.classList.toggle('is-editing', isEditing);
-      pageActions.innerHTML = `<button class="button secondary" id="view-home-configuration-list" type="button">查看配置列表</button><span class="home-undo-tooltip" data-tooltip="本次的修改可以一键撤销，恢复到最近一次保存的页面配置。"><button class="button secondary" id="cancel-home-marketing" type="button"${!isEditing || !editSession.hasPageChanges() ? ' disabled' : ''}>撤销本次修改</button></span><button class="button primary${isEditing ? '' : ' is-edit-action'}" id="save-home-marketing" type="button">${isEditing ? '保存页面' : '编辑'}</button>`;
-      componentSave.disabled = !isEditing || !editSession.hasComponentChanges();
+      pageActions.innerHTML = '<button class="button secondary" id="view-home-configuration-list" type="button">查看配置列表</button>';
+      const isFixedEntryEditing = activeFixedEntryIndex !== null && Boolean(activeGoldComponent());
+      const activeConfigComponent = activeGoldComponent() || activeComponent();
+      const canRemoveNewComponent = isEditing && !isFixedEntryEditing && Boolean(activeConfigComponent) && !activeConfigComponent.hasBeenSaved;
+      componentSave.textContent = isEditing ? (isFixedEntryEditing ? '保存展位配置' : '保存组件') : '编辑';
+      componentSave.classList.toggle('is-edit-action', !isEditing);
+      componentSave.disabled = isEditing && !editSession.hasComponentChanges() && !(activeGoldComponent() && !isFixedEntryEditing && !activeGoldComponent().isSaved);
+      const actionCopy = document.getElementById('home-config-action-copy');
+      if (actionCopy) actionCopy.hidden = !isFixedEntryEditing;
+      if (componentRemove) {
+        componentRemove.hidden = !canRemoveNewComponent;
+        componentRemove.disabled = !canRemoveNewComponent;
+      }
       document.querySelectorAll('[data-home-component-id]').forEach((element) => {
         const component = components.find((item) => item.id === element.dataset.homeComponentId);
         element.classList.toggle('is-unsaved', Boolean(component && !component.isSaved));
@@ -1791,7 +1870,7 @@ window.MarketingConfigPage = {
         element.classList.toggle('is-unsaved', Boolean(component && !component.isSaved));
       });
       document.querySelectorAll('[data-home-add]').forEach((button) => { button.disabled = !isEditing; });
-      document.querySelectorAll('#home-config-content input, #home-config-content select, #home-config-content [data-home-remove], #home-config-content [data-home-fixed-entries-remove], #home-config-content [data-home-entry-delete], #home-config-content [data-home-red-packet-delete]').forEach((control) => { control.disabled = !isEditing; });
+      document.querySelectorAll('#home-config-content input, #home-config-content select, #home-config-content [data-home-entry-delete], #home-config-content [data-home-red-packet-delete]').forEach((control) => { control.disabled = !isEditing; });
     };
     const render = () => {
       const goldComponent = activeGoldComponent();
@@ -1802,6 +1881,7 @@ window.MarketingConfigPage = {
       else if (goldComponent) this.renderFixedEntriesComponentConfig(goldComponent);
       else this.renderHomeConfig(activeComponent());
       updateEditState();
+      refreshRecentEdits();
     };
     document.querySelectorAll('[data-marketing-tab]').forEach((tab) => tab.addEventListener('click', () => {
       if (tab.classList.contains('is-active')) return;
@@ -1833,6 +1913,7 @@ window.MarketingConfigPage = {
         activeId = null;
         activeFixedEntryIndex = null;
         activeGoldComponentId = component.id;
+        refreshRecentEdits(true);
         render();
         return;
       }
@@ -1841,6 +1922,7 @@ window.MarketingConfigPage = {
       activeId = component.id;
       activeFixedEntryIndex = null;
       activeGoldComponentId = null;
+      refreshRecentEdits(true);
       render();
     }));
     document.getElementById('home-fixed-entries').addEventListener('click', (event) => {
@@ -1850,6 +1932,7 @@ window.MarketingConfigPage = {
       activeFixedEntryIndex = entry ? Number(entry.dataset.homeFixedEntry) : null;
       activeGoldComponentId = goldComponent.dataset.homeGoldComponent;
       activeId = null;
+      refreshRecentEdits(true);
       render();
     });
     document.getElementById('home-component-editor').addEventListener('click', (event) => {
@@ -1859,9 +1942,10 @@ window.MarketingConfigPage = {
       activeFixedEntryIndex = null;
       activeGoldComponentId = fixedEntriesButton?.dataset.homeEditorGold || null;
       activeId = componentButton?.dataset.homeEditorComponent || null;
+      refreshRecentEdits(true);
       render();
     });
-    document.querySelector('.home-phone-frame').addEventListener('click', (event) => { const component = event.target.closest('[data-home-component-id]'); if (!component) return; activeId = component.dataset.homeComponentId; activeFixedEntryIndex = null; activeGoldComponentId = null; render(); });
+    document.querySelector('.home-phone-frame').addEventListener('click', (event) => { const component = event.target.closest('[data-home-component-id]'); if (!component) return; activeId = component.dataset.homeComponentId; activeFixedEntryIndex = null; activeGoldComponentId = null; refreshRecentEdits(true); render(); });
     let draggedComponentId = null;
     let draggedToolType = null;
     let draggedGoldComponentId = null;
@@ -1871,6 +1955,9 @@ window.MarketingConfigPage = {
       const second = components.find((component) => component.id === secondId);
       return Boolean(first && second) && this.isFunctionZoneComponent(first) === this.isFunctionZoneComponent(second);
     };
+    const isFixedEntriesArea = (target) => Boolean(target.closest('#home-fixed-entries'));
+    const isUnsupportedFixedEntriesDrop = (target) => isFixedEntriesArea(target)
+      && ((draggedToolType && draggedToolType !== 'fixed-entries') || Boolean(draggedComponentId));
     document.querySelectorAll('[data-home-add]').forEach((button) => button.addEventListener('dragstart', (event) => {
       if (!editSession.isEditing()) { event.preventDefault(); return; }
       draggedToolType = button.dataset.homeAdd;
@@ -1909,6 +1996,11 @@ window.MarketingConfigPage = {
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
         targetGoldComponent.classList.add('is-dragover');
+        return;
+      }
+      if (isUnsupportedFixedEntriesDrop(event.target)) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'none';
         return;
       }
       if (draggedToolType === 'fixed-entries') {
@@ -1970,6 +2062,14 @@ window.MarketingConfigPage = {
         render();
         return;
       }
+      if (isUnsupportedFixedEntriesDrop(event.target)) {
+        event.preventDefault();
+        window.BackofficeLayout.showToast('当前位置仅支持功能金刚区组件');
+        draggedComponentId = null;
+        draggedToolType = null;
+        phonePreview.querySelectorAll('.is-dragover').forEach((element) => element.classList.remove('is-dragover'));
+        return;
+      }
       if (draggedToolType === 'fixed-entries') {
         if (!zone || zone.dataset.homeDropZone !== 'fixed-entries') return;
         event.preventDefault();
@@ -1979,6 +2079,7 @@ window.MarketingConfigPage = {
         activeFixedEntryIndex = null;
         activeGoldComponentId = component.id;
         draggedToolType = null;
+        refreshRecentEdits(true);
         render();
         return;
       }
@@ -1993,6 +2094,7 @@ window.MarketingConfigPage = {
         activeFixedEntryIndex = null;
         activeGoldComponentId = null;
         draggedToolType = null;
+        refreshRecentEdits(true);
         render();
         return;
       }
@@ -2176,12 +2278,6 @@ window.MarketingConfigPage = {
         render();
         return;
       }
-      if (event.target.name === 'home-fixed-entries-enabled' && goldComponent) {
-        goldComponent.enabled = event.target.value === 'enabled';
-        goldComponent.isSaved = false;
-        render();
-        return;
-      }
       if (goldComponent && event.target.matches('[data-home-fixed-entries-identity]')) {
         goldComponent.targeting.identities = [...document.querySelectorAll('[data-home-fixed-entries-identity]:checked')].map((input) => input.value);
         goldComponent.isSaved = false;
@@ -2235,19 +2331,9 @@ window.MarketingConfigPage = {
       goldComponent.isSaved = false;
       render();
     });
-    document.getElementById('home-config-content').addEventListener('click', (event) => {
+    document.getElementById('home-config-content').addEventListener('click', async (event) => {
       if (!editSession.isEditing()) return;
       const component = activeComponent();
-      const removeFixedEntries = event.target.closest('[data-home-fixed-entries-remove]');
-      if (removeFixedEntries && activeGoldComponentId) {
-        const index = goldComponents.findIndex((item) => item.id === activeGoldComponentId);
-        if (index >= 0) goldComponents.splice(index, 1);
-        activeId = null;
-        activeFixedEntryIndex = null;
-        activeGoldComponentId = null;
-        render();
-        return;
-      }
       const deleteShowcaseImage = event.target.closest('[data-home-showcase-delete]');
       if (deleteShowcaseImage && component?.type === 'search') {
         const config = component.showcase[component.showcase.windowType];
@@ -2279,10 +2365,32 @@ window.MarketingConfigPage = {
         render();
         return;
       }
-      const remove = event.target.closest('[data-home-remove]'); if (!remove) return; const index = components.findIndex((component) => component.id === remove.dataset.homeRemove); if (index < 0) return; components.splice(index, 1); activeId = components[index]?.id || components[index - 1]?.id || null; render();
     });
+    document.getElementById('remove-home-component-action').addEventListener('click', removeActiveComponent);
     document.getElementById('save-home-component').addEventListener('click', () => {
-      if (!editSession.isEditing() || !editSession.hasComponentChanges()) return;
+      if (!editSession.isEditing()) {
+        editSession.startEditing();
+        refreshRecentEdits(true);
+        updateEditState();
+        return;
+      }
+      const goldComponent = activeGoldComponent();
+      const isFixedEntryEditing = activeFixedEntryIndex !== null && Boolean(goldComponent);
+      if (isFixedEntryEditing) {
+        const entry = goldComponent.entries[activeFixedEntryIndex];
+        const target = entry?.jumpType === 'link' ? entry.linkTarget : entry?.pageTarget;
+        if (!entry?.image || !entry.title.trim() || !entry.jumpType || !target?.trim() || (entry.jumpType === 'link' && !entry.jumpDescription?.trim())) {
+          window.BackofficeLayout.showToast('请完善必填项', '请补充当前展位的素材、标题和跳转信息');
+          return;
+        }
+        goldComponent.isSaved = false;
+        editSession.markComponentSaved();
+        refreshRecentEdits(true);
+        updateEditState();
+        window.BackofficeLayout.showToast('展位配置已保存', '请点击功能金刚区组件，完成组件整体保存');
+        return;
+      }
+      if (!editSession.hasComponentChanges() && !(goldComponent && !goldComponent.isSaved)) return;
       const invalidGoldComponent = goldComponents.find((goldComponent) => goldComponent.entries.some((entry) => !entry.image || !entry.title.trim() || !entry.jumpType || !(entry.jumpType === 'link' ? entry.linkTarget : entry.pageTarget)?.trim() || (entry.jumpType === 'link' && !entry.jumpDescription?.trim())));
       if (invalidGoldComponent) {
         window.BackofficeLayout.showToast('请完善必填项', '请为每个固定入口补充素材、标题和跳转信息');
@@ -2310,11 +2418,19 @@ window.MarketingConfigPage = {
         window.BackofficeLayout.showToast('请完善必填项', '请补充橱窗功能的记录名称、橱窗类型、平台版本与上线时间');
         return;
       }
-      components.forEach((component) => { component.isSaved = true; });
-      goldComponents.forEach((component) => { component.isSaved = true; });
-      editSession.markComponentSaved();
+      components.forEach((component) => { component.isSaved = true; component.hasBeenSaved = true; });
+      goldComponents.forEach((component) => { component.isSaved = true; component.hasBeenSaved = true; });
+      const nextState = cloneSnapshot(snapshot());
+      try {
+        this.saveHomeState(nextState);
+      } catch (error) {
+        window.BackofficeLayout.showToast('组件保存失败', '本地演示数据无法保存，请减少图片素材后重试');
+        return;
+      }
+      editSession.finishComponentEditing(nextState);
+      refreshRecentEdits(true);
       updateEditState();
-      window.BackofficeLayout.showToast('组件已保存', '请点击页面保存，提交整页营销配置');
+      window.BackofficeLayout.showToast('组件已保存', '首页功能区营销已更新');
     });
     document.getElementById('marketing-page-actions').addEventListener('click', (event) => {
       const action = event.target.closest('button');
@@ -2353,33 +2469,6 @@ window.MarketingConfigPage = {
         modal.querySelector('[data-close-home-configuration-list]')?.focus();
         return;
       }
-      if (action.id === 'save-home-marketing') {
-        if (!editSession.isEditing()) { editSession.startEditing(); updateEditState(); return; }
-        if (editSession.hasComponentChanges()) {
-          window.BackofficeLayout.showToast('请先保存组件', '右侧组件配置存在未保存的修改');
-          return;
-        }
-        const nextPageSavedState = cloneSnapshot(snapshot());
-        try {
-          this.saveHomeState(nextPageSavedState);
-        } catch (error) {
-          window.BackofficeLayout.showToast('页面保存失败', '本地演示数据无法保存，请减少图片素材后重试');
-          return;
-        }
-        editSession.markPageSaved(nextPageSavedState);
-        render();
-        window.BackofficeLayout.showToast('页面保存成功', '首页功能区营销已更新');
-        return;
-      }
-      if (action.id !== 'cancel-home-marketing' || !editSession.isEditing() || !editSession.hasPageChanges()) return;
-      const saved = editSession.revertPageChanges();
-      components.splice(0, components.length, ...saved.components);
-      goldComponents = saved.fixedEntriesComponents;
-      activeId = null;
-      activeFixedEntryIndex = null;
-      activeGoldComponentId = null;
-      render();
-      window.BackofficeLayout.showToast('已撤销修改', '已恢复到最近一次保存的页面配置');
     });
     render();
   },

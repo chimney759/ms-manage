@@ -15,6 +15,11 @@ window.EditSession = {
       hasComponentChanges: () => !isEqual(snapshot(), componentSavedState),
       hasPageChanges: () => !isEqual(snapshot(), pageSavedState),
       markComponentSaved: () => { componentSavedState = clone(snapshot()); },
+      finishComponentEditing: (state = snapshot()) => {
+        componentSavedState = clone(state);
+        pageSavedState = clone(state);
+        editing = false;
+      },
       markPageSaved: (state = snapshot()) => {
         componentSavedState = clone(state);
         pageSavedState = clone(state);
