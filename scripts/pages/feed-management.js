@@ -57,6 +57,7 @@ window.FeedManagementPage = {
       id: data.id || `feed-tab-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       tabName: '',
       recordName: '',
+      sortValue: '',
       status: '待上线',
       resourceStatus: '待上线',
       iconImage: '',
@@ -90,10 +91,10 @@ window.FeedManagementPage = {
   },
   createDefaultState() {
     const tabs = [
-      this.createTab({ id: 'feed-live', tabName: '直播间返现', recordName: '直播间返现', status: '上线中', resourceStatus: '上线中', isSaved: true }),
-      this.createTab({ id: 'feed-jd', tabName: '京东购物车', recordName: '京东购物车（896）', status: '上线中', resourceStatus: '上线中', isSaved: true }),
-      this.createTab({ id: 'feed-takeout', tabName: '外卖返现', recordName: '外卖返现', status: '待上线', resourceStatus: '待上线', isSaved: true }),
-      this.createTab({ id: 'feed-redpacket', tabName: '红包', recordName: '红包', status: '已下线', resourceStatus: '已下线', isSaved: true })
+      this.createTab({ id: 'feed-live', tabName: '直播间返现', recordName: '直播间返现', sortValue: '99994', status: '上线中', resourceStatus: '上线中', isSaved: true }),
+      this.createTab({ id: 'feed-jd', tabName: '京东购物车', recordName: '京东购物车（896）', sortValue: '99993', status: '上线中', resourceStatus: '上线中', isSaved: true }),
+      this.createTab({ id: 'feed-takeout', tabName: '外卖返现', recordName: '外卖返现', sortValue: '99992', status: '待上线', resourceStatus: '待上线', isSaved: true }),
+      this.createTab({ id: 'feed-redpacket', tabName: '红包', recordName: '红包', sortValue: '99991', status: '已下线', resourceStatus: '已下线', isSaved: true })
     ];
     return { tabs, activeTabId: 'feed-jd' };
   },
@@ -186,7 +187,8 @@ window.FeedManagementPage = {
   bindEmbedded({ navigate, storageKey = this.storageKey, pageName = '首页信息流营销' } = {}) {
     const root = document.getElementById('feed-marketing-builder');
     if (!root) return;
-    let draft = this.clone(this.loadState(storageKey));
+    let saved = this.loadState(storageKey);
+    let draft = this.clone(saved);
     let filters = { status: new Set(['上线中', '待上线', '已下线']), resourceStatus: new Set(['上线中', '待上线', '已下线']) };
     let draggedToolType = '';
     let draggedComponentId = '';
@@ -204,6 +206,71 @@ window.FeedManagementPage = {
     });
     const activeTab = () => draft.tabs.find((tab) => tab.id === draft.activeTabId);
     const activeComponent = () => activeTab()?.components.find((component) => component.id === selectedComponentId) || null;
+    const actionContainer = document.getElementById('marketing-page-actions');
+    if (actionContainer) {
+      actionContainer.innerHTML = '<button class="button secondary" id="view-embedded-feed-configuration-list" type="button">查看Tab列表</button>';
+      actionContainer.querySelector('#view-embedded-feed-configuration-list')?.addEventListener('click', () => {
+        this.openTabList({
+          title: `${pageName}Tab列表`,
+          state: saved,
+          onEdit: (tabId) => {
+            draft.activeTabId = tabId;
+            selectedComponentId = '';
+            editSession.startEditing();
+            renderAll();
+            requestAnimationFrame(() => root.querySelector('#feed-embedded-config-content')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+          },
+          onManageResources: (tabId) => {
+            const tab = draft.tabs.find((item) => item.id === tabId);
+            if (!tab) return;
+            this.openResourceList({
+              tab,
+              title: `${tab.tabName || '未命名 Tab'}展位管理`,
+              onEdit: (componentId) => {
+                draft.activeTabId = tabId;
+                selectedComponentId = componentId;
+                editSession.startEditing();
+                renderAll();
+                requestAnimationFrame(() => root.querySelector(`[data-feed-preview-component="${componentId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+              },
+              onAdd: () => {
+                draft.activeTabId = tabId;
+                const component = this.createFeedComponent('mosaic');
+                tab.components.push(component);
+                selectedComponentId = component.id;
+                editSession.startEditing();
+                renderAll();
+                requestAnimationFrame(() => root.querySelector('#feed-embedded-config-content')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+              },
+              onCopy: (componentId) => {
+                const component = tab.components.find((item) => item.id === componentId);
+                if (!component) return;
+                const copy = this.clone(component);
+                copy.id = `feed-component-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                copy.recordName = `${component.recordName || component.label} - 副本`;
+                copy.isSaved = false;
+                copy.hasBeenSaved = false;
+                tab.components.push(copy);
+                draft.activeTabId = tabId;
+                selectedComponentId = copy.id;
+                editSession.startEditing();
+                renderAll();
+                window.BackofficeLayout.showToast?.('已复制展位，请完成配置后保存');
+              }
+            });
+          },
+          onAdd: () => {
+            const tab = this.createTab();
+            draft.tabs.push(tab);
+            draft.activeTabId = tab.id;
+            selectedComponentId = '';
+            renderAll();
+            editSession.beginTabEditing(snapshot());
+            applyEditState();
+          }
+        });
+      });
+    }
     const recentScope = `feed:${storageKey}`;
     const refreshRecentEdits = (recordCurrent = false) => {
       const component = activeComponent();
@@ -580,6 +647,7 @@ window.FeedManagementPage = {
       if (tab && !component) { tab.isSaved = true; tab.hasBeenSaved = true; }
       const state = { tabs: draft.tabs, activeTabId: draft.activeTabId };
       try { this.saveState(state, storageKey); } catch (error) { window.BackofficeLayout.showToast?.('保存失败', '本地演示数据无法保存，请减少图片素材后重试'); return; }
+      saved = this.clone(state);
       editSession.finishComponentEditing(snapshot());
       refreshRecentEdits(true);
       applyEditState();
@@ -640,13 +708,172 @@ window.FeedManagementPage = {
     if ((component.slots || []).some((slot) => !String(slot).trim())) return '请填写组件坑位名称';
     return '';
   },
+  getConfigurationRecords(state = {}) {
+    const tabs = Array.isArray(state.tabs) ? state.tabs : [];
+    return tabs.flatMap((tab) => {
+      if (!tab.hasBeenSaved && !tab.isSaved) return [];
+      const tabName = tab.recordName || tab.tabName || '未命名 Tab';
+      const records = [{
+        id: `tab:${tab.id}`,
+        type: 'Tab',
+        name: tabName,
+        summary: `Tab名称：${tab.tabName || '未填写'}；资源位：${(tab.components || []).filter((component) => component.hasBeenSaved || component.isSaved).length} 个`,
+        status: tab.status || '-'
+      }];
+      (tab.components || []).filter((component) => component.hasBeenSaved || component.isSaved).forEach((component) => {
+        const name = component.type === 'red-packet-delivery' ? component.redPacket?.name : component.recordName || component.label;
+        records.push({
+          id: `component:${tab.id}:${component.id}`,
+          type: component.label || '信息流组件',
+          name: name || '未填写记录名称',
+          summary: `所属 Tab：${tab.tabName || '未命名'}；坑位：${(component.slots || []).filter(Boolean).join('、') || '未配置'}`,
+          status: component.type === 'red-packet-delivery' ? component.redPacket?.targeting?.status || '-' : component.targeting?.status || '-'
+        });
+      });
+      return records;
+    });
+  },
+  getTabRecords(state = {}) {
+    return this.getConfigurationRecords(state).filter((record) => record.type === 'Tab');
+  },
+  getTabListRows(state = {}) {
+    return (Array.isArray(state.tabs) ? state.tabs : [])
+      .filter((tab) => tab.hasBeenSaved || tab.isSaved)
+      .map((tab, index) => {
+        const targeting = window.ConfigurationSections.normalizeTargeting(tab.targeting);
+        const audience = [
+          targeting.identities?.length ? targeting.identities.join('、') : '',
+          targeting.targetGroup ? `人群包：${targeting.targetGroup}` : ''
+        ].filter(Boolean).join('；');
+        return {
+          id: tab.id,
+          sequence: index + 1,
+          tabName: tab.tabName || '未命名 Tab',
+          recordName: tab.recordName || '未填写记录名称',
+          sortValue: tab.sortValue || String(99999 - index),
+          iconImage: tab.iconImage,
+          cornerImage: tab.cornerImage,
+          tailImage: tab.tailImage,
+          audience: audience || '全部用户',
+          onlineStart: targeting.onlineStart || '-',
+          onlineEnd: targeting.onlineEnd || '-',
+          status: tab.status || '待上线',
+          editor: '当前账号'
+        };
+      });
+  },
+  getResourceListRows(tab = {}) {
+    const components = Array.isArray(tab.components) ? tab.components : [];
+    return components.filter((component) => component.hasBeenSaved || component.isSaved).map((component, index) => {
+      const targeting = component.type === 'red-packet-delivery'
+        ? this.createRedPacketConfig(component.redPacket).targeting
+        : window.ConfigurationSections.normalizeTargeting(component.targeting || tab.targeting);
+      const statusMap = { 上线: '上线中', 下线: '已下线' };
+      return {
+        id: component.id,
+        sequence: index + 1,
+        resourceId: `${tab.id.replace(/\D/g, '').slice(-4) || '30'}${String(index + 1).padStart(2, '0')}`,
+        name: component.type === 'red-packet-delivery' ? component.redPacket?.name || component.recordName || component.label : component.recordName || component.label || '未填写名称',
+        sortValue: String(99999 - index),
+        onlineStart: targeting.onlineStart || '-',
+        onlineEnd: targeting.onlineEnd || '-',
+        status: statusMap[targeting.status] || tab.resourceStatus || tab.status || '待上线',
+        editor: '当前账号'
+      };
+    });
+  },
+  openResourceList({ title = '展位管理', tab, onEdit, onAdd, onCopy } = {}) {
+    if (!tab) return;
+    document.getElementById('feed-resource-list-modal')?.remove();
+    const modal = document.createElement('section');
+    modal.className = 'modal is-editor-fullscreen feed-resource-list-modal';
+    modal.id = 'feed-resource-list-modal';
+    const escape = (value) => this.escape(value);
+    const rows = this.getResourceListRows(tab);
+    const render = () => {
+      const name = modal.querySelector('[data-resource-list-filter="name"]')?.value.trim().toLowerCase() || '';
+      const status = modal.querySelector('[data-resource-list-filter="status"]')?.value || '';
+      const onlineStart = modal.querySelector('[data-resource-list-filter="onlineStart"]')?.value || '';
+      const onlineEnd = modal.querySelector('[data-resource-list-filter="onlineEnd"]')?.value || '';
+      const visibleRows = rows.filter((row) => (!name || row.name.toLowerCase().includes(name))
+        && (!status || row.status === status)
+        && (!onlineStart || (row.onlineStart !== '-' && row.onlineStart >= onlineStart))
+        && (!onlineEnd || (row.onlineEnd !== '-' && row.onlineEnd <= onlineEnd)));
+      const tableBody = modal.querySelector('[data-resource-list-body]');
+      if (!tableBody) return;
+      tableBody.innerHTML = visibleRows.length ? visibleRows.map((row) => `<tr><td><input type="checkbox" aria-label="选择${escape(row.name)}" /></td><td>${escape(row.resourceId)}</td><td>${escape(row.name)}</td><td>${escape(row.sortValue)}</td><td>${escape(row.onlineStart)}</td><td>${escape(row.onlineEnd)}</td><td>${escape(row.status)}</td><td>${escape(row.editor)}</td><td class="feed-resource-list-actions"><button class="text-button" type="button" data-resource-list-edit="${escape(row.id)}">编辑</button><button class="text-button" type="button" data-resource-list-copy="${escape(row.id)}">复制</button></td></tr>`).join('') : '<tr><td class="feed-resource-list-empty" colspan="9">暂无符合条件的展位</td></tr>';
+      modal.querySelector('[data-resource-list-count]').textContent = `共 ${visibleRows.length} 条`;
+    };
+    modal.innerHTML = `<div class="modal-card feed-resource-list-card" role="dialog" aria-modal="true" aria-labelledby="feed-resource-list-title"><div class="modal-header"><h2 id="feed-resource-list-title">${escape(title)}</h2><button class="icon-close" type="button" data-close-resource-list aria-label="关闭">×</button></div><div class="modal-body feed-resource-list-body"><div class="feed-resource-list-filters"><label>所属Tab名称<input class="control" value="${escape(tab.recordName || '未填写记录名称')}" disabled /></label><label>Tab名称（前台）<input class="control" value="${escape(tab.tabName || '未命名 Tab')}" disabled /></label><label>名称<input class="control" data-resource-list-filter="name" placeholder="请输入名称" /></label><label>状态<select class="control" data-resource-list-filter="status"><option value="">全部</option><option value="上线中">上线中</option><option value="待上线">待上线</option><option value="已下线">已下线</option></select></label><label class="feed-resource-list-date-range">上线时间<span><input class="control" type="date" data-resource-list-filter="onlineStart" aria-label="上线开始时间" /><i>-</i><input class="control" type="date" data-resource-list-filter="onlineEnd" aria-label="上线结束时间" /></span></label><span class="feed-resource-list-filter-actions"><button class="button secondary" type="button" data-resource-list-search>查询</button><button class="button primary" type="button" data-resource-list-add>+ 添加展位</button></span></div><div class="feed-resource-list-wrap"><table class="feed-resource-list-table"><thead><tr><th><input type="checkbox" aria-label="全选" /></th><th>ID</th><th>名称</th><th>排序值 <button class="help-tooltip feed-resource-list-sort-help" type="button" aria-label="排序值说明" data-tooltip="越大越靠前">?</button></th><th>上线时间</th><th>下线时间</th><th>状态</th><th>最新编辑人</th><th>操作</th></tr></thead><tbody data-resource-list-body></tbody></table></div><div class="feed-resource-list-footer"><span data-resource-list-count></span><span>仅展示当前 Tab 下已保存的展位。</span></div></div><div class="modal-footer"><button class="button secondary" type="button" data-close-resource-list>关闭</button></div></div>`;
+    const close = () => modal.remove();
+    modal.addEventListener('input', (event) => { if (event.target.matches('[data-resource-list-filter]')) render(); });
+    modal.addEventListener('change', (event) => { if (event.target.matches('[data-resource-list-filter]')) render(); });
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal || event.target.closest('[data-close-resource-list]')) { close(); return; }
+      if (event.target.closest('[data-resource-list-search]')) { render(); return; }
+      if (event.target.closest('[data-resource-list-add]')) { close(); onAdd?.(); return; }
+      const edit = event.target.closest('[data-resource-list-edit]');
+      if (edit) { close(); onEdit?.(edit.dataset.resourceListEdit); return; }
+      const copy = event.target.closest('[data-resource-list-copy]');
+      if (copy) { close(); onCopy?.(copy.dataset.resourceListCopy); }
+    });
+    document.body.append(modal);
+    render();
+    window.BackofficeLayout.bindGlobalTooltips();
+    modal.querySelector('[data-resource-list-filter="name"]')?.focus();
+  },
+  openTabList({ title = 'Tab列表', state, onEdit, onManageResources, onAdd } = {}) {
+    document.getElementById('feed-tab-list-modal')?.remove();
+    const modal = document.createElement('section');
+    modal.className = 'modal is-editor-fullscreen feed-tab-list-modal';
+    modal.id = 'feed-tab-list-modal';
+    const escape = (value) => this.escape(value);
+    const rows = this.getTabListRows(state);
+    const renderImage = (value, label) => value
+      ? `<img src="${escape(value)}" alt="${label}" />`
+      : '<span>-</span>';
+    const render = () => {
+      const recordName = modal.querySelector('[data-tab-list-filter="recordName"]')?.value.trim().toLowerCase() || '';
+      const tabName = modal.querySelector('[data-tab-list-filter="tabName"]')?.value.trim().toLowerCase() || '';
+      const status = modal.querySelector('[data-tab-list-filter="status"]')?.value || '';
+      const onlineStart = modal.querySelector('[data-tab-list-filter="onlineStart"]')?.value || '';
+      const onlineEnd = modal.querySelector('[data-tab-list-filter="onlineEnd"]')?.value || '';
+      const visibleRows = rows.filter((row) => (!recordName || row.recordName.toLowerCase().includes(recordName))
+        && (!tabName || row.tabName.toLowerCase().includes(tabName))
+        && (!status || row.status === status)
+        && (!onlineStart || (row.onlineStart !== '-' && row.onlineStart >= onlineStart))
+        && (!onlineEnd || (row.onlineEnd !== '-' && row.onlineEnd <= onlineEnd)));
+      const tableBody = modal.querySelector('[data-tab-list-body]');
+      if (!tableBody) return;
+      tableBody.innerHTML = visibleRows.length ? visibleRows.map((row) => `<tr><td>${row.sequence}</td><td>${escape(row.tabName)}</td><td>${escape(row.recordName)}</td><td>${escape(row.sortValue)}</td><td class="feed-tab-list-image">${renderImage(row.iconImage, 'icon图片')}</td><td class="feed-tab-list-image">${renderImage(row.cornerImage, '角标图片')}</td><td class="feed-tab-list-image">${renderImage(row.tailImage, '尾标图片')}</td><td title="${escape(row.audience)}">${escape(row.audience)}</td><td>${escape(row.onlineStart)}</td><td>${escape(row.onlineEnd)}</td><td>${escape(row.status)}</td><td>${escape(row.editor)}</td><td class="feed-tab-list-actions"><button class="text-button" type="button" data-tab-list-edit="${escape(row.id)}">编辑</button><button class="text-button" type="button" data-tab-list-resource="${escape(row.id)}">展位管理</button></td></tr>`).join('') : '<tr><td class="feed-tab-list-empty" colspan="13">暂无符合条件的 Tab</td></tr>';
+      modal.querySelector('[data-tab-list-count]').textContent = `共 ${visibleRows.length} 条`;
+    };
+    modal.innerHTML = `<div class="modal-card feed-tab-list-card" role="dialog" aria-modal="true" aria-labelledby="feed-tab-list-title"><div class="modal-header"><h2 id="feed-tab-list-title">${escape(title)}</h2><button class="icon-close" type="button" data-close-tab-list aria-label="关闭">×</button></div><div class="modal-body feed-tab-list-body"><div class="feed-tab-list-filters"><label>记录名称<input class="control" data-tab-list-filter="recordName" placeholder="请输入记录名称" /></label><label>Tab名称（前台）<input class="control" data-tab-list-filter="tabName" placeholder="请输入Tab名称（前台）" /></label><label>状态<select class="control" data-tab-list-filter="status"><option value="">请选择状态</option><option value="上线中">上线中</option><option value="待上线">待上线</option><option value="已下线">已下线</option></select></label><label class="feed-tab-list-date-range">上线时间<span><input class="control" type="date" data-tab-list-filter="onlineStart" aria-label="上线开始时间" /><i>-</i><input class="control" type="date" data-tab-list-filter="onlineEnd" aria-label="上线结束时间" /></span></label><span class="feed-tab-list-filter-actions"><button class="button secondary" type="button" data-tab-list-search>查询</button><button class="button primary" type="button" data-tab-list-add>+ 添加Tab</button></span></div><div class="feed-tab-list-wrap"><table class="feed-tab-list-table"><thead><tr><th>ID</th><th>Tab名称（前台）</th><th>记录名称</th><th>排序值 <button class="help-tooltip feed-tab-list-sort-help" type="button" aria-label="排序值说明" data-tooltip="越大越靠前">?</button></th><th>icon图片</th><th>角标图片</th><th>尾标图片</th><th>人群信息</th><th>上线时间</th><th>下线时间</th><th>状态</th><th>最新编辑人</th><th>操作</th></tr></thead><tbody data-tab-list-body></tbody></table></div><div class="feed-tab-list-footer"><span data-tab-list-count></span><span>仅展示当前导航下已保存的 Tab。</span></div></div><div class="modal-footer"><button class="button secondary" type="button" data-close-tab-list>关闭</button></div></div>`;
+    const close = () => modal.remove();
+    modal.addEventListener('input', (event) => { if (event.target.matches('[data-tab-list-filter]')) render(); });
+    modal.addEventListener('change', (event) => { if (event.target.matches('[data-tab-list-filter]')) render(); });
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal || event.target.closest('[data-close-tab-list]')) { close(); return; }
+      if (event.target.closest('[data-tab-list-search]')) { render(); return; }
+      if (event.target.closest('[data-tab-list-add]')) { close(); onAdd?.(); return; }
+      const action = event.target.closest('[data-tab-list-edit], [data-tab-list-resource]');
+      if (!action) return;
+      close();
+      if (action.dataset.tabListEdit) onEdit?.(action.dataset.tabListEdit);
+      else onManageResources?.(action.dataset.tabListResource);
+    });
+    document.body.append(modal);
+    render();
+    window.BackofficeLayout.bindGlobalTooltips();
+    modal.querySelector('[data-tab-list-filter="recordName"]')?.focus();
+  },
   bind() {
     let saved = this.loadState();
     let draft = this.clone(saved);
     let filters = { status: new Set(['上线中', '待上线', '已下线']), resourceStatus: new Set(['上线中', '待上线', '已下线']) };
     const updateActions = () => {
       const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
-      document.getElementById('feed-page-actions').innerHTML = `<button class="button secondary" id="feed-undo" type="button"${dirty ? '' : ' disabled'}>撤销本次修改</button><button class="button primary" id="feed-save" type="button"${dirty ? '' : ' disabled'}>保存</button>`;
+      document.getElementById('feed-page-actions').innerHTML = `<button class="button secondary" id="view-feed-configuration-list" type="button">查看Tab列表</button><button class="button secondary" id="feed-undo" type="button"${dirty ? '' : ' disabled'}>撤销本次修改</button><button class="button primary" id="feed-save" type="button"${dirty ? '' : ' disabled'}>保存</button>`;
     };
     const renderAll = () => { this.renderWorkspace(draft, filters); updateActions(); window.BackofficeLayout.bindGlobalTooltips(); };
     const activeTab = () => draft.tabs.find((tab) => tab.id === draft.activeTabId);
@@ -673,6 +900,56 @@ window.FeedManagementPage = {
       const deleteButton = event.target.closest('[data-feed-image-delete]');
       if (deleteButton) { activeTab()[deleteButton.dataset.feedImageDelete] = ''; renderAll(); return; }
       if (event.target.closest('#feed-undo')) { draft = this.clone(saved); renderAll(); return; }
+      if (event.target.closest('#view-feed-configuration-list')) {
+        this.openTabList({
+          title: '首页-信息流营销Tab列表',
+          state: saved,
+          onEdit: (tabId) => {
+            draft.activeTabId = tabId;
+            renderAll();
+            document.querySelector(`[data-feed-tab="${tabId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          },
+          onManageResources: (tabId) => {
+            const tab = draft.tabs.find((item) => item.id === tabId);
+            if (!tab) return;
+            this.openResourceList({
+              tab,
+              title: `${tab.tabName || '未命名 Tab'}展位管理`,
+              onEdit: () => {
+                draft.activeTabId = tabId;
+                renderAll();
+                document.getElementById('feed-tab-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              },
+              onAdd: () => {
+                draft.activeTabId = tabId;
+                tab.components.push(this.createFeedComponent('mosaic'));
+                renderAll();
+                document.getElementById('feed-tab-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              },
+              onCopy: (componentId) => {
+                const component = tab.components.find((item) => item.id === componentId);
+                if (!component) return;
+                const copy = this.clone(component);
+                copy.id = `feed-component-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                copy.recordName = `${component.recordName || component.label} - 副本`;
+                copy.isSaved = false;
+                copy.hasBeenSaved = false;
+                tab.components.push(copy);
+                draft.activeTabId = tabId;
+                renderAll();
+                window.BackofficeLayout.showToast?.('已复制展位，请完成配置后保存');
+              }
+            });
+          },
+          onAdd: () => {
+            const tab = this.createTab();
+            draft.tabs.push(tab);
+            draft.activeTabId = tab.id;
+            renderAll();
+          }
+        });
+        return;
+      }
       if (event.target.closest('#feed-save')) {
         const tab = activeTab();
         if (tab) readTargeting(tab);

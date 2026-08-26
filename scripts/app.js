@@ -15,6 +15,7 @@
     { match: (view) => view === 'guided-upgrade-modal-add', page: 'GuidedUpgradeModalPage', breadcrumb: '添加引导升级弹窗', section: '配置中心', isAdd: true, render: (page) => page.renderForm({ recordId: null }) },
     { match: (view) => view.startsWith('guided-upgrade-modal-edit:'), page: 'GuidedUpgradeModalPage', breadcrumb: '编辑引导升级弹窗', section: '配置中心', getRecordId: (view) => view.slice('guided-upgrade-modal-edit:'.length), isEdit: true, render: (page, recordId) => page.renderForm({ recordId }) },
     { match: (view) => view === 'category', page: 'CategoryManagementPage', breadcrumb: '合作商分类' },
+    { match: (view) => view === 'hot-search-management', page: 'HotSearchManagementPage', breadcrumb: '热搜词管理', section: '营销管理 · 搜索中间页管理' },
     { match: (view) => view === 'merchant-shelf', page: 'MerchantShelfPage', breadcrumb: '商家列表页管理' },
     { match: (view) => view === 'merchant-product', page: 'MerchantProductListPage', breadcrumb: '货品列表（合作商）' },
     { match: (view) => view === 'merchant-product-add', page: 'MerchantProductListPage', breadcrumb: '添加货品', isAdd: true, render: (page) => page.renderAdd({ recordId: null }) },

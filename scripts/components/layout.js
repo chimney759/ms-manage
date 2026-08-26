@@ -128,7 +128,7 @@ window.BackofficeLayout = {
               <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span class="nav-text">营销管理</span><span class="chevron">⌃</span></button>
               <div class="subnav">
                 <a data-view="marketing-config">Tab频道页配置</a>
-                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>搜索中间页管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a>热搜词管理</a><a>信息流管理</a></div></div>
+                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>搜索中间页管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="hot-search-management">热搜词管理</a><a>信息流管理</a></div></div>
               </div>
             </div>
             <div class="nav-group open">
@@ -196,13 +196,18 @@ window.BackofficeLayout = {
       modal.querySelector('[data-confirm-cancel]').focus();
     });
   },
-  setAddModalMode(modal, isAdd) {
-    modal.classList.toggle('is-add-fullscreen', isAdd);
+  setEditorModalMode(modal, { isNew = false } = {}) {
+    modal.classList.add('is-editor-fullscreen');
+    modal.classList.toggle('is-add-fullscreen', isNew);
     const closeButton = modal.querySelector('.icon-close');
     if (!closeButton) return;
-    closeButton.textContent = isAdd ? '‹' : '×';
-    closeButton.title = isAdd ? '返回' : '关闭';
-    closeButton.setAttribute('aria-label', isAdd ? '返回' : '关闭');
+    closeButton.textContent = isNew ? '‹' : '×';
+    closeButton.title = isNew ? '返回' : '关闭';
+    closeButton.setAttribute('aria-label', isNew ? '返回' : '关闭');
+  },
+  setAddModalMode(modal, isAdd) {
+    this.setEditorModalMode(modal, { isNew: isAdd });
+    if (!isAdd) modal.classList.remove('is-editor-fullscreen');
   },
   bindGlobalTooltips() {
     const tooltip = document.getElementById('global-tooltip');

@@ -69,7 +69,7 @@ window.RecentEdits = {
       .filter((item) => !selectedOperator || item.operator === selectedOperator)
       .slice(0, this.detailLimit);
     const modal = document.createElement('section');
-    modal.className = 'modal recent-edits-modal';
+    modal.className = 'modal is-editor-fullscreen recent-edits-modal';
     modal.id = 'recent-edits-modal';
     modal.innerHTML = `<div class="modal-card recent-edits-modal-card" role="dialog" aria-modal="true" aria-label="最近编辑"><div class="modal-header"><div class="recent-edits-modal-title"><h2>最近编辑</h2><span>最新 ${records.length} 条编辑记录</span></div><button class="icon-close" type="button" data-close-recent-edits aria-label="关闭">×</button></div><div class="recent-edits-modal-body">${records.map((item, index) => `<button class="recent-edits-modal-item" type="button" data-recent-edit-id="${this.escape(item.id)}" aria-label="定位到${this.escape(item.name)}"><span class="recent-edits-modal-index">${index + 1}</span><span class="recent-edits-modal-item-copy"><strong>${this.escape(item.name)}</strong><small>编辑人：${this.escape(item.operator || this.operator)}</small></span><span class="recent-edits-modal-item-action">定位</span></button>`).join('') || '<p>暂无记录</p>'}</div></div>`;
     modal.addEventListener('click', (event) => {

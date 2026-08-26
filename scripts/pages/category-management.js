@@ -43,7 +43,7 @@ window.CategoryManagementPage = {
     const keyword = document.getElementById('category-keyword');
     const open = (record) => {
       page.editingId = record ? record.id : null;
-      window.BackofficeLayout.setAddModalMode(modal, !record);
+      window.BackofficeLayout.setEditorModalMode(modal, { isNew: !record });
       form.reset();
       document.querySelectorAll('.form-row').forEach((row) => row.classList.remove('is-invalid'));
       document.getElementById('category-modal-title').textContent = record ? '编辑分类' : '添加分类';
@@ -55,7 +55,7 @@ window.CategoryManagementPage = {
       modal.hidden = false;
       document.getElementById('record-name').focus();
     };
-    const close = () => { modal.hidden = true; window.BackofficeLayout.setAddModalMode(modal, false); form.reset(); page.editingId = null; document.querySelectorAll('.form-row').forEach((row) => row.classList.remove('is-invalid')); };
+    const close = () => { modal.hidden = true; modal.classList.remove('is-editor-fullscreen', 'is-add-fullscreen'); form.reset(); page.editingId = null; document.querySelectorAll('.form-row').forEach((row) => row.classList.remove('is-invalid')); };
     document.getElementById('open-category-modal').addEventListener('click', () => open());
     document.getElementById('close-category-modal').addEventListener('click', close);
     document.getElementById('cancel-category').addEventListener('click', close);

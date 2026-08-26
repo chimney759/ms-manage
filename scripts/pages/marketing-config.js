@@ -244,6 +244,34 @@ window.MarketingConfigPage = {
   savePrimaryComponentState(config, state) {
     window.localStorage.setItem(config.storageKey, JSON.stringify(state));
   },
+  getComponentConfigurationRecords(state = {}) {
+    return (Array.isArray(state.components) ? state.components : [])
+      .filter((component) => component.hasBeenSaved || component.isSaved)
+      .map((component) => {
+        const redPacket = component.type === 'red-packet' ? this.createBenefitsFeedRedPacketConfig(component.redPacket) : null;
+        const name = redPacket ? redPacket.name : component.recordName || component.label;
+        const slotCount = component.type === 'mosaic'
+          ? this.createBenefitsFeedMosaicConfig(component.mosaic).positions.length
+          : component.type === 'grid'
+            ? this.createBenefitsFeedGridConfig(component.grid).positions.length
+            : this.getBenefitsFeedSlots(component).length;
+        return {
+          id: component.id,
+          type: component.label || '信息流组件',
+          name: name || '未填写记录名称',
+          summary: `${component.type === 'red-packet' ? `发放类型：${redPacket.deliveryType === 'package' ? '券包发放' : '单个发放'}；` : ''}配置展位：${slotCount} 个`,
+          status: redPacket ? redPacket.targeting.status : window.ConfigurationSections.normalizeTargeting(component.targeting).status
+        };
+      });
+  },
+  setConfigurationListAction({ title, records, onSelect } = {}) {
+    const actions = document.getElementById('marketing-page-actions');
+    if (!actions) return;
+    actions.innerHTML = '<button class="button secondary" id="view-current-configuration-list" type="button">查看配置列表</button>';
+    actions.querySelector('#view-current-configuration-list')?.addEventListener('click', () => {
+      window.ConfigurationList.open({ title, records: typeof records === 'function' ? records() : records, onSelect });
+    });
+  },
   createDefaultBenefitsCheckInState() {
     const record = (id, recordName, conflictPriority, createdAt, updatedAt) => ({
       id,
@@ -338,7 +366,7 @@ window.MarketingConfigPage = {
       <div class="actions benefits-check-in-actions"><button class="button primary" id="search-check-in" type="button">查询</button><button class="button secondary" id="add-check-in" type="button">新增配置</button></div>
       <div class="table-wrap"><table class="benefits-check-in-table"><thead><tr><th>ID</th><th>记录名称</th><th>定向信息</th><th>上线时间</th><th>下线时间</th><th>状态</th><th>冲突时优先展示 <button class="help-tooltip" type="button" data-tooltip="同一时间命中多条配置时，优先展示已勾选的配置。">?</button></th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th>最后更新时间</th><th>操作</th></tr></thead><tbody id="check-in-table-body"></tbody></table></div>
       <div class="empty" id="check-in-empty" hidden><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无配置数据</div></div></div>
-      <div class="modal" id="check-in-modal" hidden></div>
+      <div class="modal is-editor-fullscreen" id="check-in-modal" hidden></div>
     </section>`;
   },
   renderBenefitsCheckInModal(record, isNew) {
@@ -582,7 +610,7 @@ window.MarketingConfigPage = {
       <div class="table-wrap"><table class="benefits-check-in-table"><thead><tr><th>ID</th><th>记录名称</th><th>定向信息</th><th><button class="check-in-success-sort" data-check-in-success-sort="onlineStart" type="button">上线时间 <span>↕</span></button></th><th><button class="check-in-success-sort" data-check-in-success-sort="onlineEnd" type="button">下线时间 <span>↕</span></button></th><th>状态</th><th>冲突时优先展示 <button class="help-tooltip" type="button" data-tooltip="${priorityTip}" aria-label="冲突时优先展示说明">?</button></th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th>最后更新时间</th><th>操作</th></tr></thead><tbody id="check-in-success-table-body"></tbody></table></div>
       <div class="empty" id="check-in-success-empty" hidden><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无配置数据</div></div></div>
       <div class="check-in-success-pagination" id="check-in-success-pagination"></div>
-      <div class="modal" id="check-in-success-modal" hidden></div>
+      <div class="modal is-editor-fullscreen" id="check-in-success-modal" hidden></div>
     </section>`;
   },
   renderBenefitsCheckInSuccessModal(record, isNew) {
@@ -1063,6 +1091,7 @@ window.MarketingConfigPage = {
   bindBenefitsFeedBuilder(navigate, options = {}) {
     const primaryConfig = options.primaryConfig || null;
     const state = primaryConfig ? this.loadPrimaryComponentState(primaryConfig) : this.loadBenefitsFeedState();
+    let savedState = this.cloneBenefitsFeedState(state);
     const components = state.components;
     let activeId = components[0]?.id || null;
     const editSession = window.EditSession.create({
@@ -1074,6 +1103,15 @@ window.MarketingConfigPage = {
     let draggedComponentId = null;
     let draggedSlot = null;
     const activeComponent = () => components.find((item) => item.id === activeId);
+    this.setConfigurationListAction({
+      title: `${primaryConfig?.title || '福利页-信息流营销'}配置列表`,
+      records: () => this.getComponentConfigurationRecords(savedState),
+      onSelect: (record) => {
+        activeId = record.id;
+        render();
+        requestAnimationFrame(() => document.querySelector(`[data-benefits-feed-component="${record.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+      }
+    });
     const recentScope = primaryConfig ? `primary:${primaryConfig.storageKey || primaryConfig.title}` : 'benefits-feed';
     const refreshRecentEdits = (recordCurrent = false) => {
       const component = activeComponent();
@@ -1495,6 +1533,7 @@ window.MarketingConfigPage = {
         if (primaryConfig) this.savePrimaryComponentState(primaryConfig, this.cloneBenefitsFeedState(nextState));
         else this.saveBenefitsFeedState(this.cloneBenefitsFeedState(nextState));
       } catch (error) { window.BackofficeLayout.showToast('组件保存失败', '本地演示数据无法保存，请减少图片素材后重试'); return; }
+      savedState = this.cloneBenefitsFeedState(nextState);
       editSession.finishComponentEditing(nextState);
       refreshRecentEdits(true);
       updateEditState();
@@ -1547,7 +1586,16 @@ window.MarketingConfigPage = {
       document.querySelector('.marketing-config-page h1').textContent = '打卡成功弹窗管理';
       document.querySelector('.marketing-config-page .heading-note').textContent = '维护打卡成功后展示的营销弹窗配置';
       body.innerHTML = this.renderBenefitsCheckInSuccessList();
-      actions.innerHTML = '';
+      this.setConfigurationListAction({
+        title: '打卡成功弹窗营销配置列表',
+        records: () => this.loadBenefitsCheckInSuccessState().records.map((record) => ({
+          id: record.id,
+          type: '打卡成功弹窗',
+          name: record.recordName,
+          summary: `上线时间：${record.onlineStart || '-'} 至 ${record.onlineEnd || '-'}`,
+          status: record.status || '-'
+        }))
+      });
       this.bindBenefitsCheckInSuccessList();
       return;
     }
@@ -1571,7 +1619,7 @@ window.MarketingConfigPage = {
           ? '维护福利页打卡成功弹窗对应的营销展示配置'
           : `维护${title}信息流对应的营销展示配置`;
     body.innerHTML = this.renderPrimaryTabPlaceholder(tab, activeView);
-    actions.innerHTML = '';
+    this.setConfigurationListAction({ title: isFlashSale ? '柚子街-限时抢购配置列表' : `${title}-信息流营销配置列表`, records: [] });
   },
   createHomeComponent(type) {
     const definitions = {
@@ -2439,7 +2487,7 @@ window.MarketingConfigPage = {
         const existing = document.getElementById('home-configuration-list-modal');
         existing?.remove();
         const modal = document.createElement('div');
-        modal.className = 'modal home-configuration-list-modal';
+        modal.className = 'modal is-editor-fullscreen home-configuration-list-modal';
         modal.id = 'home-configuration-list-modal';
         modal.innerHTML = this.renderHomeConfigurationList(editSession.getPageSavedState());
         const close = () => modal.remove();
