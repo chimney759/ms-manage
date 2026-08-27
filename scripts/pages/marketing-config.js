@@ -583,7 +583,8 @@ window.MarketingConfigPage = {
   loadBenefitsCheckInSuccessState() {
     try {
       const saved = JSON.parse(window.localStorage.getItem(this.benefitsCheckInSuccessStorageKey));
-      if (!saved || !Array.isArray(saved.records)) return this.createDefaultBenefitsCheckInSuccessState();
+      // This module has no deletion flow, so an empty persisted list indicates stale demo data.
+      if (!saved || !Array.isArray(saved.records) || saved.records.length === 0) return this.createDefaultBenefitsCheckInSuccessState();
       return { records: saved.records.map((record) => this.normalizeBenefitsCheckInSuccessRecord(record)) };
     } catch (error) {
       return this.createDefaultBenefitsCheckInSuccessState();
