@@ -127,13 +127,13 @@ window.BackofficeLayout = {
             <div class="nav-group open">
               <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span class="nav-text">营销管理</span><span class="chevron">⌃</span></button>
               <div class="subnav">
-                <a data-view="marketing-config">Tab频道页配置</a>
-                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>搜索中间页管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="hot-search-management">热搜词管理</a><a>信息流管理</a></div></div>
+                <a data-view="marketing-config">TabBar内容管理</a>
+                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>搜索中间页管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="hot-search-management">热搜词管理</a><a data-view="search-feed-management">信息流管理</a></div></div>
               </div>
             </div>
             <div class="nav-group open">
               <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><span class="nav-text">推广管理</span><span class="chevron">⌃</span></button>
-              <div class="subnav"><a>运营弹窗管理</a><a>频道底部红点管理</a><a>贴边管理</a><a>横幅管理</a></div>
+              <div class="subnav"><a data-view="operation-popup-management">运营弹窗管理</a><a>频道底部红点管理</a><a data-view="edge-management">贴边管理</a><a data-view="banner-management">横幅管理</a></div>
             </div>
           </nav>
         </aside>

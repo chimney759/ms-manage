@@ -151,6 +151,11 @@ window.PrivacyPolicyModalPage = {
         end: document.getElementById('privacy-test-end').value,
         enabled: document.getElementById('privacy-test-enabled').checked
       };
+      const testPlanError = window.ConfigurationSections.validateTestPlan(testPlan);
+      if (testPlanError) {
+        window.BackofficeLayout.showToast('测试计划校验失败', testPlanError);
+        return;
+      }
       const data = { system: document.getElementById('privacy-system').value, enabled, minVersion, maxVersion, title, content, policyVersion, testPlan, updater: '管理员', updatedAt: now };
       if (recordId) this.records = this.records.map((item) => item.id === recordId ? { ...item, ...data } : item);
       else this.records.unshift({ id: `privacy-policy-${Date.now()}`, ...data, creator: '管理员', createdAt: now });

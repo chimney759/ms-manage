@@ -187,6 +187,11 @@ window.MerchantFormPage = {
         end: document.getElementById('merchant-test-end').value,
         enabled: testEnabled.checked
       };
+      const testPlanError = window.ConfigurationSections.validateTestPlan(updatedTestPlan);
+      if (testPlanError) {
+        window.BackofficeLayout.showToast('测试计划校验失败', testPlanError);
+        return;
+      }
       const currentEnabledStatus = document.querySelector('input[name="merchant-enabled-status"]:checked').value;
       const merchantRecord = {
         id: editingRecord?.id || String(Date.now()),

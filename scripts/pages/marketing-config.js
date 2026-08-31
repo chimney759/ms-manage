@@ -751,6 +751,11 @@ window.MarketingConfigPage = {
           return;
         }
         if (next.onlineStart > next.onlineEnd) { window.BackofficeLayout.showToast('上线时间有误', '上线结束时间不能早于开始时间'); return; }
+        const testPlanError = window.ConfigurationSections.validateTestPlan(next.testPlan);
+        if (testPlanError) {
+          window.BackofficeLayout.showToast('测试计划校验失败', testPlanError);
+          return;
+        }
         next.updatedAt = this.currentCheckInTime();
         if (isNew) records.unshift(next);
         else Object.assign(records.find((item) => item.id === next.id), next);
@@ -1130,10 +1135,15 @@ window.MarketingConfigPage = {
     };
     const validateComponent = (component) => {
       if (!component) return '';
-      if (component.type !== 'red-packet') return component.recordName.trim() ? '' : '请补充资源位记录名称';
+      if (component.type !== 'red-packet') {
+        if (!component.recordName.trim()) return '请补充资源位记录名称';
+        return window.ConfigurationSections.validateTestPlan(component.testPlan);
+      }
       const redPacket = this.createBenefitsFeedRedPacketConfig(component.redPacket);
       const hasPlatformVersion = Object.values(redPacket.targeting.platformVersions).some((platform) => platform.enabled && platform.start.trim());
       if (!redPacket.name.trim() || !redPacket.deliveryType || !hasPlatformVersion || !redPacket.targeting.onlineStart || !redPacket.targeting.onlineEnd || (redPacket.deliveryType === 'package' && (!redPacket.unclaimedImage || !redPacket.template))) return '请补充红包发放功能的记录名称、发放类型、平台版本与上线时间；券包发放还需上传未领取图片素材并选择红包模板';
+      const testPlanError = window.ConfigurationSections.validateTestPlan(redPacket.testPlan);
+      if (testPlanError) return testPlanError;
       return '';
     };
     const activatePrimaryTab = (tab) => document.querySelectorAll('[data-marketing-tab]').forEach((item) => {
@@ -1401,6 +1411,16 @@ window.MarketingConfigPage = {
       if (event.target.matches('[data-benefits-feed-version]')) { const [platform, edge] = event.target.dataset.benefitsFeedVersion.split(':'); component.targeting.platformVersions[platform][edge] = event.target.value; }
       if (event.target.dataset.benefitsFeedTargetingField) component.targeting[event.target.dataset.benefitsFeedTargetingField] = event.target.value;
       if (event.target.dataset.benefitsFeedTest) component.testPlan[event.target.dataset.benefitsFeedTest] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+      if (event.target.dataset.benefitsFeedRedPacketTest === 'enabled') {
+        document.querySelector('[data-benefits-feed-red-packet-test-status]').textContent = event.target.checked ? '生效' : '未启用';
+        updateEditState();
+        return;
+      }
+      if (event.target.dataset.benefitsFeedTest === 'enabled') {
+        document.querySelector('[data-benefits-feed-test-status]').textContent = event.target.checked ? '生效' : '未启用';
+        updateEditState();
+        return;
+      }
       render();
     });
     document.getElementById('benefits-feed-config-content').addEventListener('click', async (event) => {
@@ -1708,6 +1728,37 @@ window.MarketingConfigPage = {
   renderFixedEntryImage(entry, mode = 'normal') {
     const image = this.getFixedEntryImage(entry, mode);
     return image && (image.startsWith('blob:') || image.startsWith('data:image/')) ? `<img src="${image}" alt="" />` : (image || '图');
+  },
+  renderHomeFunctionReadonlyPreview() {
+    const defaultEntries = [
+      { image: '●', darkImage: '', title: '我的红包' },
+      { image: '▰', darkImage: '', title: '商品收藏' },
+      { image: '⌁', darkImage: '', title: '购物车返现' },
+      { image: '✓', darkImage: '', title: '领现金' },
+      { image: 'ϟ', darkImage: '', title: '省钱秘籍' }
+    ];
+    const state = this.loadHomeState({
+      components: [],
+      fixedEntries: defaultEntries,
+      fixedEntriesComponents: [{ id: 'gold-zone-default', entries: defaultEntries, isSaved: true }]
+    });
+    const goldComponents = (state.fixedEntriesComponents || []).filter((component) => component.isSaved !== false);
+    const functionComponents = (state.components || []).filter((component) => this.isFunctionZoneComponent(component) && component.isSaved !== false);
+    const goldContent = goldComponents.length
+      ? goldComponents.map((component, index) => `<section class="feed-readonly-gold-component"><span class="feed-readonly-gold-label">功能金刚区 ${index + 1}</span><div class="feed-readonly-gold-entries">${(component.entries || []).map((entry) => `<span class="feed-readonly-gold-entry"><u>${this.renderFixedEntryImage(entry)}</u><b>${this.escapeHtml(entry.title || '未命名')}</b></span>`).join('')}</div></section>`).join('')
+      : '<p class="feed-readonly-home-empty">暂未配置功能金刚区</p>';
+    const functionContent = functionComponents.length
+      ? `<div class="feed-readonly-function-components">${functionComponents.map((component) => {
+        if (component.type === 'search') {
+          const showcase = component.showcase || {};
+          const preview = showcase[showcase.windowType] || {};
+          return `<div class="feed-readonly-function-component feed-readonly-showcase">${preview.image ? `<img src="${preview.image}" alt="功能区橱窗素材" />` : `<span><b>功能区橱窗</b><small>${this.escapeHtml(showcase.name || '未配置素材')}</small></span>`}</div>`;
+        }
+        const redPacket = component.redPacket || {};
+        return `<div class="feed-readonly-function-component feed-readonly-red-packet"><span>红包发放功能</span><b>${this.escapeHtml(redPacket.name || component.label || '未命名组件')}</b></div>`;
+      }).join('')}</div>`
+      : '';
+    return `<section class="feed-readonly-home-preview" aria-label="功能区营销预览，仅展示"><div class="feed-readonly-home-preview-heading"><b>功能区营销</b><span>仅展示</span></div><div class="feed-readonly-home-screen"><img class="feed-readonly-home-header" src="assets/marketing-config/home-preview-fixed-header.png" alt="美柚省钱首页固定头部" /><div class="feed-readonly-gold-components">${goldContent}</div>${functionContent}</div></section>`;
   },
   renderFixedEntryConfig(entry, index) {
     const container = document.getElementById('home-config-content');
@@ -2287,6 +2338,11 @@ window.MarketingConfigPage = {
         if (event.target.matches('[data-home-showcase-version]')) { const [platform, edge] = event.target.dataset.homeShowcaseVersion.split(':'); showcase.targeting.platformVersions[platform][edge] = event.target.value; }
         if (event.target.matches('[data-home-showcase-test]')) showcase.testPlan[event.target.dataset.homeShowcaseTest] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
         if (event.target.dataset.homeShowcaseTargetingField) showcase.targeting[event.target.dataset.homeShowcaseTargetingField] = event.target.value;
+        if (event.target.dataset.homeShowcaseTest === 'enabled') {
+          document.querySelector('[data-home-showcase-test-status]').textContent = event.target.checked ? '生效' : '未启用';
+          updateEditState();
+          return;
+        }
         render();
         return;
       }
@@ -2311,6 +2367,11 @@ window.MarketingConfigPage = {
         if (event.target.matches('[data-home-red-packet-version]')) { const [platform, edge] = event.target.dataset.homeRedPacketVersion.split(':'); redPacket.targeting.platformVersions[platform][edge] = event.target.value; }
         if (event.target.matches('[data-home-red-packet-test]')) redPacket.testPlan[event.target.dataset.homeRedPacketTest] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
         if (event.target.dataset.homeRedPacketTargetingField) redPacket.targeting[event.target.dataset.homeRedPacketTargetingField] = event.target.value;
+        if (event.target.dataset.homeRedPacketTest === 'enabled') {
+          document.querySelector('[data-home-red-packet-test-status]').textContent = event.target.checked ? '生效' : '未启用';
+          updateEditState();
+          return;
+        }
         render();
         return;
       }
@@ -2367,6 +2428,11 @@ window.MarketingConfigPage = {
       if (goldComponent && event.target.matches('[data-home-fixed-entries-test]')) {
         goldComponent.testPlan[event.target.dataset.homeFixedEntriesTest] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
         goldComponent.isSaved = false;
+        if (event.target.dataset.homeFixedEntriesTest === 'enabled') {
+          document.querySelector('[data-home-fixed-entries-test-status]').textContent = event.target.checked ? '生效' : '未启用';
+          updateEditState();
+          return;
+        }
         render();
         return;
       }
@@ -2445,15 +2511,21 @@ window.MarketingConfigPage = {
         window.BackofficeLayout.showToast('请完善必填项', '请为每个固定入口补充素材、标题和跳转信息');
         return;
       }
+      const invalidGoldTestPlan = goldComponents.map((component) => window.ConfigurationSections.validateTestPlan(component.testPlan)).find(Boolean);
+      if (invalidGoldTestPlan) {
+        window.BackofficeLayout.showToast('测试计划校验失败', invalidGoldTestPlan);
+        return;
+      }
       const invalidRedPacket = components.find((component) => {
         if (component.type !== 'shortcut') return false;
         const redPacket = component.redPacket || {};
         const platforms = Object.values(redPacket.targeting?.platformVersions || {});
         const hasPlatformVersion = platforms.some((platform) => platform.enabled && platform.start?.trim());
-        return !redPacket.name?.trim() || !redPacket.deliveryType || !hasPlatformVersion || !redPacket.targeting?.onlineStart || !redPacket.targeting?.onlineEnd || (redPacket.deliveryType === 'package' && (!redPacket.unclaimedImage || !redPacket.template));
+        return !redPacket.name?.trim() || !redPacket.deliveryType || !hasPlatformVersion || !redPacket.targeting?.onlineStart || !redPacket.targeting?.onlineEnd || (redPacket.deliveryType === 'package' && (!redPacket.unclaimedImage || !redPacket.template)) || window.ConfigurationSections.validateTestPlan(redPacket.testPlan);
       });
       if (invalidRedPacket) {
-        window.BackofficeLayout.showToast('请完善必填项', '请补充红包发放功能的记录名称、发放类型、平台版本与上线时间；券包发放还需上传未领取图片素材并选择红包模板');
+        const testPlanError = window.ConfigurationSections.validateTestPlan(invalidRedPacket.redPacket?.testPlan);
+        window.BackofficeLayout.showToast(testPlanError ? '测试计划校验失败' : '请完善必填项', testPlanError || '请补充红包发放功能的记录名称、发放类型、平台版本与上线时间；券包发放还需上传未领取图片素材并选择红包模板');
         return;
       }
       const invalidShowcase = components.find((component) => {
@@ -2461,10 +2533,11 @@ window.MarketingConfigPage = {
         const showcase = component.showcase || {};
         const platforms = Object.values(showcase.targeting?.platformVersions || {});
         const hasPlatformVersion = platforms.some((platform) => platform.enabled && platform.start?.trim());
-        return !showcase.name?.trim() || !showcase.windowType || !hasPlatformVersion || !showcase.targeting?.onlineStart || !showcase.targeting?.onlineEnd;
+        return !showcase.name?.trim() || !showcase.windowType || !hasPlatformVersion || !showcase.targeting?.onlineStart || !showcase.targeting?.onlineEnd || window.ConfigurationSections.validateTestPlan(showcase.testPlan);
       });
       if (invalidShowcase) {
-        window.BackofficeLayout.showToast('请完善必填项', '请补充橱窗功能的记录名称、橱窗类型、平台版本与上线时间');
+        const testPlanError = window.ConfigurationSections.validateTestPlan(invalidShowcase.showcase?.testPlan);
+        window.BackofficeLayout.showToast(testPlanError ? '测试计划校验失败' : '请完善必填项', testPlanError || '请补充橱窗功能的记录名称、橱窗类型、平台版本与上线时间');
         return;
       }
       components.forEach((component) => { component.isSaved = true; component.hasBeenSaved = true; });
@@ -2523,7 +2596,9 @@ window.MarketingConfigPage = {
   },
   bind({ navigate, homeView = 'function' } = {}) {
     if (homeView === 'feed') {
-      const feedSession = window.FeedManagementPage?.bindEmbedded?.();
+      const feedSession = window.FeedManagementPage?.bindEmbedded?.({
+        renderReadonlyTopPreview: () => this.renderHomeFunctionReadonlyPreview()
+      });
       if (!feedSession) {
         window.BackofficeLayout.showToast?.('信息流编辑框架未加载', '请刷新页面后重试');
       }

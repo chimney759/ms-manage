@@ -32,6 +32,16 @@ window.ConfigurationSections = {
   normalizeTestPlan(value = {}) {
     return { ...this.createTestPlan(), ...(value && typeof value === 'object' ? value : {}) };
   },
+  validateTestPlan(value = {}) {
+    const testPlan = this.normalizeTestPlan(value);
+    if (!testPlan.enabled) return '';
+
+    if (!String(testPlan.uids || '').trim()) return '启用测试状态后请填写测试 UID';
+    if (!testPlan.start || !testPlan.end) return '启用测试状态后请填写测试时间';
+    if (new Date(testPlan.start).getTime() >= new Date(testPlan.end).getTime()) return '测试结束时间需晚于开始时间';
+
+    return '';
+  },
   renderAudienceGroups({ attribute, selected = [] } = {}) {
     return this.audienceGroups.map(({ title, items }) => `<div class="audience-group config-audience-group"><div class="audience-group-title">${title}</div><div class="audience-group-items">${items.map((item) => `<label><input type="checkbox" value="${item}" ${attribute}${selected.includes(item) ? ' checked' : ''} /><span>${item}</span></label>`).join('')}</div></div>`).join('');
   },
@@ -72,6 +82,8 @@ window.ConfigurationSections = {
   },
   renderTestPlan({ prefix, value = {}, description = '测试 UID 内的用户将在测试有效时间内看到此配置，到期自动终止，不影响正式配置。' } = {}) {
     const testPlan = this.normalizeTestPlan(value);
-    return `<section class="home-entry-info-section home-test-plan-section shared-config-section"><h3>测试计划</h3><p>${description}</p><div class="config-field"><span class="config-field-label">测试 UID</span><div class="config-field-control"><input class="control" data-${prefix}-test="uids" value="${testPlan.uids}" placeholder="多个 UID 用英文逗号分隔" /></div></div><div class="config-field"><span class="config-field-label">测试时间</span><div class="config-field-control"><div class="config-date-range"><label><span>开始</span><input class="control" data-${prefix}-test="start" type="datetime-local" value="${testPlan.start}" /></label><label><span>结束</span><input class="control" data-${prefix}-test="end" type="datetime-local" value="${testPlan.end}" /></label></div></div></div><div class="config-field"><span class="config-field-label">测试状态</span><label class="home-test-enabled"><input data-${prefix}-test="enabled" type="checkbox"${testPlan.enabled ? ' checked' : ''} /><span class="switch-track"></span><b>${testPlan.enabled ? '生效' : '未启用'}</b></label></div></section>`;
+    const status = testPlan.enabled ? '生效' : '未启用';
+    const statusControl = `<label class="home-test-enabled"><input data-${prefix}-test="enabled" type="checkbox"${testPlan.enabled ? ' checked' : ''} /><span class="switch-track"></span><b data-${prefix}-test-status>${status}</b></label>`;
+    return `<section class="home-entry-info-section home-test-plan-section shared-config-section"><h3>测试计划</h3><p>${description}</p><div class="config-field"><span class="config-field-label">测试 UID</span><div class="config-field-control"><input class="control" data-${prefix}-test="uids" value="${testPlan.uids}" placeholder="多个 UID 用英文逗号分隔" /></div></div><div class="config-field"><span class="config-field-label">测试时间</span><div class="config-field-control"><div class="config-date-range"><label><span>开始</span><input class="control" data-${prefix}-test="start" type="datetime-local" value="${testPlan.start}" /></label><label><span>结束</span><input class="control" data-${prefix}-test="end" type="datetime-local" value="${testPlan.end}" /></label></div></div></div><div class="config-field"><span class="config-field-label">测试状态</span><div class="config-field-control">${statusControl}</div></div></section>`;
   }
 };
