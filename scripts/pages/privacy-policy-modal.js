@@ -92,7 +92,7 @@ window.PrivacyPolicyModalPage = {
       tableBody.innerHTML = this.records.map((record) => {
         const testPlan = record.testPlan || {};
         const hasTestPlan = Boolean(testPlan.uids || testPlan.start || testPlan.end || testPlan.enabled);
-        return `<tr><td>${this.escape(record.system)}</td><td class="${record.enabled === '开启' ? 'status-online' : ''}">${this.escape(record.enabled)}</td><td>${this.escape(record.minVersion)} - ${this.escape(record.maxVersion)}</td><td>${this.escape(record.title)}</td><td>${this.escape(record.policyVersion)}</td><td>${hasTestPlan ? '有' : '-'}</td><td>${this.escape(record.creator || '-')}</td><td>${this.escape(record.createdAt || '-')}</td><td>${this.escape(record.updater || '-')}</td><td>${this.escape(record.updatedAt || '-')}</td><td><div class="table-actions"><button class="table-action" type="button" data-privacy-edit-id="${this.escape(record.id)}">编辑</button></div></td></tr>`;
+        return `<tr><td>${this.escape(record.system)}</td><td>${window.BackofficeLayout.statusTag(record.enabled)}</td><td>${this.escape(record.minVersion)} - ${this.escape(record.maxVersion)}</td><td>${this.escape(record.title)}</td><td>${this.escape(record.policyVersion)}</td><td>${hasTestPlan ? '有' : '-'}</td><td>${this.escape(record.creator || '-')}</td><td>${this.escape(record.createdAt || '-')}</td><td>${this.escape(record.updater || '-')}</td><td>${this.escape(record.updatedAt || '-')}</td><td><div class="table-actions"><button class="table-action" type="button" data-privacy-edit-id="${this.escape(record.id)}">编辑</button></div></td></tr>`;
       }).join('');
       document.getElementById('privacy-policy-empty').hidden = this.records.length > 0;
     };

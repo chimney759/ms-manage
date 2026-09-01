@@ -42,11 +42,11 @@ window.ConfigurationSections = {
 
     return '';
   },
-  renderAudienceGroups({ attribute, selected = [] } = {}) {
-    return this.audienceGroups.map(({ title, items }) => `<div class="audience-group config-audience-group"><div class="audience-group-title">${title}</div><div class="audience-group-items">${items.map((item) => `<label><input type="checkbox" value="${item}" ${attribute}${selected.includes(item) ? ' checked' : ''} /><span>${item}</span></label>`).join('')}</div></div>`).join('');
+  renderAudienceGroups({ attribute, selected = [], groups = this.audienceGroups } = {}) {
+    return groups.map(({ title, items }) => `<div class="audience-group config-audience-group"><div class="audience-group-title">${title}</div><div class="audience-group-items">${items.map((item) => `<label><input type="checkbox" value="${item}" ${attribute}${selected.includes(item) ? ' checked' : ''} /><span>${item}</span></label>`).join('')}</div></div>`).join('');
   },
-  renderIdentityOptions({ attribute, selected = [] } = {}) {
-    return this.identities.map((item) => `<label><input type="checkbox" value="${item}" ${attribute}${selected.includes(item) ? ' checked' : ''} />${item}</label>`).join('');
+  renderIdentityOptions({ attribute, selected = [], items = this.identities } = {}) {
+    return items.map((item) => `<label><input type="checkbox" value="${item}" ${attribute}${selected.includes(item) ? ' checked' : ''} />${item}</label>`).join('');
   },
   renderMerchantTargeting() {
     const platformRow = (key, label) => `<div><label><input type="checkbox" data-platform-enabled="${key}" />${label}</label><input class="control version-control" data-platform-start="${key}" placeholder="最低版本" /><span>至</span><input class="control version-control" data-platform-end="${key}" placeholder="最高版本（选填）" /></div>`;
@@ -63,21 +63,23 @@ window.ConfigurationSections = {
   renderMerchantTestPlan() {
     return `<section class="form-section"><h2 class="section-title">测试计划</h2><div class="section-body test-plan-body"><p class="test-plan-notice">测试 UID 内的用户将在测试有效时间内看到此合作商配置，到期自动终止。</p><div class="form-row"><label for="merchant-test-uids">测试 UID：</label><div class="form-control-area"><input class="control compact-control" id="merchant-test-uids" placeholder="多个 UID 用英文逗号分隔" /></div></div><div class="form-row date-range"><label for="merchant-test-start">测试时间：</label><div class="form-control-area"><input class="control" id="merchant-test-start" type="datetime-local" /><span>至</span><input class="control" id="merchant-test-end" type="datetime-local" /></div></div><div class="form-row check-row"><label>测试状态：</label><div class="form-control-area"><label class="switch"><input id="merchant-test-enabled" type="checkbox" checked /><span class="switch-track"></span></label><span class="status-badge" id="merchant-test-status">生效</span></div></div></div></section>`;
   },
-  renderTargeting({ prefix, value = {}, includePlatform = true, includeSchedule = true, required = false } = {}) {
+  renderTargeting({ prefix, value = {}, includePlatform = true, includeSchedule = true, required = false, identityLabel = '用户身份', identityOptions = this.identities, audienceGroups = this.audienceGroups, audienceInversionHint = '', statusOptions = ['上线', '下线'] } = {}) {
     const targeting = this.normalizeTargeting(value);
     const requiredMark = required ? '<b class="field-required">*</b>' : '';
     const field = (label, control, className = '') => `<div class="config-field ${className}"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
     const platformRow = (key, label) => `<div class="config-platform-row"><label><input type="checkbox" data-${prefix}-platform="${key}"${targeting.platformVersions[key].enabled ? ' checked' : ''} />${label}</label><input class="control" data-${prefix}-version="${key}:start" value="${targeting.platformVersions[key].start}" placeholder="最低版本" /><span>至</span><input class="control" data-${prefix}-version="${key}:end" value="${targeting.platformVersions[key].end}" placeholder="最高版本（选填）" /></div>`;
-    return `<section class="home-entry-info-section shared-config-section"><h3>定向信息</h3>
-      ${field('用户身份', `<span class="home-identity-options">${this.renderIdentityOptions({ attribute: `data-${prefix}-identity`, selected: targeting.identities })}</span>`)}
-      ${field('指定人群包', `<input class="control" data-${prefix}-targeting-field="targetGroup" value="${targeting.targetGroup}" placeholder="填入表名，不填默认全部用户" />`)}
-      ${field('排除人群包', `<input class="control" data-${prefix}-targeting-field="excludeGroup" value="${targeting.excludeGroup}" placeholder="填入表名，不填默认为空" />`)}
-      ${field('定制人群', `<div class="audience-options config-audience-options">${this.renderAudienceGroups({ attribute: `data-${prefix}-audience`, selected: targeting.audiences })}</div>`, 'shared-audience-field')}
-      ${field('是否定制人群取反', `<span class="home-entry-status-control"><label><input type="radio" name="${prefix}-audience-inversion" value="否"${targeting.audienceInversion === '否' ? ' checked' : ''} />否</label><label><input type="radio" name="${prefix}-audience-inversion" value="是"${targeting.audienceInversion === '是' ? ' checked' : ''} />是</label></span>`)}
-      ${field('指定实验可见', `<input class="control" data-${prefix}-targeting-field="experimentId" value="${targeting.experimentId}" placeholder="如：1338-3550,1339-3510" />`)}
-      ${field('排除实验', `<input class="control" data-${prefix}-targeting-field="excludeExperiment" value="${targeting.excludeExperiment}" placeholder="如：1338-3550,1339-3510" />`)}
-      ${includePlatform ? field(`${requiredMark}平台和版本`, `<div class="config-platform-list">${platformRow('ios', 'iOS')}${platformRow('android', 'Android')}${platformRow('harmony', 'Harmony')}<p>仅适用于 8.96.0.0 及以上版本</p></div>`, 'shared-platform-field') : ''}
-      ${includeSchedule ? `${field(`${requiredMark}上线时间`, `<div class="config-date-range"><label><span>开始</span><input class="control" data-${prefix}-targeting-field="onlineStart" type="datetime-local" value="${targeting.onlineStart}" /></label><label><span>结束</span><input class="control" data-${prefix}-targeting-field="onlineEnd" type="datetime-local" value="${targeting.onlineEnd}" /></label></div>`)}${field(`${requiredMark}状态`, `<span class="home-entry-status-control"><label><input type="radio" name="${prefix}-status" value="上线"${targeting.status === '上线' ? ' checked' : ''} />上线</label><label><input type="radio" name="${prefix}-status" value="下线"${targeting.status === '下线' ? ' checked' : ''} />下线</label></span>`)}` : ''}
+    return `<section class="home-entry-info-section shared-config-section"><h3>定向信息（投放设置）</h3>
+      <div class="shared-targeting-subsection"><h4>人群信息</h4>
+        ${field(identityLabel, `<span class="home-identity-options">${this.renderIdentityOptions({ attribute: `data-${prefix}-identity`, selected: targeting.identities, items: identityOptions })}</span>`)}
+        ${field('指定人群包', `<input class="control" data-${prefix}-targeting-field="targetGroup" value="${targeting.targetGroup}" placeholder="填入表名，不填默认全部用户" />`)}
+        ${field('排除人群包', `<input class="control" data-${prefix}-targeting-field="excludeGroup" value="${targeting.excludeGroup}" placeholder="填入表名，不填默认为空" />`)}
+        ${field('定制人群', `<div class="audience-options config-audience-options">${this.renderAudienceGroups({ attribute: `data-${prefix}-audience`, selected: targeting.audiences, groups: audienceGroups })}</div>`, 'shared-audience-field')}
+        ${field('是否定制人群取反', `<span class="home-entry-status-control"><label><input type="radio" name="${prefix}-audience-inversion" value="否"${targeting.audienceInversion === '否' ? ' checked' : ''} />否</label><label><input type="radio" name="${prefix}-audience-inversion" value="是"${targeting.audienceInversion === '是' ? ' checked' : ''} />是</label>${audienceInversionHint ? `<small class="shared-audience-inversion-note">${audienceInversionHint}</small>` : ''}</span>`)}</div>
+      <div class="shared-targeting-subsection"><h4>实验信息</h4>
+        ${field('指定实验可见', `<input class="control" data-${prefix}-targeting-field="experimentId" value="${targeting.experimentId}" placeholder="如：1338-3550,1339-3510" />`)}
+        ${field('排除实验', `<input class="control" data-${prefix}-targeting-field="excludeExperiment" value="${targeting.excludeExperiment}" placeholder="如：1338-3550,1339-3510" />`)}</div>
+      ${includePlatform ? `<div class="shared-targeting-subsection"><h4>版本条件</h4>${field(`${requiredMark}平台和版本`, `<div class="config-platform-list">${platformRow('ios', 'iOS')}${platformRow('android', 'Android')}${platformRow('harmony', 'Harmony')}<p>仅适用于 8.96.0.0 及以上版本</p></div>`, 'shared-platform-field')}</div>` : ''}
+      ${includeSchedule ? `<div class="shared-targeting-subsection"><h4>投放时间&状态</h4>${field(`${requiredMark}上下线时间`, `<div class="config-date-range"><label><span>开始</span><input class="control" data-${prefix}-targeting-field="onlineStart" type="datetime-local" value="${targeting.onlineStart}" /></label><label><span>结束</span><input class="control" data-${prefix}-targeting-field="onlineEnd" type="datetime-local" value="${targeting.onlineEnd}" /></label></div>`)}${field(`${requiredMark}状态`, `<span class="home-entry-status-control">${statusOptions.map((status) => `<label><input type="radio" name="${prefix}-status" value="${status}"${targeting.status === status ? ' checked' : ''} />${status}</label>`).join('')}</span>`)}</div>` : ''}
     </section>`;
   },
   renderTestPlan({ prefix, value = {}, description = '测试 UID 内的用户将在测试有效时间内看到此配置，到期自动终止，不影响正式配置。' } = {}) {

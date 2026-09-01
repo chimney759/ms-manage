@@ -77,7 +77,7 @@ window.MerchantDetailManagementPage = {
         <td>${this.escape(record.name)}</td>
         <td>${this.escape(record.type || '-')}</td>
         <td class="detail-template-merchants-cell">${this.escape(merchantNames.join('、') || '-')}</td>
-        <td class="${record.status === '启用' ? 'status-online' : ''}">${this.escape(record.status || '-')}</td>
+        <td>${window.BackofficeLayout.statusTag(record.status || '-')}</td>
         <td>${this.escape(record.createdAt || record.updatedAt || '-')}</td>
         <td>${this.escape(record.updatedAt || '-')}</td>
         <td><div class="table-actions"><button class="table-action" type="button" data-detail-edit-id="${this.escape(record.id)}">编辑</button><button class="table-action" type="button" data-detail-style-id="${this.escape(record.id)}">模板样式管理</button></div></td>

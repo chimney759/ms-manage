@@ -209,6 +209,18 @@ window.BackofficeLayout = {
     this.setEditorModalMode(modal, { isNew: isAdd });
     if (!isAdd) modal.classList.remove('is-editor-fullscreen');
   },
+  statusTag(value) {
+    const status = String(value ?? '-');
+    const type = ['上线中', '上线', '启用', '开启', '生效', '生效，前端可见'].includes(status)
+      ? 'online'
+      : ['待上线', '待生效'].includes(status)
+        ? 'pending'
+        : ['已下线', '下线', '停用', '禁用', '关闭', '未生效', '未启用'].includes(status)
+          ? 'offline'
+          : 'neutral';
+    const escaped = status.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
+    return `<span class="list-status-tag list-status-tag-${type}">${escaped}</span>`;
+  },
   bindGlobalTooltips() {
     const tooltip = document.getElementById('global-tooltip');
     let activeTrigger = null;

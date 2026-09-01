@@ -126,7 +126,7 @@ window.CategoryManagementPage = {
   renderTable(searchTerm) {
     const keyword = searchTerm.trim().toLowerCase();
     const visibleRecords = this.records.filter((record) => record.categoryName.toLowerCase().includes(keyword));
-    document.getElementById('category-table-body').innerHTML = visibleRecords.map((record) => `<tr><td>${record.id}</td><td>${record.recordName}</td><td>${record.categoryName}</td><td class="${record.status === '启用' ? 'status-online' : ''}">${record.status}</td><td>${record.creator}</td><td>${record.createdAt}</td><td>${record.updater}</td><td>${record.updatedAt}</td><td><div class="table-actions"><button class="table-action" type="button" data-edit-id="${record.id}">编辑</button><button class="table-action ${record.status === '启用' ? 'status-disable' : 'status-enable'}" type="button" data-toggle-id="${record.id}">${record.status === '启用' ? '停用' : '启用'}</button></div></td></tr>`).join('');
+    document.getElementById('category-table-body').innerHTML = visibleRecords.map((record) => `<tr><td>${record.id}</td><td>${record.recordName}</td><td>${record.categoryName}</td><td>${window.BackofficeLayout.statusTag(record.status)}</td><td>${record.creator}</td><td>${record.createdAt}</td><td>${record.updater}</td><td>${record.updatedAt}</td><td><div class="table-actions"><button class="table-action" type="button" data-edit-id="${record.id}">编辑</button><button class="table-action ${record.status === '启用' ? 'status-disable' : 'status-enable'}" type="button" data-toggle-id="${record.id}">${record.status === '启用' ? '停用' : '启用'}</button></div></td></tr>`).join('');
     document.getElementById('category-empty').hidden = visibleRecords.length > 0;
   }
 };
