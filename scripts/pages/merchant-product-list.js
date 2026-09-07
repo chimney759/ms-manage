@@ -3,6 +3,8 @@ window.MerchantProductListPage = {
   merchantStorageKey: 'meiyou-cashback-merchant-records',
   successMessageKey: 'meiyou-cashback-merchant-products-success-message',
   records: [],
+  sort: { key: 'updatedAt', direction: -1 },
+  sortIcon(direction) { const path = direction === 'asc' ? 'm4.5 9.5 3.5-3.5 3.5 3.5' : direction === 'desc' ? 'm4.5 6.5 3.5 3.5 3.5-3.5' : 'm4.75 6.25 3.25-3.25 3.25 3.25M4.75 9.75 8 13l3.25-3.25'; return `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="${path}" /></svg>`; },
   escape(value = '') {
     return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
   },
@@ -25,7 +27,7 @@ window.MerchantProductListPage = {
     return seeds.map((seed, index) => {
       const merchant = merchants[index % Math.max(merchants.length, 1)] || { id: `demo-supplier-${index}`, name: '待配置合作商' };
       const [supplierProductNo, title, brand, type, cost, officialPrice] = seed;
-      return { id: `demo-merchant-product-${supplierProductNo}`, supplierId: merchant.id, supplier: merchant.name, supplierProductNo, title, brand, type, cost, officialPrice, status: index === 5 ? '已下线' : '上线中', updatedAt: '2026-08-16 10:00:00' };
+      return { id: `demo-merchant-product-${supplierProductNo}`, supplierId: merchant.id, supplier: merchant.name, supplierProductNo, title, brand, type, cost, officialPrice, status: index === 5 ? '已下线' : '上线中', creator: '管理员', createdAt: '2026-08-16 10:00:00', editor: '管理员', updatedAt: '2026-08-16 10:00:00' };
     });
   },
   loadRecords() {
@@ -34,6 +36,7 @@ window.MerchantProductListPage = {
       const stored = JSON.parse(window.localStorage.getItem(this.storageKey));
       this.records = Array.isArray(stored) && stored.length ? stored : this.createDemoRecords();
     } catch (error) { this.records = this.createDemoRecords(); }
+    this.records = this.records.map((record) => ({ ...record, creator: record.creator || '管理员', createdAt: record.createdAt || record.updatedAt || '2026-08-16 10:00:00', editor: record.editor || record.operator || '管理员', updatedAt: record.updatedAt || '2026-08-16 10:00:00' }));
     this.saveRecords();
   },
   saveRecords() { window.localStorage.setItem(this.storageKey, JSON.stringify(this.records)); },
@@ -47,7 +50,7 @@ window.MerchantProductListPage = {
         <div class="field"><label for="merchant-product-type">商品类型：</label><select class="control" id="merchant-product-type"><option value="">全部</option><option value="卡券">卡券</option><option value="直充">直充</option></select></div>
       </div>
       <div class="actions"><button class="button primary" id="merchant-product-search" type="button">搜索</button><button class="button secondary" id="merchant-product-reset" type="button">重置</button><button class="button primary" id="open-merchant-product-modal" type="button">添加货品</button></div>
-      <div class="table-wrap"><table class="merchant-product-table"><thead><tr><th>合作商</th><th>合作商货品编号</th><th>货品标题</th><th>品牌名称</th><th>商品类型</th><th>成本价</th><th>官方价</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="merchant-product-table-body"></tbody></table></div>
+      <div class="table-wrap"><table class="merchant-product-table"><thead><tr><th>合作商</th><th>合作商货品编号</th><th>货品标题</th><th>品牌名称</th><th>商品类型</th><th>成本价</th><th>官方价</th><th>状态</th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th><button class="backoffice-sort" type="button" data-product-sort="updatedAt" aria-sort="desc">更新时间${this.sortIcon('desc')}</button></th><th>操作</th></tr></thead><tbody id="merchant-product-table-body"></tbody></table></div>
       <div class="empty" id="merchant-product-empty"><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无数据</div></div></div>
     </section></section>`;
   },
@@ -77,6 +80,7 @@ window.MerchantProductListPage = {
     document.getElementById('merchant-product-search').addEventListener('click', renderTable);
     document.getElementById('merchant-product-reset').addEventListener('click', () => { supplierFilter.value = ''; document.getElementById('merchant-product-title').value = ''; document.getElementById('merchant-product-no').value = ''; document.querySelectorAll('input[name="merchant-product-status"]').forEach((input) => { input.checked = true; }); document.getElementById('merchant-product-type').value = ''; renderTable(); });
     ['merchant-product-title', 'merchant-product-no'].forEach((id) => document.getElementById(id).addEventListener('keydown', (event) => { if (event.key === 'Enter') renderTable(); }));
+    document.querySelector('[data-product-sort]').addEventListener('click', (event) => { this.sort.direction = -this.sort.direction; const direction = this.sort.direction === 1 ? 'asc' : 'desc'; event.currentTarget.setAttribute('aria-sort', direction); event.currentTarget.innerHTML = `更新时间${this.sortIcon(direction)}`; renderTable(); });
     document.getElementById('open-merchant-product-modal').addEventListener('click', () => navigate?.('merchant-product-add'));
     document.getElementById('merchant-product-table-body').addEventListener('click', (event) => {
       const editButton = event.target.closest('[data-edit-product-id]');
@@ -132,11 +136,11 @@ window.MerchantProductListPage = {
       if (missing) { window.BackofficeLayout.showRequiredFieldToast(missing[2]); return; }
       const supplier = suppliers.find((merchant) => merchant.id === supplierId);
       const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
-      const recordData = { supplierId, supplier: supplier?.name || '-', title, brand: document.getElementById('merchant-product-form-brand').value.trim(), type, cost, officialPrice, description: document.getElementById('merchant-product-form-description').value.trim(), status: status === '上线' ? '上线中' : '已下线', updatedAt: now };
+      const recordData = { supplierId, supplier: supplier?.name || '-', title, brand: document.getElementById('merchant-product-form-brand').value.trim(), type, cost, officialPrice, description: document.getElementById('merchant-product-form-description').value.trim(), status: status === '上线' ? '上线中' : '已下线', editor: '管理员', updatedAt: now };
       if (editingRecord) {
         Object.assign(editingRecord, recordData);
       } else {
-        this.records.unshift({ id: `merchant-product-${Date.now()}`, supplierProductNo: `DEMO-${String(Date.now()).slice(-8)}`, ...recordData });
+        this.records.unshift({ id: `merchant-product-${Date.now()}`, supplierProductNo: `DEMO-${String(Date.now()).slice(-8)}`, creator: '管理员', createdAt: now, ...recordData });
       }
       this.saveRecords();
       window.sessionStorage.setItem(this.successMessageKey, editingRecord ? '货品修改成功' : '货品添加成功');
@@ -147,8 +151,8 @@ window.MerchantProductListPage = {
     const title = (filters.title || '').trim().toLocaleLowerCase();
     const productNo = (filters.productNo || '').trim().toLocaleLowerCase();
     const statuses = filters.statuses || [];
-    const records = this.records.filter((record) => (!filters.supplier || record.supplierId === filters.supplier) && (!title || String(record.title).toLocaleLowerCase().includes(title)) && (!productNo || String(record.supplierProductNo).toLocaleLowerCase().includes(productNo)) && (!statuses.length || statuses.includes(record.status)) && (!filters.type || record.type === filters.type));
-    document.getElementById('merchant-product-table-body').innerHTML = records.map((record) => `<tr><td>${this.escape(record.supplier)}</td><td>${this.escape(record.supplierProductNo)}</td><td>${this.escape(record.title)}</td><td>${this.escape(record.brand || '-')}</td><td>${this.escape(record.type)}</td><td>${this.escape(record.cost || '-')}</td><td>${this.escape(record.officialPrice || '-')}</td><td>${window.BackofficeLayout.statusTag(record.status)}</td><td>${this.escape(record.updatedAt || '-')}</td><td><div class="table-actions"><button class="table-action" type="button" data-edit-product-id="${this.escape(record.id)}">编辑</button></div></td></tr>`).join('');
+    const records = this.records.filter((record) => (!filters.supplier || record.supplierId === filters.supplier) && (!title || String(record.title).toLocaleLowerCase().includes(title)) && (!productNo || String(record.supplierProductNo).toLocaleLowerCase().includes(productNo)) && (!statuses.length || statuses.includes(record.status)) && (!filters.type || record.type === filters.type)).sort((left, right) => (Date.parse(String(left.updatedAt).replace(/-/g, '/')) - Date.parse(String(right.updatedAt).replace(/-/g, '/'))) * this.sort.direction);
+    document.getElementById('merchant-product-table-body').innerHTML = records.map((record) => `<tr><td>${this.escape(record.supplier)}</td><td>${this.escape(record.supplierProductNo)}</td><td>${this.escape(record.title)}</td><td>${this.escape(record.brand || '-')}</td><td>${this.escape(record.type)}</td><td>${this.escape(record.cost || '-')}</td><td>${this.escape(record.officialPrice || '-')}</td><td>${window.BackofficeLayout.statusTag(record.status)}</td><td>${this.escape(record.creator)}</td><td>${this.escape(record.createdAt)}</td><td>${this.escape(record.editor)}</td><td>${this.escape(record.updatedAt)}</td><td><div class="table-actions"><button class="table-action" type="button" data-edit-product-id="${this.escape(record.id)}">编辑</button></div></td></tr>`).join('');
     document.getElementById('merchant-product-empty').hidden = records.length > 0;
   }
 };

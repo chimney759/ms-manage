@@ -2,6 +2,8 @@ window.MerchantListPage = {
   storageKey: 'meiyou-cashback-merchant-records',
   categoryStorageKey: 'meiyou-cashback-category-records',
   records: [],
+  sort: { key: 'updatedAt', direction: -1 },
+  sortIcon(direction) { const path = direction === 'asc' ? 'm4.5 9.5 3.5-3.5 3.5 3.5' : direction === 'desc' ? 'm4.5 6.5 3.5 3.5 3.5-3.5' : 'm4.75 6.25 3.25-3.25 3.25 3.25M4.75 9.75 8 13l3.25-3.25'; return `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="${path}" /></svg>`; },
   loadRecords() {
     window.BackofficeDemoData?.ensure();
     try {
@@ -10,6 +12,8 @@ window.MerchantListPage = {
     } catch (error) {
       this.records = [];
     }
+    this.records = this.records.map((record) => ({ ...record, creator: record.creator || '管理员', createdAt: record.createdAt || record.updatedAt || '2026-08-16 10:00:00', editor: record.editor || record.operator || '管理员', updatedAt: record.updatedAt || '2026-08-16 10:00:00' }));
+    window.localStorage.setItem(this.storageKey, JSON.stringify(this.records));
   },
   escape(value = '') {
     return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
@@ -54,10 +58,11 @@ window.MerchantListPage = {
       <div class="filters">
         <div class="field"><label for="merchant-category-filter">合作商分类：</label><select class="control" id="merchant-category-filter"><option value="">全部</option></select></div>
         <div class="field"><label for="merchant-name-filter">合作商名称：</label><input class="control" id="merchant-name-filter" placeholder="请输入合作商名称" /></div>
+        <div class="field"><label for="merchant-enabled-filter">是否启用：</label><select class="control" id="merchant-enabled-filter"><option value="">全部</option><option value="启用">启用</option><option value="停用">停用</option></select></div>
         <div class="field"><label for="merchant-status-filter">当前是否生效：</label><select class="control" id="merchant-status-filter"><option value="">全部</option><option value="生效，前端可见">生效，前端可见</option><option value="未生效">未生效</option></select></div>
       </div>
       <div class="actions"><button class="button primary" id="search" type="button">搜索</button><button class="button secondary" id="reset" type="button">重置</button><button class="button primary" id="add" type="button">添加合作商</button><button class="text-button" id="refresh" type="button">刷新</button></div>
-      <div class="table-wrap"><table class="merchant-table"><thead><tr><th>合作商头像</th><th>合作商名称</th><th>合作商分类</th><th>合作商视频</th><th>视频封面</th><th>合作商规则</th><th>上线时间段</th><th>是否启用</th><th>当前是否生效</th><th>是否有实验</th><th>操作</th></tr></thead><tbody id="merchant-table-body"></tbody></table></div>
+      <div class="table-wrap"><table class="merchant-table"><thead><tr><th>合作商头像</th><th>合作商名称</th><th>合作商分类</th><th>合作商视频</th><th>视频封面</th><th>合作商规则</th><th>上线时间段</th><th>是否启用</th><th>当前是否生效</th><th>是否有实验</th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th><button class="backoffice-sort" type="button" data-merchant-sort="updatedAt" aria-sort="desc">更新时间${this.sortIcon('desc')}</button></th><th>操作</th></tr></thead><tbody id="merchant-table-body"></tbody></table></div>
       <div class="empty" id="merchant-empty"><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无数据</div></div></div>
     </section></section>`;
   },
@@ -71,16 +76,19 @@ window.MerchantListPage = {
     const renderTable = () => this.renderTable({
       category: categoryFilter.value,
       name: document.getElementById('merchant-name-filter').value,
+      enabled: document.getElementById('merchant-enabled-filter').value,
       status: document.getElementById('merchant-status-filter').value
     });
     document.getElementById('reset').addEventListener('click', () => {
       categoryFilter.value = '';
       document.getElementById('merchant-name-filter').value = '';
+      document.getElementById('merchant-enabled-filter').value = '';
       document.getElementById('merchant-status-filter').value = '';
       renderTable();
     });
     document.getElementById('search').addEventListener('click', renderTable);
     document.getElementById('merchant-name-filter').addEventListener('keydown', (event) => { if (event.key === 'Enter') renderTable(); });
+    document.querySelector('[data-merchant-sort]').addEventListener('click', (event) => { this.sort.direction = -this.sort.direction; const direction = this.sort.direction === 1 ? 'asc' : 'desc'; event.currentTarget.setAttribute('aria-sort', direction); event.currentTarget.innerHTML = `更新时间${this.sortIcon(direction)}`; renderTable(); });
     document.getElementById('refresh').addEventListener('click', () => { this.loadRecords(); renderTable(); });
     document.getElementById('add').addEventListener('click', () => navigate?.('merchant-add'));
     document.getElementById('merchant-table-body').addEventListener('click', (event) => {
@@ -123,13 +131,14 @@ window.MerchantListPage = {
   renderTable(filters = {}) {
     const category = filters.category || '';
     const name = (filters.name || '').trim().toLowerCase();
+    const enabled = filters.enabled || '';
     const status = filters.status || '';
-    const visibleRecords = this.records.filter((record) => (!category || record.category === category) && (!name || record.name.toLowerCase().includes(name)) && (!status || this.effectiveness(record) === status));
+    const visibleRecords = this.records.filter((record) => (!category || record.category === category) && (!name || record.name.toLowerCase().includes(name)) && (!enabled || this.enabledStatus(record) === enabled) && (!status || this.effectiveness(record) === status)).sort((left, right) => (Date.parse(String(left.updatedAt).replace(/-/g, '/')) - Date.parse(String(right.updatedAt).replace(/-/g, '/'))) * this.sort.direction);
     const value = (content) => this.escape(content || '-');
     document.getElementById('merchant-table-body').innerHTML = visibleRecords.map((record) => {
       const currentEffectiveness = this.effectiveness(record);
       return `<tr>
-      <td>${record.avatarPreview ? `<span class="avatar-preview" tabindex="0"><img src="${this.escape(record.avatarPreview)}" alt="${this.escape(record.name)}头像" /><span class="avatar-preview-popover"><img src="${this.escape(record.avatarPreview)}" alt="${this.escape(record.name)}头像预览" /></span></span>` : (record.avatarName ? `<span class="file-value">${this.escape(record.avatarName)}</span>` : '-')}</td><td>${value(record.name)}</td><td>${value(record.category)}</td><td>${value(record.videoName)}</td><td>${value(record.coverName)}</td><td class="merchant-rule-summary">${record.ruleContent ? `<span class="merchant-rule-preview" tabindex="0" aria-label="预览合作商规则"><span class="merchant-rule-preview-text">${value(this.ruleSummary(record.ruleContent))}</span><span class="merchant-rule-popover">${this.sanitizeRuleHtml(record.ruleContent)}</span></span>` : '-'}</td><td>${value(this.onlineTimeRange(record))}</td><td>${window.BackofficeLayout.statusTag(this.enabledStatus(record))}</td><td>${window.BackofficeLayout.statusTag(currentEffectiveness)}</td><td>${record.experimentId || record.excludeExperiment ? '有' : '无'}</td><td><div class="table-actions"><button class="table-action" type="button" data-edit-id="${this.escape(record.id)}">编辑</button></div></td>
+      <td>${record.avatarPreview ? `<span class="avatar-preview" tabindex="0"><img src="${this.escape(record.avatarPreview)}" alt="${this.escape(record.name)}头像" /><span class="avatar-preview-popover"><img src="${this.escape(record.avatarPreview)}" alt="${this.escape(record.name)}头像预览" /></span></span>` : (record.avatarName ? `<span class="file-value">${this.escape(record.avatarName)}</span>` : '-')}</td><td>${value(record.name)}</td><td>${value(record.category)}</td><td>${value(record.videoName)}</td><td>${value(record.coverName)}</td><td class="merchant-rule-summary">${record.ruleContent ? `<span class="merchant-rule-preview" tabindex="0" aria-label="预览合作商规则"><span class="merchant-rule-preview-text">${value(this.ruleSummary(record.ruleContent))}</span><span class="merchant-rule-popover">${this.sanitizeRuleHtml(record.ruleContent)}</span></span>` : '-'}</td><td>${value(this.onlineTimeRange(record))}</td><td>${window.BackofficeLayout.statusTag(this.enabledStatus(record))}</td><td>${window.BackofficeLayout.statusTag(currentEffectiveness)}</td><td>${record.experimentId || record.excludeExperiment ? '有' : '无'}</td><td>${value(record.creator)}</td><td>${value(record.createdAt)}</td><td>${value(record.editor)}</td><td>${value(record.updatedAt)}</td><td><div class="table-actions"><button class="table-action" type="button" data-edit-id="${this.escape(record.id)}">编辑</button></div></td>
     </tr>`;
     }).join('');
     document.getElementById('merchant-empty').hidden = visibleRecords.length > 0;

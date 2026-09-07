@@ -363,8 +363,8 @@ window.MarketingConfigPage = {
         <div class="field check-in-date-filter"><label>上线时间：</label><span class="check-in-date-controls"><input class="control" id="check-in-start-filter" type="datetime-local" aria-label="上线开始时间" /><i>-</i><input class="control" id="check-in-end-filter" type="datetime-local" aria-label="上线结束时间" /></span></div>
         <div class="filter-checkboxes"><label><input id="check-in-priority-filter" type="checkbox" />仅看冲突时优先展示</label></div>
       </div>
-      <div class="actions benefits-check-in-actions"><button class="button primary" id="search-check-in" type="button">查询</button><button class="button secondary" id="add-check-in" type="button">新增配置</button></div>
-      <div class="table-wrap"><table class="benefits-check-in-table"><thead><tr><th>ID</th><th>记录名称</th><th>定向信息</th><th>上线时间</th><th>下线时间</th><th>状态</th><th>冲突时优先展示 <button class="help-tooltip" type="button" data-tooltip="同一时间命中多条配置时，优先展示已勾选的配置。">?</button></th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th>最后更新时间</th><th>操作</th></tr></thead><tbody id="check-in-table-body"></tbody></table></div>
+      <div class="actions benefits-check-in-actions"><button class="button primary" id="search-check-in" type="button">搜索</button><button class="button secondary" id="add-check-in" type="button">新增配置</button></div>
+      <div class="table-wrap"><table class="benefits-check-in-table"><thead><tr><th><button class="backoffice-sort" data-check-in-sort="id" type="button" aria-sort="none">ID<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5.5 6 2.5-2.5L10.5 6M10.5 10 8 12.5 5.5 10" /></svg></button></th><th>记录名称</th><th>定向信息</th><th><button class="backoffice-sort" data-check-in-sort="onlineStart" type="button" aria-sort="none">上线时间<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5.5 6 2.5-2.5L10.5 6M10.5 10 8 12.5 5.5 10" /></svg></button></th><th><button class="backoffice-sort" data-check-in-sort="onlineEnd" type="button" aria-sort="none">下线时间<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5.5 6 2.5-2.5L10.5 6M10.5 10 8 12.5 5.5 10" /></svg></button></th><th>状态</th><th>冲突时优先展示 <button class="help-tooltip" type="button" data-tooltip="同一时间命中多条配置时，优先展示已勾选的配置。">?</button></th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th><button class="backoffice-sort" data-check-in-sort="updatedAt" type="button" aria-sort="descending">更新时间<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5.5 6 2.5-2.5L10.5 6M10.5 10 8 12.5 5.5 10" /></svg></button></th><th>操作</th></tr></thead><tbody id="check-in-table-body"></tbody></table></div>
       <div class="empty" id="check-in-empty" hidden><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无配置数据</div></div></div>
       <div class="modal is-editor-fullscreen" id="check-in-modal" hidden></div>
     </section>`;
@@ -383,6 +383,7 @@ window.MarketingConfigPage = {
     const tableBody = document.getElementById('check-in-table-body');
     const empty = document.getElementById('check-in-empty');
     const modal = document.getElementById('check-in-modal');
+    let sort = { key: 'updatedAt', direction: -1 };
     const getFilters = () => ({
       name: document.getElementById('check-in-name-filter').value.trim().toLowerCase(),
       status: document.getElementById('check-in-status-filter').value,
@@ -394,11 +395,15 @@ window.MarketingConfigPage = {
       const filters = getFilters();
       const visible = records.filter((record) => {
         const start = record.targeting.onlineStart || '';
+        const end = record.targeting.onlineEnd || start;
         return (!filters.name || record.recordName.toLowerCase().includes(filters.name))
           && (!filters.status || record.status === filters.status)
-          && (!filters.start || start >= filters.start)
+          && (!filters.start || end >= filters.start)
           && (!filters.end || start <= filters.end)
           && (!filters.priority || record.conflictPriority);
+      }).sort((left, right) => String(left[sort.key] || left.targeting?.[sort.key] || '').localeCompare(String(right[sort.key] || right.targeting?.[sort.key] || ''), 'zh-CN', { numeric: true }) * sort.direction);
+      document.querySelectorAll('[data-check-in-sort]').forEach((button) => {
+        button.setAttribute('aria-sort', button.dataset.checkInSort === sort.key ? (sort.direction === 1 ? 'ascending' : 'descending') : 'none');
       });
       tableBody.innerHTML = visible.map((record) => `<tr><td>${this.escapeHtml(record.id)}</td><td>${this.escapeHtml(record.recordName)}</td><td><span class="check-in-targeting" title="${this.escapeHtml(this.formatCheckInTargeting(record.targeting))}">${this.escapeHtml(this.formatCheckInTargeting(record.targeting))}</span></td><td>${this.escapeHtml(this.formatCheckInDate(record.targeting.onlineStart))}</td><td>${this.escapeHtml(this.formatCheckInDate(record.targeting.onlineEnd))}</td><td>${window.BackofficeLayout.statusTag(record.status)}</td><td>${record.conflictPriority ? '是' : '否'}</td><td>${this.escapeHtml(record.creator)}</td><td>${this.escapeHtml(record.createdAt)}</td><td>${this.escapeHtml(record.editor)}</td><td>${this.escapeHtml(record.updatedAt)}</td><td><div class="check-in-table-actions"><button class="check-in-table-action" type="button" data-check-in-edit="${this.escapeHtml(record.id)}">编辑</button><button class="check-in-table-action" type="button" data-check-in-copy="${this.escapeHtml(record.id)}">复制</button></div></td></tr>`).join('');
       empty.hidden = visible.length > 0;
@@ -497,6 +502,11 @@ window.MarketingConfigPage = {
     document.getElementById('search-check-in').addEventListener('click', renderTable);
     document.getElementById('check-in-name-filter').addEventListener('keydown', (event) => { if (event.key === 'Enter') renderTable(); });
     document.getElementById('add-check-in').addEventListener('click', () => openModal());
+    document.querySelectorAll('[data-check-in-sort]').forEach((button) => button.addEventListener('click', () => {
+      const key = button.dataset.checkInSort;
+      sort = { key, direction: sort.key === key ? -sort.direction : 1 };
+      renderTable();
+    }));
     tableBody.addEventListener('click', (event) => {
       const edit = event.target.closest('[data-check-in-edit]');
       if (edit) { openModal(records.find((record) => record.id === edit.dataset.checkInEdit)); return; }
@@ -607,8 +617,8 @@ window.MarketingConfigPage = {
         <div class="field check-in-date-filter"><label>上线时间：</label><span class="check-in-date-controls"><input class="control" id="check-in-success-start-filter" type="datetime-local" aria-label="上线开始时间" /><i>-</i><input class="control" id="check-in-success-end-filter" type="datetime-local" aria-label="上线结束时间" /></span></div>
         <div class="filter-checkboxes"><label><input id="check-in-success-priority-filter" type="checkbox" />仅看冲突时优先展示</label></div>
       </div>
-      <div class="actions benefits-check-in-actions"><button class="button primary" id="search-check-in-success" type="button">查询</button><button class="button check-in-success-add" id="add-check-in-success" type="button">新增弹窗</button></div>
-      <div class="table-wrap"><table class="benefits-check-in-table"><thead><tr><th>ID</th><th>记录名称</th><th>定向信息</th><th><button class="check-in-success-sort" data-check-in-success-sort="onlineStart" type="button">上线时间 <span>↕</span></button></th><th><button class="check-in-success-sort" data-check-in-success-sort="onlineEnd" type="button">下线时间 <span>↕</span></button></th><th>状态</th><th>冲突时优先展示 <button class="help-tooltip" type="button" data-tooltip="${priorityTip}" aria-label="冲突时优先展示说明">?</button></th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th>最后更新时间</th><th>操作</th></tr></thead><tbody id="check-in-success-table-body"></tbody></table></div>
+      <div class="actions benefits-check-in-actions"><button class="button primary" id="search-check-in-success" type="button">搜索</button><button class="button check-in-success-add" id="add-check-in-success" type="button">新增弹窗</button></div>
+      <div class="table-wrap"><table class="benefits-check-in-table"><thead><tr><th><button class="backoffice-sort" data-check-in-success-sort="id" type="button" aria-sort="none">ID<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5.5 6 2.5-2.5L10.5 6M10.5 10 8 12.5 5.5 10" /></svg></button></th><th>记录名称</th><th>定向信息</th><th><button class="backoffice-sort" data-check-in-success-sort="onlineStart" type="button" aria-sort="none">上线时间<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5.5 6 2.5-2.5L10.5 6M10.5 10 8 12.5 5.5 10" /></svg></button></th><th><button class="backoffice-sort" data-check-in-success-sort="onlineEnd" type="button" aria-sort="none">下线时间<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5.5 6 2.5-2.5L10.5 6M10.5 10 8 12.5 5.5 10" /></svg></button></th><th>状态</th><th>冲突时优先展示 <button class="help-tooltip" type="button" data-tooltip="${priorityTip}" aria-label="冲突时优先展示说明">?</button></th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th><button class="backoffice-sort" data-check-in-success-sort="updatedAt" type="button" aria-sort="descending">更新时间<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5.5 6 2.5-2.5L10.5 6M10.5 10 8 12.5 5.5 10" /></svg></button></th><th>操作</th></tr></thead><tbody id="check-in-success-table-body"></tbody></table></div>
       <div class="empty" id="check-in-success-empty" hidden><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无配置数据</div></div></div>
       <div class="check-in-success-pagination" id="check-in-success-pagination"></div>
       <div class="modal is-editor-fullscreen" id="check-in-success-modal" hidden></div>
@@ -633,7 +643,7 @@ window.MarketingConfigPage = {
     let visible = records;
     let page = 1;
     let pageSize = 20;
-    let sort = { key: '', direction: 1 };
+    let sort = { key: 'updatedAt', direction: -1 };
     const filters = () => ({
       name: document.getElementById('check-in-success-name-filter').value.trim().toLowerCase(),
       status: document.getElementById('check-in-success-status-filter').value,
@@ -651,10 +661,13 @@ window.MarketingConfigPage = {
       const filter = filters();
       visible = records.filter((record) => (!filter.name || record.recordName.toLowerCase().includes(filter.name))
         && (!filter.status || record.status === filter.status)
-        && (!filter.start || record.onlineStart >= filter.start)
+        && (!filter.start || (record.onlineEnd || record.onlineStart) >= filter.start)
         && (!filter.end || record.onlineStart <= filter.end)
         && (!filter.priority || record.conflictPriority));
-      if (sort.key) visible.sort((left, right) => String(left[sort.key]).localeCompare(String(right[sort.key])) * sort.direction);
+      visible.sort((left, right) => String(left[sort.key] || '').localeCompare(String(right[sort.key] || ''), 'zh-CN', { numeric: true }) * sort.direction);
+      document.querySelectorAll('[data-check-in-success-sort]').forEach((button) => {
+        button.setAttribute('aria-sort', button.dataset.checkInSuccessSort === sort.key ? (sort.direction === 1 ? 'ascending' : 'descending') : 'none');
+      });
       page = Math.min(page, Math.max(1, Math.ceil(visible.length / pageSize)));
       const rows = visible.slice((page - 1) * pageSize, page * pageSize);
       tableBody.innerHTML = rows.map((record) => `<tr><td>${this.escapeHtml(record.id)}</td><td>${this.escapeHtml(record.recordName)}</td><td><span class="check-in-targeting" title="${this.escapeHtml(this.formatCheckInSuccessTargeting(record.targeting))}">${this.escapeHtml(this.formatCheckInSuccessTargeting(record.targeting))}</span></td><td>${this.escapeHtml(this.formatCheckInDate(record.onlineStart))}</td><td>${this.escapeHtml(this.formatCheckInDate(record.onlineEnd))}</td><td>${window.BackofficeLayout.statusTag(record.status)}</td><td>${record.conflictPriority ? '是' : '否'}</td><td>${this.escapeHtml(record.creator)}</td><td>${this.escapeHtml(record.createdAt)}</td><td>${this.escapeHtml(record.editor)}</td><td>${this.escapeHtml(record.updatedAt)}</td><td><div class="check-in-table-actions"><button class="text-button" type="button" data-check-in-success-edit="${this.escapeHtml(record.id)}">编辑</button><button class="text-button" type="button" data-check-in-success-copy="${this.escapeHtml(record.id)}">复制</button></div></td></tr>`).join('');

@@ -113,7 +113,7 @@ window.FeedManagementPage = {
       targeting: window.ConfigurationSections.createTargeting(),
       testPlan: window.ConfigurationSections.createTestPlan(),
       ...data,
-      components: Array.isArray(data.components) ? data.components.map((component) => ({ ...component, assets: Array.isArray(component.assets) ? component.assets : (component.slots || []).map(() => ''), mosaic: component.type === 'mosaic' ? this.createMosaicConfig(component.mosaic) : component.mosaic, redPacket: component.type === 'red-packet-delivery' ? this.createRedPacketConfig(component.redPacket) : component.redPacket, operationPopup: component.type === 'normal-popup' ? this.createOperationPopupConfig(component.operationPopup) : component.operationPopup, targeting: component.type === 'mosaic' ? window.ConfigurationSections.normalizeTargeting(component.targeting) : component.targeting, testPlan: component.type === 'mosaic' ? window.ConfigurationSections.normalizeTestPlan(component.testPlan) : component.testPlan, isSaved: component.isSaved ?? true, hasBeenSaved: component.hasBeenSaved ?? true })) : [],
+      components: Array.isArray(data.components) ? data.components.map((component) => ({ ...component, assets: Array.isArray(component.assets) ? component.assets : (component.slots || []).map(() => ''), mosaic: component.type === 'mosaic' ? this.createMosaicConfig(component.mosaic) : component.mosaic, redPacket: component.type === 'red-packet-delivery' ? this.createRedPacketConfig(component.redPacket) : component.redPacket, operationPopup: component.type === 'normal-popup' ? this.createOperationPopupConfig(component.operationPopup) : component.operationPopup, targeting: component.type === 'mosaic' ? window.ConfigurationSections.normalizeTargeting(component.targeting) : component.targeting, testPlan: component.type === 'mosaic' ? window.ConfigurationSections.normalizeTestPlan(component.testPlan) : component.testPlan, creator: component.creator || '', createdAt: component.createdAt || '', editor: component.editor || '', updatedAt: component.updatedAt || '', isSaved: component.isSaved ?? true, hasBeenSaved: component.hasBeenSaved ?? true })) : [],
       isSaved: Boolean(data.isSaved),
       hasBeenSaved: data.hasBeenSaved ?? Boolean(data.id || data.isSaved),
       productFeed: this.createProductFeedConfig(data.productFeed),
@@ -131,7 +131,7 @@ window.FeedManagementPage = {
       'normal-popup': { label: '常规弹窗', slots: ['运营活动提醒'] }
     };
     const definition = definitions[type] || definitions.mosaic;
-    return { id: `feed-component-${Date.now()}-${Math.random().toString(16).slice(2)}`, type, recordName: definition.label, assets: definition.slots.map(() => ''), mosaic: type === 'mosaic' ? this.createMosaicConfig() : undefined, redPacket: type === 'red-packet-delivery' ? this.createRedPacketConfig({ name: definition.label }) : undefined, operationPopup: type === 'normal-popup' ? this.createOperationPopupConfig() : undefined, targeting: type === 'mosaic' ? window.ConfigurationSections.createTargeting() : undefined, testPlan: type === 'mosaic' ? window.ConfigurationSections.createTestPlan() : undefined, isSaved: false, hasBeenSaved: false, ...definition };
+    return { id: `feed-component-${Date.now()}-${Math.random().toString(16).slice(2)}`, type, recordName: definition.label, assets: definition.slots.map(() => ''), mosaic: type === 'mosaic' ? this.createMosaicConfig() : undefined, redPacket: type === 'red-packet-delivery' ? this.createRedPacketConfig({ name: definition.label }) : undefined, operationPopup: type === 'normal-popup' ? this.createOperationPopupConfig() : undefined, targeting: type === 'mosaic' ? window.ConfigurationSections.createTargeting() : undefined, testPlan: type === 'mosaic' ? window.ConfigurationSections.createTestPlan() : undefined, creator: '', createdAt: '', editor: '', updatedAt: '', isSaved: false, hasBeenSaved: false, ...definition };
   },
   createDefaultState() {
     const tabs = [
@@ -286,7 +286,7 @@ window.FeedManagementPage = {
     };
     return `<div class="style-config-form feed-component-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>记录名称', `<input class="control" data-feed-component-field="recordName" value="${this.escape(component.recordName || component.label)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}${field('组件类型', `<input class="control feed-component-type-control" value="${this.escape(component.label)}" data-feed-static disabled />`)}</section><section class="home-entry-info-section shared-config-section"><h3>素材配置</h3>${slots.map((slot, index) => `${field(`<b class="field-required">*</b>坑位${index + 1}`, `<input class="control" data-feed-component-slot="${index}" value="${this.escape(slot)}" maxlength="20" placeholder="请输入坑位名称" />`)}${field('图片', assetControl(index))}`).join('')}</section></div>`;
   },
-  bindEmbedded({ navigate, storageKey = this.storageKey, pageName = '首页信息流营销', renderReadonlyTopPreview = null, showTabStatus = true, resourceStatusLabel = '资源位状态', showPreviewTabNav = true, componentToolNote = '', defaultComponentType = 'mosaic', sortPopupPreviewByPriority = false, focusedEditor = false, configurationListMode = false, tabReminderOptions = null, tabReminderNote = '', tabReminderReadonly = false, operationPopupListWorkspace = false, operationPopupStandaloneEditor = false, onAddConfiguration = null, onEditConfiguration = null, onCopyConfiguration = null, createInitialOperationPopup = false, editorOperationPopupId = '', editorOperationPopupMode = 'add', onReturnToConfigurationList = null, operationPopupPosition = '首页', operationPopupPositionDisplay = operationPopupPosition } = {}) {
+  bindEmbedded({ navigate, storageKey = this.storageKey, pageName = '首页信息流营销', renderReadonlyTopPreview = null, showTabStatus = true, resourceStatusLabel = '资源位状态', showPreviewTabNav = true, componentToolNote = '', defaultComponentType = 'mosaic', sortPopupPreviewByPriority = false, focusedEditor = false, configurationListMode = false, tabReminderOptions = null, tabReminderNote = '', tabReminderReadonly = false, showTabConfigWhenNoComponent = false, operationPopupListWorkspace = false, operationPopupStandaloneEditor = false, onAddConfiguration = null, onEditConfiguration = null, onCopyConfiguration = null, createInitialOperationPopup = false, editorOperationPopupId = '', editorOperationPopupMode = 'add', onReturnToConfigurationList = null, operationPopupPosition = '首页', operationPopupPositionDisplay = operationPopupPosition } = {}) {
     const root = document.getElementById('feed-marketing-builder');
     if (!root) return;
     let saved = this.loadState(storageKey);
@@ -318,8 +318,37 @@ window.FeedManagementPage = {
         recentEdits.innerHTML = '';
         recentEdits.hidden = true;
       }
-      let listSort = { key: '', direction: 1 };
-      let listFilters = { name: '', status: '' };
+      let listSort = { key: 'updatedAt', direction: -1 };
+      let listFilters = { name: '', statuses: new Set(['上线中', '待上线', '已下线']) };
+      let statusMenuOutsideListener = null;
+      const statusOptions = ['上线中', '待上线', '已下线'];
+      const statusFilterLabel = () => {
+        const selected = statusOptions.filter((status) => listFilters.statuses.has(status));
+        if (selected.length === statusOptions.length) return '已选 3 项';
+        if (!selected.length) return '请选择状态';
+        return selected.length === 1 ? selected[0] : `已选 ${selected.length} 项`;
+      };
+      const closeStatusMenu = () => {
+        const menu = root.querySelector('[data-operation-popup-status-menu]');
+        const toggle = root.querySelector('[data-operation-popup-status-toggle]');
+        if (menu) menu.hidden = true;
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        if (statusMenuOutsideListener) {
+          document.removeEventListener('pointerdown', statusMenuOutsideListener, true);
+          statusMenuOutsideListener = null;
+        }
+      };
+      const openStatusMenu = () => {
+        const menu = root.querySelector('[data-operation-popup-status-menu]');
+        const toggle = root.querySelector('[data-operation-popup-status-toggle]');
+        if (!menu || !toggle) return;
+        menu.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+        statusMenuOutsideListener = (event) => {
+          if (!root.isConnected || !event.target.closest('[data-operation-popup-status-filter]')) closeStatusMenu();
+        };
+        document.addEventListener('pointerdown', statusMenuOutsideListener, true);
+      };
       const renderSortHeader = (key, label) => {
         const active = listSort.key === key;
         const direction = active ? (listSort.direction === 1 ? 'asc' : 'desc') : 'none';
@@ -340,6 +369,19 @@ window.FeedManagementPage = {
           if (leftHasValue && leftValue !== rightValue) return leftValue - rightValue;
         }
         if (key === 'popupId') return Number(left.popupId) - Number(right.popupId);
+        if (key === 'createdAt' || key === 'updatedAt' || key === 'onlineTime') {
+          const toTimestamp = (value) => {
+            const timestamp = Date.parse(String(value || '').replace(/-/g, '/'));
+            return Number.isFinite(timestamp) ? timestamp : null;
+          };
+          const leftValue = toTimestamp(left[key]);
+          const rightValue = toTimestamp(right[key]);
+          if (leftValue !== null || rightValue !== null) {
+            if (leftValue === null) return 1;
+            if (rightValue === null) return -1;
+            return leftValue - rightValue;
+          }
+        }
         if (key === 'status') {
           const statusOrder = { '上线中': 1, '待上线': 2, '已下线': 3 };
           return (statusOrder[left.status] || 99) - (statusOrder[right.status] || 99);
@@ -351,28 +393,31 @@ window.FeedManagementPage = {
         const container = root.querySelector('#feed-embedded-config-content');
         const rows = this.getOperationPopupConfigurationRows(saved);
         const name = listFilters.name.trim().toLowerCase();
-        const status = listFilters.status;
         const visibleRows = rows.filter((row) => (!name || row.name.toLowerCase().includes(name))
-          && (!status || row.status === status));
+          && listFilters.statuses.has(row.status));
         if (listSort.key) {
           visibleRows.sort((left, right) => comparePopupRows(left, right, listSort.key) * listSort.direction);
         }
         const tableBody = container.querySelector('[data-operation-popup-list-body]');
         if (!tableBody) return;
         tableBody.innerHTML = visibleRows.length
-          ? visibleRows.map((row) => `<tr data-operation-popup-tab="${this.escape(row.tabId)}" data-operation-popup-component="${this.escape(row.id)}"><td>${this.escape(row.popupId)}</td><td>${this.escape(row.sortValue)}</td><td>${this.escape(row.name)}</td><td class="operation-popup-list-main-image">${row.mainImage ? `<span class="operation-popup-list-image-trigger" data-operation-popup-image-preview="${this.escape(row.mainImage)}"><img src="${this.escape(row.mainImage)}" alt="${this.escape(row.name)}弹窗主图" /></span>` : '<span class="operation-popup-list-image-empty">-</span>'}</td><td>${this.escape(row.position)}</td><td>${this.escape(row.targetAudience)}</td><td>${this.escape(row.pushFrequency)}</td><td>${this.escape(row.repeatDisplay)}</td><td>${this.escape(row.onlineTime)}</td><td>${window.BackofficeLayout.statusTag(row.status)}</td><td>${this.escape(row.editor)}</td><td>${this.escape(row.updatedAt)}</td><td class="feed-resource-list-actions"><button class="text-button" type="button" data-operation-popup-list-edit>修改</button><button class="text-button" type="button" data-operation-popup-list-copy>复制</button></td></tr>`).join('')
-          : '<tr><td class="feed-resource-list-empty" colspan="13">当前导航下暂无已保存的运营弹窗配置</td></tr>';
+          ? visibleRows.map((row) => `<tr data-operation-popup-tab="${this.escape(row.tabId)}" data-operation-popup-component="${this.escape(row.id)}"><td>${this.escape(row.popupId)}</td><td>${this.escape(row.sortValue)}</td><td>${this.escape(row.name)}</td><td class="operation-popup-list-main-image">${row.mainImage ? `<span class="operation-popup-list-image-trigger" data-operation-popup-image-preview="${this.escape(row.mainImage)}"><img src="${this.escape(row.mainImage)}" alt="${this.escape(row.name)}弹窗主图" /></span>` : '<span class="operation-popup-list-image-empty">-</span>'}</td><td>${this.escape(row.position)}</td><td>${this.escape(row.targetAudience)}</td><td>${this.escape(row.pushFrequency)}</td><td>${this.escape(row.repeatDisplay)}</td><td>${this.escape(row.onlineTime)}</td><td>${window.BackofficeLayout.statusTag(row.status)}</td><td>${this.escape(row.creator)}</td><td>${this.escape(row.createdAt)}</td><td>${this.escape(row.editor)}</td><td>${this.escape(row.updatedAt)}</td><td class="feed-resource-list-actions"><button class="text-button" type="button" data-operation-popup-list-edit>修改</button><button class="text-button" type="button" data-operation-popup-list-copy>复制</button></td></tr>`).join('')
+          : '<tr><td class="feed-resource-list-empty" colspan="15">当前导航下暂无已保存的运营弹窗配置</td></tr>';
         container.querySelector('[data-operation-popup-list-count]').textContent = `共 ${visibleRows.length} 条`;
       };
       const renderWorkspace = () => {
-        root.querySelector('#feed-embedded-config-content').innerHTML = `<div class="operation-popup-configuration-list"><div class="feed-resource-list-filters"><label>APP<input class="control" value="美柚省钱App" disabled /></label><label>所属位置<input class="control operation-popup-list-position-display" value="${this.escape(operationPopupPositionDisplay)}" disabled /></label><label>活动名称<input class="control" data-operation-popup-list-filter="name" value="${this.escape(listFilters.name)}" placeholder="请输入活动名称" /></label><label>状态<select class="control" data-operation-popup-list-filter="status"><option value="">全部</option><option value="上线中"${listFilters.status === '上线中' ? ' selected' : ''}>上线中</option><option value="待上线"${listFilters.status === '待上线' ? ' selected' : ''}>待上线</option><option value="已下线"${listFilters.status === '已下线' ? ' selected' : ''}>已下线</option></select></label><span class="feed-resource-list-filter-actions"><button class="button secondary" type="button" data-operation-popup-list-search>查询</button></span></div><div class="feed-resource-list-wrap"><table class="feed-resource-list-table"><thead><tr><th>${renderSortHeader('popupId', '弹窗ID')}</th><th>${renderSortHeader('sortValue', '排序级别')} <button class="help-tooltip feed-resource-list-sort-help" type="button" aria-label="排序级别说明" data-tooltip="保存后数字越大，弹窗越靠前展示">?</button></th><th>${renderSortHeader('name', '活动名称')}</th><th>弹窗主图</th><th>${renderSortHeader('position', '所属位置')}</th><th>${renderSortHeader('targetAudience', '指定人群')}</th><th>${renderSortHeader('pushFrequency', '推送频次')}</th><th>${renderSortHeader('repeatDisplay', '重复展示')}</th><th>${renderSortHeader('onlineTime', '上下线时间')}</th><th>${renderSortHeader('status', '状态')}</th><th>${renderSortHeader('editor', '最新编辑人')}</th><th>${renderSortHeader('updatedAt', '最后更新时间')}</th><th>操作</th></tr></thead><tbody data-operation-popup-list-body></tbody></table></div><div class="feed-resource-list-footer"><span data-operation-popup-list-count></span><span>仅展示当前导航下已保存的运营弹窗配置。</span></div></div>`;
+        root.querySelector('#feed-embedded-config-content').innerHTML = `<div class="operation-popup-configuration-list"><div class="feed-resource-list-filters"><label>APP<input class="control" value="美柚省钱App" disabled /></label><label>所属位置<input class="control operation-popup-list-position-display" value="${this.escape(operationPopupPositionDisplay)}" disabled /></label><label>活动名称<input class="control" data-operation-popup-list-filter="name" value="${this.escape(listFilters.name)}" placeholder="请输入活动名称" /></label><label>状态<span class="operation-popup-status-filter" data-operation-popup-status-filter><button class="control operation-popup-status-toggle" type="button" data-operation-popup-status-toggle aria-haspopup="true" aria-expanded="false" aria-controls="operation-popup-status-menu">${statusFilterLabel()}<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m4.5 6.5 3.5 3.5 3.5-3.5" /></svg></button><span class="operation-popup-status-menu" id="operation-popup-status-menu" data-operation-popup-status-menu hidden>${statusOptions.map((status) => `<label><input type="checkbox" value="${status}" data-operation-popup-status-option${listFilters.statuses.has(status) ? ' checked' : ''} /><span>${status}</span></label>`).join('')}</span></span></label><span class="feed-resource-list-filter-actions"><button class="button secondary" type="button" data-operation-popup-list-search>搜索</button></span></div><div class="feed-resource-list-wrap"><table class="feed-resource-list-table"><thead><tr><th>${renderSortHeader('popupId', '弹窗ID')}</th><th>${renderSortHeader('sortValue', '排序级别')} <button class="help-tooltip feed-resource-list-sort-help" type="button" aria-label="排序级别说明" data-tooltip="保存后数字越大，弹窗越靠前展示">?</button></th><th>${renderSortHeader('name', '活动名称')}</th><th>弹窗主图</th><th>${renderSortHeader('position', '所属位置')}</th><th>${renderSortHeader('targetAudience', '指定人群')}</th><th>${renderSortHeader('pushFrequency', '推送频次')}</th><th>${renderSortHeader('repeatDisplay', '重复展示')}</th><th>${renderSortHeader('onlineTime', '上下线时间')}</th><th>${renderSortHeader('status', '状态')}</th><th>${renderSortHeader('creator', '创建人')}</th><th>${renderSortHeader('createdAt', '创建时间')}</th><th>${renderSortHeader('editor', '最新编辑人')}</th><th>${renderSortHeader('updatedAt', '最后更新时间')}</th><th>操作</th></tr></thead><tbody data-operation-popup-list-body></tbody></table></div><div class="feed-resource-list-footer"><span data-operation-popup-list-count></span><span>仅展示当前导航下已保存的运营弹窗配置。</span></div></div>`;
         renderList();
       };
       renderWorkspace();
       actionContainer?.querySelector('#add-operation-popup-configuration')?.addEventListener('click', onAddConfiguration);
       root.addEventListener('change', (event) => {
-        if (event.target.matches('[data-operation-popup-list-filter]')) {
-          listFilters[event.target.dataset.operationPopupListFilter] = event.target.value;
+        if (event.target.matches('[data-operation-popup-status-option]')) {
+          const { value, checked } = event.target;
+          if (checked) listFilters.statuses.add(value);
+          else listFilters.statuses.delete(value);
+          const toggle = root.querySelector('[data-operation-popup-status-toggle]');
+          if (toggle) toggle.firstChild.textContent = statusFilterLabel();
           renderList();
         }
       });
@@ -396,6 +441,12 @@ window.FeedManagementPage = {
       });
       root.addEventListener('click', (event) => {
         hideImagePreview();
+        const statusToggle = event.target.closest('[data-operation-popup-status-toggle]');
+        if (statusToggle) {
+          if (statusToggle.getAttribute('aria-expanded') === 'true') closeStatusMenu();
+          else openStatusMenu();
+          return;
+        }
         if (event.target.closest('[data-operation-popup-list-search]')) renderList();
         const sortButton = event.target.closest('[data-operation-popup-list-sort]');
         if (sortButton) {
@@ -411,6 +462,12 @@ window.FeedManagementPage = {
         }
         if (row && event.target.closest('[data-operation-popup-list-copy]')) {
           onCopyConfiguration?.({ tabId: row.dataset.operationPopupTab, componentId: row.dataset.operationPopupComponent });
+        }
+      });
+      root.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && root.querySelector('[data-operation-popup-status-toggle][aria-expanded="true"]')) {
+          closeStatusMenu();
+          root.querySelector('[data-operation-popup-status-toggle]')?.focus();
         }
       });
       window.BackofficeLayout.bindGlobalTooltips();
@@ -469,6 +526,10 @@ window.FeedManagementPage = {
           component.operationPopup = this.createOperationPopupConfig(component.operationPopup);
           component.operationPopup.activityName = `copy${component.operationPopup.activityName || source.recordName || source.label}`;
           component.recordName = component.operationPopup.activityName;
+          component.creator = '';
+          component.createdAt = '';
+          component.editor = '';
+          component.updatedAt = '';
           component.isSaved = false;
           component.hasBeenSaved = false;
           tab.components.push(component);
@@ -729,9 +790,15 @@ window.FeedManagementPage = {
       if (!operationPopupStandaloneEditor) {
         root.querySelector('#feed-embedded-filters').innerHTML = `${showTabStatus ? `<div class="feed-embedded-filter"><strong>Tab状态</strong><div>${['上线中', '待上线', '已下线'].map((value) => `<label><input type="checkbox" data-feed-embedded-filter="status" value="${value}"${filters.status.has(value) ? ' checked' : ''} />${value}</label>`).join('')}</div></div>` : ''}<div class="feed-embedded-filter"><strong>${this.escape(resourceStatusLabel)}</strong><div>${['上线中', '待上线', '已下线'].map((value) => `<label><input type="checkbox" data-feed-embedded-filter="resourceStatus" value="${value}"${filters.resourceStatus.has(value) ? ' checked' : ''} />${value}</label>`).join('')}</div></div>`;
         root.querySelector('#feed-embedded-preview').innerHTML = renderPreview(active);
-        root.querySelector('#feed-embedded-config-type').textContent = component ? component.label : '未选择组件';
+        root.querySelector('#feed-embedded-config-type').textContent = component
+          ? component.label
+          : '未选择组件';
       }
-      root.querySelector('#feed-embedded-config-content').innerHTML = component ? this.renderEmbeddedComponentConfig(component, { tabReminderOptions, tabReminderNote, tabReminderReadonly }) : '';
+      root.querySelector('#feed-embedded-config-content').innerHTML = component
+        ? this.renderEmbeddedComponentConfig(component, { tabReminderOptions, tabReminderNote, tabReminderReadonly })
+        : showTabConfigWhenNoComponent
+          ? this.renderEmbeddedConfig(active)
+          : '';
       applyEditState();
       window.BackofficeLayout.bindGlobalTooltips();
     };
@@ -1068,7 +1135,15 @@ window.FeedManagementPage = {
       if (invalid) { window.BackofficeLayout.showToast?.(invalid); return; }
       const shouldCommitPopupDragOrder = sortPopupPreviewByPriority && popupOrderPending && Boolean(tab);
       if (shouldCommitPopupDragOrder) commitPopupDragOrder(tab);
-      if (component) { component.isSaved = true; component.hasBeenSaved = true; component.editor = '当前账号'; component.updatedAt = new Date().toLocaleString('zh-CN', { hour12: false }); }
+      if (component) {
+        const now = new Date().toLocaleString('zh-CN', { hour12: false });
+        component.isSaved = true;
+        component.hasBeenSaved = true;
+        component.creator = component.creator || '当前账号';
+        component.createdAt = component.createdAt || now;
+        component.editor = '当前账号';
+        component.updatedAt = now;
+      }
       if (tab && !component) { tab.isSaved = true; tab.hasBeenSaved = true; }
       const state = { tabs: draft.tabs, activeTabId: draft.activeTabId };
       try { this.saveState(state, storageKey); } catch (error) { window.BackofficeLayout.showToast?.('保存失败', '本地演示数据无法保存，请减少图片素材后重试'); return; }
@@ -1275,8 +1350,10 @@ window.FeedManagementPage = {
           repeatDisplay,
           onlineTime,
           status: popup.status || '待上线',
-          editor: component.editor || '当前账号',
-          updatedAt: component.updatedAt || '-'
+          creator: component.creator || '当前账号',
+          createdAt: component.createdAt || component.updatedAt || '-',
+          editor: component.editor || component.creator || '当前账号',
+          updatedAt: component.updatedAt || component.createdAt || '-'
         };
       }));
   },

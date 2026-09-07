@@ -28,12 +28,13 @@ window.EdgeManagementPage = {
   escape(value) {
     return String(value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
   },
+  normalizeRecord(record = {}) { return { ...record, creator: record.creator || '管理员', createdAt: record.createdAt || record.updatedAt || '', editor: record.editor || record.creator || '管理员', updatedAt: record.updatedAt || record.createdAt || '' }; },
   read(tabId) {
     try {
       const saved = JSON.parse(window.localStorage.getItem(`${this.storageKey}:${tabId}`));
-      if (Array.isArray(saved)) return saved;
+      if (Array.isArray(saved)) return saved.map((record) => this.normalizeRecord(record));
     } catch (error) { /* Fall back to the demonstrative data below. */ }
-    return this.clone(this.seedRowsByTab[tabId] || []);
+    return this.clone(this.seedRowsByTab[tabId] || []).map((record) => this.normalizeRecord(record));
   },
   write(tabId, rows) { window.localStorage.setItem(`${this.storageKey}:${tabId}`, JSON.stringify(rows)); },
   formatDate(value) { return value ? value.replace('T', ' ') + (value.length === 16 ? ':00' : '') : '-'; },
@@ -53,15 +54,14 @@ window.EdgeManagementPage = {
   },
   renderList(rows, filters, sort, position) {
     const root = document.getElementById('edge-management-body');
-    const active = sort.key === 'sortValue';
-    const direction = active ? (sort.direction === 1 ? 'asc' : 'desc') : 'none';
-    root.innerHTML = `<header class="marketing-workspace-heading edge-list-heading"><div><h1>贴边列表</h1><span class="heading-note">当前导航下已保存的贴边配置</span></div><button class="button primary" type="button" data-edge-add>添加贴边</button></header><div class="edge-list-filters"><label><span>业务</span><input class="control" value="美柚省钱App" disabled /></label><label><span>位置</span><input class="control" value="${this.escape(position)}" disabled aria-label="位置：${this.escape(position)}" /></label><label><span>名称</span><input class="control" data-edge-filter="name" value="${this.escape(filters.name)}" placeholder="请输入名称进行搜索" /></label><label><span>ID</span><input class="control" data-edge-filter="id" value="${this.escape(filters.id)}" placeholder="请输入ID进行搜索" /></label><label><span>状态</span><select class="control" data-edge-filter="status"><option value="">请筛选状态</option><option value="上线中"${filters.status === '上线中' ? ' selected' : ''}>上线中</option><option value="待上线"${filters.status === '待上线' ? ' selected' : ''}>待上线</option><option value="已下线"${filters.status === '已下线' ? ' selected' : ''}>已下线</option></select></label><label><span>排序值</span><input class="control" data-edge-filter="sortValue" value="${this.escape(filters.sortValue)}" placeholder="请输入排序值" /></label><div class="edge-filter-actions"><button class="button secondary" type="button" data-edge-search>搜索</button></div></div><div class="edge-table-wrap"><table class="edge-table"><thead><tr><th>ID</th><th>名称</th><th><button class="edge-sort" type="button" data-edge-sort="sortValue" aria-sort="${direction}"><span>排序值</span>${this.sortIcon(direction)}</button></th><th>图片预览</th><th>上线时间</th><th>下线时间</th><th>状态</th><th>创建人</th><th>最后编辑</th><th>操作</th></tr></thead><tbody data-edge-table-body></tbody></table></div><footer class="edge-list-footer"><span data-edge-count></span><span>数据保存后将保留在当前浏览器中。</span></footer>`;
+    const sortHeader = (key, label) => { const direction = sort.key === key ? (sort.direction === 1 ? 'asc' : 'desc') : 'none'; return `<button class="edge-sort backoffice-sort" type="button" data-edge-sort="${key}" aria-sort="${direction}"><span>${label}</span>${this.sortIcon(direction)}</button>`; };
+    root.innerHTML = `<header class="marketing-workspace-heading edge-list-heading"><div><h1>贴边列表</h1><span class="heading-note">当前导航下已保存的贴边配置</span></div><button class="button primary" type="button" data-edge-add>添加贴边</button></header><div class="edge-list-filters"><label><span>业务</span><input class="control" value="美柚省钱App" disabled /></label><label><span>位置</span><input class="control" value="${this.escape(position)}" disabled aria-label="位置：${this.escape(position)}" /></label><label><span>名称</span><input class="control" data-edge-filter="name" value="${this.escape(filters.name)}" placeholder="请输入名称进行搜索" /></label><label><span>ID</span><input class="control" data-edge-filter="id" value="${this.escape(filters.id)}" placeholder="请输入ID进行搜索" /></label><label><span>状态</span><select class="control" data-edge-filter="status"><option value="">请筛选状态</option><option value="上线中"${filters.status === '上线中' ? ' selected' : ''}>上线中</option><option value="待上线"${filters.status === '待上线' ? ' selected' : ''}>待上线</option><option value="已下线"${filters.status === '已下线' ? ' selected' : ''}>已下线</option></select></label><label><span>排序值</span><input class="control" data-edge-filter="sortValue" value="${this.escape(filters.sortValue)}" placeholder="请输入排序值" /></label><div class="edge-filter-actions"><button class="button secondary" type="button" data-edge-search>搜索</button></div></div><div class="edge-table-wrap"><table class="edge-table"><thead><tr><th>${sortHeader('id', 'ID')}</th><th>名称</th><th>${sortHeader('sortValue', '排序值')}</th><th>图片预览</th><th>${sortHeader('onlineAt', '上线时间')}</th><th>${sortHeader('offlineAt', '下线时间')}</th><th>状态</th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th>${sortHeader('updatedAt', '更新时间')}</th><th>操作</th></tr></thead><tbody data-edge-table-body></tbody></table></div><footer class="edge-list-footer"><span data-edge-count></span><span>数据保存后将保留在当前浏览器中。</span></footer>`;
     const visibleRows = rows.filter((row) => (!filters.name || row.name.toLowerCase().includes(filters.name.trim().toLowerCase()))
       && (!filters.id || row.id.includes(filters.id.trim()))
       && (!filters.status || row.status === filters.status)
       && (!filters.sortValue || String(row.sortValue).includes(filters.sortValue.trim())));
-    if (active) visibleRows.sort((a, b) => (Number(a.sortValue) - Number(b.sortValue)) * sort.direction);
-    root.querySelector('[data-edge-table-body]').innerHTML = visibleRows.length ? visibleRows.map((row) => `<tr data-edge-id="${this.escape(row.id)}"><td>${this.escape(row.id)}</td><td class="edge-name-cell">${this.escape(row.name)}</td><td>${this.escape(row.sortValue)}</td><td>${row.image ? `<span class="edge-image-trigger" data-edge-image="${this.escape(row.image)}"><img src="${this.escape(row.image)}" alt="${this.escape(row.name)}图片预览" /></span>` : '<span class="edge-image-empty">暂无图片</span>'}</td><td>${this.formatDate(row.onlineAt)}</td><td>${this.formatDate(row.offlineAt)}</td><td>${window.BackofficeLayout.statusTag(row.status)}</td><td>${this.escape(row.creator)}</td><td>${this.escape(row.editor)}</td><td><span class="edge-actions"><button class="text-button" type="button" data-edge-edit>编辑</button><button class="text-button" type="button" data-edge-copy>复制</button></span></td></tr>`).join('') : '<tr><td class="edge-empty" colspan="10">暂无符合条件的贴边配置</td></tr>';
+    if (sort.key) visibleRows.sort((left, right) => { const a = sort.key === 'sortValue' ? Number(left[sort.key]) : String(left[sort.key] || ''); const b = sort.key === 'sortValue' ? Number(right[sort.key]) : String(right[sort.key] || ''); return (a > b ? 1 : a < b ? -1 : 0) * sort.direction; });
+    root.querySelector('[data-edge-table-body]').innerHTML = visibleRows.length ? visibleRows.map((row) => `<tr data-edge-id="${this.escape(row.id)}"><td>${this.escape(row.id)}</td><td class="edge-name-cell">${this.escape(row.name)}</td><td>${this.escape(row.sortValue)}</td><td>${row.image ? `<span class="edge-image-trigger" data-edge-image="${this.escape(row.image)}"><img src="${this.escape(row.image)}" alt="${this.escape(row.name)}图片预览" /></span>` : '<span class="edge-image-empty">暂无图片</span>'}</td><td>${this.formatDate(row.onlineAt)}</td><td>${this.formatDate(row.offlineAt)}</td><td>${window.BackofficeLayout.statusTag(row.status)}</td><td>${this.escape(row.creator)}</td><td>${this.escape(row.createdAt || '-')}</td><td>${this.escape(row.editor)}</td><td>${this.escape(row.updatedAt || '-')}</td><td><span class="edge-actions"><button class="text-button" type="button" data-edge-edit>编辑</button><button class="text-button" type="button" data-edge-copy>复制</button></span></td></tr>`).join('') : '<tr><td class="edge-empty" colspan="12">暂无符合条件的贴边配置</td></tr>';
     root.querySelector('[data-edge-count]').textContent = `共 ${visibleRows.length} 条`;
   },
   renderEditor(record, { copy = false } = {}) {
@@ -91,7 +91,7 @@ window.EdgeManagementPage = {
     }));
     if (mode === 'list') {
       const filters = { name: '', id: '', status: '', sortValue: '' };
-      const sort = { key: '', direction: 1 };
+      const sort = { key: 'updatedAt', direction: -1 };
       let imagePreview;
       const hidePreview = () => imagePreview?.remove();
       const showPreview = (trigger, event) => {
@@ -117,9 +117,11 @@ window.EdgeManagementPage = {
       root.addEventListener('click', (event) => {
         if (event.target.closest('[data-edge-add]')) return open('editor');
         if (event.target.closest('[data-edge-search]')) return refresh();
-        if (event.target.closest('[data-edge-sort]')) {
-          const isCurrentSort = sort.key === 'sortValue';
-          sort.key = 'sortValue';
+        const sortButton = event.target.closest('[data-edge-sort]');
+        if (sortButton) {
+          const key = sortButton.dataset.edgeSort;
+          const isCurrentSort = sort.key === key;
+          sort.key = key;
           sort.direction = isCurrentSort ? -sort.direction : 1;
           return refresh();
         }
@@ -129,7 +131,7 @@ window.EdgeManagementPage = {
       });
     } else {
       const source = rows.find((row) => row.id === recordId);
-      const record = source ? this.clone(source) : { id: '', name: '', sortValue: '', image: '', onlineAt: '', offlineAt: '', status: '待上线', creator: '管理员', editor: '管理员' };
+      const record = source ? this.clone(source) : { id: '', name: '', sortValue: '', image: '', onlineAt: '', offlineAt: '', status: '待上线', creator: '管理员', createdAt: '', editor: '管理员', updatedAt: '' };
       if (copy && source) { record.id = ''; record.name = `copy${source.name}`; record.creator = '管理员'; record.editor = '管理员'; }
       record.position = record.position || tab.label;
       this.renderEditor(record, { copy });
@@ -179,7 +181,8 @@ window.EdgeManagementPage = {
         const testPlan = { uids: testValue('uids'), start: testValue('start'), end: testValue('end'), enabled: Boolean(root.querySelector('[data-edge-test="enabled"]')?.checked) };
         const testPlanError = window.ConfigurationSections.validateTestPlan(testPlan);
         if (testPlanError) { window.BackofficeLayout.showToast('测试计划校验失败', testPlanError); return; }
-        const next = { ...record, id: record.id || String(Math.max(0, ...rows.map((item) => Number(item.id) || 0)) + 1), name: data.get('name').trim(), sortValue: Number(data.get('sortValue')), image: data.get('image'), route, frequency, targeting, testPlan, onlineAt: targeting.onlineStart, offlineAt: targeting.onlineEnd, status: targeting.status, editor: '管理员' };
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const next = { ...record, id: record.id || String(Math.max(0, ...rows.map((item) => Number(item.id) || 0)) + 1), name: data.get('name').trim(), sortValue: Number(data.get('sortValue')), image: data.get('image'), route, frequency, targeting, testPlan, onlineAt: targeting.onlineStart, offlineAt: targeting.onlineEnd, status: targeting.status, creator: record.id ? record.creator : '管理员', createdAt: record.id ? record.createdAt : now, editor: '管理员', updatedAt: now };
         const index = rows.findIndex((item) => item.id === next.id);
         if (index >= 0) rows.splice(index, 1, next); else rows.unshift(next);
         this.write(activeTab, rows);

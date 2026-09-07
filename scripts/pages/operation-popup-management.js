@@ -25,7 +25,7 @@ window.OperationPopupManagementPage = {
     operationPopupStandaloneEditor: true
   },
   renderNavigation(activeTab) {
-    return `<section class="marketing-navigation panel"><nav class="marketing-tabs" aria-label="底部Tab"><strong class="marketing-tabs-title">底部Tab</strong><div class="marketing-tabs-list" role="tablist">${this.tabs.map((tab) => `<button class="marketing-tab${tab.id === activeTab ? ' is-active' : ''}" type="button" role="tab" aria-selected="${tab.id === activeTab}" data-operation-popup-tab="${tab.id}"><span>${tab.label}</span><small>${tab.sublabel}</small></button>`).join('')}</div></nav></section>`;
+    return `<section class="marketing-navigation panel"><nav class="marketing-tabs" aria-label="弹窗归属"><strong class="marketing-tabs-title">弹窗归属</strong><div class="marketing-tabs-list" role="tablist">${this.tabs.map((tab) => `<button class="marketing-tab${tab.id === activeTab ? ' is-active' : ''}" type="button" role="tab" aria-selected="${tab.id === activeTab}" data-operation-popup-tab="${tab.id}"><span>${tab.label}</span><small>${tab.sublabel}</small></button>`).join('')}</div></nav></section>`;
   },
   render({ activeTab = 'home', mode = 'list', editorOperationPopupId = '', editorOperationPopupMode = 'add' } = {}) {
     const tab = this.tabs.find((item) => item.id === activeTab) || this.tabs[0];

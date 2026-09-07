@@ -1,10 +1,12 @@
 window.GuidedUpgradeModalPage = {
   storageKey: 'meiyou-cashback-guided-upgrade-modal-records',
   records: [],
+  sort: { key: 'updatedAt', direction: -1 },
   escape(value) { return window.PrivacyPolicyModalPage.escape.call(this, value); },
   readRecords() { return window.PrivacyPolicyModalPage.readRecords.call(this); },
   saveRecords() { return window.PrivacyPolicyModalPage.saveRecords.call(this); },
   getCurrentTime() { return window.PrivacyPolicyModalPage.getCurrentTime.call(this); },
+  sortIcon(direction) { return window.PrivacyPolicyModalPage.sortIcon.call(this, direction); },
   normalizeRecords() { return window.PrivacyPolicyModalPage.normalizeRecords.call(this); },
   ensureRecords() {
     if (this.records.length) return;
@@ -16,7 +18,7 @@ window.GuidedUpgradeModalPage = {
     this.saveRecords();
   },
   adaptCopy(markup) {
-    return markup.replaceAll('隐私政策更新弹窗', '引导升级弹窗').replaceAll('隐私政策版本', '升级版本').replaceAll('隐私政策有更新', 'App 有新版本可升级').replaceAll('此隐私政策更新弹窗', '此引导升级弹窗').replaceAll('《隐私政策》', '《升级说明》').replaceAll('我已阅读并同意</button>', '去更新</button><button class="privacy-popup-exit" type="button">放弃更新</button>');
+    return markup.replaceAll('隐私政策更新弹窗', '引导升级弹窗').replaceAll('维护 App 隐私政策更新提醒配置', '维护 App 引导升级弹窗的配置').replaceAll('隐私政策版本', '升级版本').replaceAll('隐私政策有更新', 'App 有新版本可升级').replaceAll('此隐私政策更新弹窗', '此引导升级弹窗').replaceAll('《隐私政策》', '《升级说明》').replaceAll('我已阅读并同意</button>', '去更新</button><button class="privacy-popup-exit" type="button">放弃更新</button>');
   },
   render() { return this.adaptCopy(window.PrivacyPolicyModalPage.render.call(this)); },
   renderForm({ recordId = null } = {}) { return this.adaptCopy(window.PrivacyPolicyModalPage.renderForm.call(this, { recordId })); },

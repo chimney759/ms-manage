@@ -4,6 +4,11 @@ window.CategoryManagementPage = {
   records: [],
   editingId: null,
   pendingToggleId: null,
+  sort: { key: 'updatedAt', direction: -1 },
+  sortIcon(direction) {
+    const path = direction === 'asc' ? 'm4.5 9.5 3.5-3.5 3.5 3.5' : direction === 'desc' ? 'm4.5 6.5 3.5 3.5 3.5-3.5' : 'm4.75 6.25 3.25-3.25 3.25 3.25M4.75 9.75 8 13l3.25-3.25';
+    return `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="${path}" /></svg>`;
+  },
   loadRecords() {
     window.BackofficeDemoData?.ensure();
     try {
@@ -18,9 +23,9 @@ window.CategoryManagementPage = {
   },
   render() {
     return `<section class="content"><div class="page-heading"><h1>合作商分类管理</h1><span class="heading-note">维护前台可用的合作商分类</span></div><section class="panel">
-      <div class="category-filters"><label for="category-keyword">分类名称：</label><input class="control" id="category-keyword" placeholder="请输入分类名称" /><button class="button primary" id="category-search" type="button">搜索</button><button class="button secondary" id="category-reset" type="button">重置</button></div>
+      <div class="category-filters"><label for="category-keyword">分类名称：</label><input class="control" id="category-keyword" placeholder="请输入分类名称" /><label for="category-status-filter">状态：</label><select class="control category-status-filter" id="category-status-filter"><option value="">全部</option><option value="启用">启用</option><option value="停用">停用</option></select><button class="button primary" id="category-search" type="button">搜索</button><button class="button secondary" id="category-reset" type="button">重置</button></div>
       <div class="actions"><button class="button primary" id="open-category-modal" type="button">添加分类</button></div>
-      <div class="table-wrap"><table class="category-table"><thead><tr><th>分类 ID</th><th>记录名称</th><th>分类名称</th><th>状态</th><th>创建人</th><th>创建时间</th><th>最后更新人</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="category-table-body"></tbody></table></div>
+      <div class="table-wrap"><table class="category-table"><thead><tr><th><button class="backoffice-sort" type="button" data-category-sort="id" aria-sort="${this.sort.key === 'id' ? (this.sort.direction === 1 ? 'asc' : 'desc') : 'none'}">分类 ID${this.sortIcon(this.sort.key === 'id' ? (this.sort.direction === 1 ? 'asc' : 'desc') : 'none')}</button></th><th>记录名称</th><th>分类名称</th><th>状态</th><th>创建人</th><th>创建时间</th><th>最后更新人</th><th><button class="backoffice-sort" type="button" data-category-sort="updatedAt" aria-sort="${this.sort.key === 'updatedAt' ? (this.sort.direction === 1 ? 'asc' : 'desc') : 'none'}">更新时间${this.sortIcon(this.sort.key === 'updatedAt' ? (this.sort.direction === 1 ? 'asc' : 'desc') : 'none')}</button></th><th>操作</th></tr></thead><tbody id="category-table-body"></tbody></table></div>
       <div class="empty" id="category-empty"><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无数据</div></div></div>
     </section>${this.renderModal()}${this.renderStatusConfirmModal()}</section>`;
   },
@@ -41,6 +46,8 @@ window.CategoryManagementPage = {
     const statusConfirmModal = document.getElementById('status-confirm-modal');
     const form = document.getElementById('category-form');
     const keyword = document.getElementById('category-keyword');
+    const statusFilter = document.getElementById('category-status-filter');
+    const renderTable = () => page.renderTable(keyword.value, statusFilter.value);
     const open = (record) => {
       page.editingId = record ? record.id : null;
       window.BackofficeLayout.setEditorModalMode(modal, { isNew: !record });
@@ -80,13 +87,14 @@ window.CategoryManagementPage = {
         record.updater = '管理员';
         record.updatedAt = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
         page.saveRecords();
-        page.renderTable(keyword.value);
+        renderTable();
       }
       closeStatusConfirm();
     });
-    document.getElementById('category-search').addEventListener('click', () => page.renderTable(keyword.value));
-    document.getElementById('category-reset').addEventListener('click', () => { keyword.value = ''; page.renderTable(''); });
-    keyword.addEventListener('keydown', (event) => { if (event.key === 'Enter') page.renderTable(keyword.value); });
+    document.getElementById('category-search').addEventListener('click', renderTable);
+    document.getElementById('category-reset').addEventListener('click', () => { keyword.value = ''; statusFilter.value = ''; renderTable(); });
+    keyword.addEventListener('keydown', (event) => { if (event.key === 'Enter') renderTable(); });
+    document.querySelectorAll('[data-category-sort]').forEach((button) => button.addEventListener('click', () => { const key = button.dataset.categorySort; page.sort = { key, direction: page.sort.key === key ? -page.sort.direction : 1 }; document.querySelectorAll('[data-category-sort]').forEach((item) => { const direction = page.sort.key === item.dataset.categorySort ? (page.sort.direction === 1 ? 'asc' : 'desc') : 'none'; item.setAttribute('aria-sort', direction); item.innerHTML = `${item.dataset.categorySort === 'id' ? '分类 ID' : '更新时间'}${page.sortIcon(direction)}`; }); renderTable(); }));
     document.getElementById('category-table-body').addEventListener('click', (event) => {
       const editButton = event.target.closest('[data-edit-id]');
       if (editButton) {
@@ -119,13 +127,17 @@ window.CategoryManagementPage = {
         page.records.splice(page.maxRecords);
       }
       page.saveRecords();
-      close(); keyword.value = ''; page.renderTable('');
+      close(); keyword.value = ''; statusFilter.value = ''; renderTable();
     });
-    page.renderTable('');
+    renderTable();
   },
-  renderTable(searchTerm) {
+  renderTable(searchTerm, status = '') {
     const keyword = searchTerm.trim().toLowerCase();
-    const visibleRecords = this.records.filter((record) => record.categoryName.toLowerCase().includes(keyword));
+    const visibleRecords = this.records.filter((record) => record.categoryName.toLowerCase().includes(keyword) && (!status || record.status === status)).sort((left, right) => {
+      const leftValue = this.sort.key === 'id' ? Number(left.id) || 0 : Date.parse(String(left.updatedAt).replace(/-/g, '/')) || 0;
+      const rightValue = this.sort.key === 'id' ? Number(right.id) || 0 : Date.parse(String(right.updatedAt).replace(/-/g, '/')) || 0;
+      return (leftValue - rightValue) * this.sort.direction;
+    });
     document.getElementById('category-table-body').innerHTML = visibleRecords.map((record) => `<tr><td>${record.id}</td><td>${record.recordName}</td><td>${record.categoryName}</td><td>${window.BackofficeLayout.statusTag(record.status)}</td><td>${record.creator}</td><td>${record.createdAt}</td><td>${record.updater}</td><td>${record.updatedAt}</td><td><div class="table-actions"><button class="table-action" type="button" data-edit-id="${record.id}">编辑</button><button class="table-action ${record.status === '启用' ? 'status-disable' : 'status-enable'}" type="button" data-toggle-id="${record.id}">${record.status === '启用' ? '停用' : '启用'}</button></div></td></tr>`).join('');
     document.getElementById('category-empty').hidden = visibleRecords.length > 0;
   }

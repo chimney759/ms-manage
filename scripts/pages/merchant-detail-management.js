@@ -4,9 +4,13 @@ window.MerchantDetailManagementPage = {
   records: [],
   editingId: null,
   stylingId: null,
+  sort: { key: 'updatedAt', direction: -1 },
+  sortIcon(direction) { const path = direction === 'asc' ? 'm4.5 9.5 3.5-3.5 3.5 3.5' : direction === 'desc' ? 'm4.5 6.5 3.5 3.5 3.5-3.5' : 'm4.75 6.25 3.25-3.25 3.25 3.25M4.75 9.75 8 13l3.25-3.25'; return `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="${path}" /></svg>`; },
   loadRecords() {
     window.BackofficeDemoData?.ensure();
     try { this.records = JSON.parse(window.localStorage.getItem(this.storageKey)) || []; } catch (error) { this.records = []; }
+    this.records = this.records.map((record) => ({ ...record, creator: record.creator || '管理员', createdAt: record.createdAt || record.updatedAt || '2026-08-16 10:00:00', editor: record.editor || record.operator || '管理员', updatedAt: record.updatedAt || '2026-08-16 10:00:00' }));
+    this.saveRecords();
   },
   saveRecords() { window.localStorage.setItem(this.storageKey, JSON.stringify(this.records)); },
   merchants() {
@@ -29,7 +33,7 @@ window.MerchantDetailManagementPage = {
     return `<section class="content"><div class="page-heading"><h1>详情页管理（合作商）</h1><span class="heading-note">维护合作商详情页配置</span></div><section class="panel">
       <div class="filters"><div class="field"><label for="detail-template-name">记录名称：</label><input class="control" id="detail-template-name" placeholder="请输入记录名称" /></div><div class="field"><label for="detail-template-merchant-name">合作商名称：</label><input class="control" id="detail-template-merchant-name" placeholder="请输入合作商名称" /></div><div class="field"><label for="detail-template-status">状态：</label><select class="control" id="detail-template-status"><option value="">全部</option><option value="启用">启用</option><option value="停用">停用</option></select></div></div>
       <div class="actions"><button class="button primary" id="detail-template-search" type="button">搜索</button><button class="button secondary" id="detail-template-reset" type="button">重置</button><button class="button primary" id="open-detail-template-modal" type="button">添加详情页</button></div>
-      <div class="table-wrap"><table class="detail-template-table"><thead><tr><th>记录名称</th><th>样式类型</th><th>合作商名称</th><th>状态</th><th>创建时间</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="detail-template-table-body"></tbody></table></div><div class="empty" id="detail-template-empty"><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无详情页模板</div></div></div>
+      <div class="table-wrap"><table class="detail-template-table"><thead><tr><th>记录名称</th><th>样式类型</th><th>合作商名称</th><th>状态</th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th><button class="backoffice-sort" type="button" data-detail-sort="updatedAt" aria-sort="desc">更新时间${this.sortIcon('desc')}</button></th><th>操作</th></tr></thead><tbody id="detail-template-table-body"></tbody></table></div><div class="empty" id="detail-template-empty"><div class="empty-inner"><div class="empty-icon">▰</div><div>暂无详情页模板</div></div></div>
     </section>${this.renderModal()}</section>`;
   },
   renderModal() {
@@ -58,8 +62,9 @@ window.MerchantDetailManagementPage = {
     document.getElementById('open-detail-template-modal').addEventListener('click', () => open()); document.getElementById('close-detail-template-modal').addEventListener('click', close); document.getElementById('cancel-detail-template').addEventListener('click', close); modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
     document.getElementById('detail-template-merchant-category').addEventListener('change', () => renderMerchantOptions(selectedMerchantIds())); document.getElementById('detail-template-merchant-keyword').addEventListener('input', () => renderMerchantOptions(selectedMerchantIds()));
     document.getElementById('detail-template-search').addEventListener('click', renderTable); document.getElementById('detail-template-reset').addEventListener('click', () => { keyword.value = ''; merchantKeyword.value = ''; document.getElementById('detail-template-status').value = ''; renderTable(); });
+    document.querySelector('[data-detail-sort]').addEventListener('click', (event) => { this.sort.direction = -this.sort.direction; const direction = this.sort.direction === 1 ? 'asc' : 'desc'; event.currentTarget.setAttribute('aria-sort', direction); event.currentTarget.innerHTML = `更新时间${this.sortIcon(direction)}`; renderTable(); });
     document.getElementById('detail-template-table-body').addEventListener('click', (event) => { const editButton = event.target.closest('[data-detail-edit-id]'); const styleButton = event.target.closest('[data-detail-style-id]'); if (editButton) open(this.records.find((record) => record.id === editButton.dataset.detailEditId)); if (styleButton) navigate?.(`detail-template-style:${styleButton.dataset.detailStyleId}`); });
-    form.addEventListener('submit', (event) => { event.preventDefault(); const name = document.getElementById('detail-template-form-name').value.trim(); const type = form.querySelector('input[name="detail-template-type"]:checked'); const status = form.querySelector('input[name="detail-template-status-form"]:checked'); const merchantIds = selectedMerchantIds(); const validations = [[name, 'detail-template-name-row', '记录名称'], [type, 'detail-template-type-row', '样式类型'], [merchantIds.length, 'detail-template-merchants-row', '合作商列表'], [status, 'detail-template-status-row', '状态']]; validations.forEach(([valid, row]) => document.getElementById(row).classList.toggle('is-invalid', !valid)); const missing = validations.find(([valid]) => !valid); if (missing) { window.BackofficeLayout.showRequiredFieldToast(missing[2]); return; } const selectedMerchants = merchants.filter((merchant) => merchantIds.includes(merchant.id)); const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'); const existingRecord = this.records.find((item) => item.id === this.editingId); const record = { id: this.editingId || String(Date.now()), name, merchantIds, merchantNames: selectedMerchants.map((merchant) => merchant.name), type: type.value, status: status.value, createdAt: existingRecord?.createdAt || existingRecord?.updatedAt || now, updatedAt: now }; if (this.editingId) this.records = this.records.map((item) => item.id === this.editingId ? { ...item, ...record } : item); else this.records.unshift(record); this.saveRecords(); close(); renderTable(); });
+    form.addEventListener('submit', (event) => { event.preventDefault(); const name = document.getElementById('detail-template-form-name').value.trim(); const type = form.querySelector('input[name="detail-template-type"]:checked'); const status = form.querySelector('input[name="detail-template-status-form"]:checked'); const merchantIds = selectedMerchantIds(); const validations = [[name, 'detail-template-name-row', '记录名称'], [type, 'detail-template-type-row', '样式类型'], [merchantIds.length, 'detail-template-merchants-row', '合作商列表'], [status, 'detail-template-status-row', '状态']]; validations.forEach(([valid, row]) => document.getElementById(row).classList.toggle('is-invalid', !valid)); const missing = validations.find(([valid]) => !valid); if (missing) { window.BackofficeLayout.showRequiredFieldToast(missing[2]); return; } const selectedMerchants = merchants.filter((merchant) => merchantIds.includes(merchant.id)); const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'); const existingRecord = this.records.find((item) => item.id === this.editingId); const record = { id: this.editingId || String(Date.now()), name, merchantIds, merchantNames: selectedMerchants.map((merchant) => merchant.name), type: type.value, status: status.value, creator: existingRecord?.creator || '管理员', createdAt: existingRecord?.createdAt || existingRecord?.updatedAt || now, editor: '管理员', updatedAt: now }; if (this.editingId) this.records = this.records.map((item) => item.id === this.editingId ? { ...item, ...record } : item); else this.records.unshift(record); this.saveRecords(); close(); renderTable(); });
     renderTable();
   },
   renderTable(keyword = '', merchantKeyword = '', status = '') {
@@ -68,7 +73,7 @@ window.MerchantDetailManagementPage = {
       record.name.toLowerCase().includes(keyword.trim().toLowerCase())
       && (!normalizedMerchantKeyword || (record.merchantNames || []).some((merchantName) => String(merchantName).toLowerCase().includes(normalizedMerchantKeyword)))
       && (!status || record.status === status)
-    ));
+    )).sort((left, right) => (Date.parse(String(left.updatedAt).replace(/-/g, '/')) - Date.parse(String(right.updatedAt).replace(/-/g, '/'))) * this.sort.direction);
     const tableBody = document.getElementById('detail-template-table-body');
 
     tableBody.innerHTML = records.map((record) => {
@@ -78,7 +83,9 @@ window.MerchantDetailManagementPage = {
         <td>${this.escape(record.type || '-')}</td>
         <td class="detail-template-merchants-cell">${this.escape(merchantNames.join('、') || '-')}</td>
         <td>${window.BackofficeLayout.statusTag(record.status || '-')}</td>
+        <td>${this.escape(record.creator || '-')}</td>
         <td>${this.escape(record.createdAt || record.updatedAt || '-')}</td>
+        <td>${this.escape(record.editor || '-')}</td>
         <td>${this.escape(record.updatedAt || '-')}</td>
         <td><div class="table-actions"><button class="table-action" type="button" data-detail-edit-id="${this.escape(record.id)}">编辑</button><button class="table-action" type="button" data-detail-style-id="${this.escape(record.id)}">模板样式管理</button></div></td>
       </tr>`;
