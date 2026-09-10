@@ -82,7 +82,7 @@ window.DetailTemplateStyleFormPage = {
     const merchantsWithRules = this.merchantsForTemplate(record).filter((merchant) => merchant.ruleContent?.trim());
     if (!merchantsWithRules.length) return '';
     const showMerchantName = merchantsWithRules.length > 1;
-    return `<section class="preview-merchant-rules" aria-label="合作商规则"><h3>合作商规则</h3>${merchantsWithRules.map((merchant) => `<article class="preview-merchant-rule">${showMerchantName ? `<b>${this.escape(merchant.name)}</b>` : ''}<div>${this.sanitizeRuleHtml(merchant.ruleContent)}</div></article>`).join('')}</section>`;
+    return `<section class="preview-merchant-rules" data-merchant-rule-anchor aria-label="合作商规则"><h3>合作商规则</h3>${merchantsWithRules.map((merchant) => `<article class="preview-merchant-rule">${showMerchantName ? `<b>${this.escape(merchant.name)}</b>` : ''}<div>${this.sanitizeRuleHtml(merchant.ruleContent)}</div></article>`).join('')}</section>`;
   },
   allowedProductType(record) {
     return { '充值详情页': '直充', '卡券详情页': '卡券' }[record.type] || '';
@@ -99,16 +99,16 @@ window.DetailTemplateStyleFormPage = {
       ['1312', '年费会员季卡', '酷我音乐', '直充', '34.11', '75', 'https://placehold.co/160x160/63b5dd/ffffff?text=MUSIC'],
       ['159', '红包5元【1天5次】', '美团外卖', '直充', '3.5', '5', 'https://placehold.co/160x160/ff6558/ffffff?text=MEITUAN'],
       ['1380', 'NBA球队通季卡', '咪咕视频', '直充', '45.87', '68', 'https://placehold.co/160x160/4e85d6/ffffff?text=NBA'],
-      ['2101', '京东购物满200减20券', '京东', '卡券', '18', '20', 'https://placehold.co/160x160/e85a5a/ffffff?text=JD'],
-      ['2102', '星巴克咖啡代金券', '星巴克', '卡券', '28', '35', 'https://placehold.co/160x160/3b9b70/ffffff?text=CAFE'],
-      ['2103', '电影通兑优惠券', '猫眼电影', '卡券', '36', '45', 'https://placehold.co/160x160/f5a447/ffffff?text=TICKET']
+      ['2101', '京东购物满200减20券', '京东', '卡券', '18', '20', 'https://placehold.co/160x160/e85a5a/ffffff?text=JD', '上线中'],
+      ['2102', '星巴克咖啡代金券', '星巴克', '卡券', '28', '35', 'https://placehold.co/160x160/3b9b70/ffffff?text=CAFE', '上线中'],
+      ['2103', '电影通兑优惠券', '猫眼电影', '卡券', '36', '45', 'https://placehold.co/160x160/f5a447/ffffff?text=TICKET', '已下线']
     ];
     const allowedType = this.allowedProductType(record);
     const availableSeeds = allowedType ? productSeeds.filter((seed) => seed[3] === allowedType) : productSeeds;
     const merchants = this.merchantsForTemplate(record);
     return merchants.flatMap((merchant, merchantIndex) => {
       const merchantSeeds = availableSeeds.filter((_, itemIndex) => itemIndex % Math.min(merchants.length, 3) === merchantIndex % Math.min(merchants.length, 3));
-      return merchantSeeds.map(([id, title, brand, type, salesPrice, officialPrice, image]) => ({ id: `${merchant.id}-${id}`, productNo: id, title, supplierId: merchant.id, supplier: merchant.name, brand, type, productCategory: type === '直充' ? '会员权益' : '优惠券', image, salesPrice, officialPrice, cost: salesPrice, price: officialPrice, status: merchant.status === '下线' ? '已下线' : '上线中' }));
+      return merchantSeeds.map(([id, title, brand, type, salesPrice, officialPrice, image, availability = '上线中']) => ({ id: `${merchant.id}-${id}`, productNo: id, title, supplierId: merchant.id, supplier: merchant.name, brand, type, productCategory: type === '直充' ? '会员权益' : '优惠券', image, salesPrice, officialPrice, cost: salesPrice, price: officialPrice, status: merchant.status === '下线' ? '已下线' : availability }));
     });
   },
   createResourceMaterial() {
@@ -187,8 +187,18 @@ window.DetailTemplateStyleFormPage = {
     let draggedProductComponentId = '';
     let draggedListProductId = '';
     let activeMaterialIndex = 0;
+    const savedMerchantRulePosition = Number(record.merchantRulePosition);
+    let merchantRulePosition = Math.min(
+      Math.max(Number.isFinite(savedMerchantRulePosition) ? savedMerchantRulePosition : components.length, 0),
+      components.length
+    );
     let productFilters = { supplier: '', title: '', id: '', status: '', type: '', column: '' };
     let rechargeDetailConfig = record.type === '充值详情页' ? this.normalizeRechargeDetailConfig(record.rechargeDetailConfig) : null;
+    const savedRechargeActionPosition = Number(record.rechargeActionPosition);
+    let rechargeActionPosition = Math.min(
+      Math.max(Number.isFinite(savedRechargeActionPosition) ? savedRechargeActionPosition : components.length, 0),
+      components.length
+    );
     const rechargeCategories = rechargeDetailConfig?.categories || [];
     const activeRechargeCategoryByComponent = {};
     const productCategory = (component, productId, fallbackIndex = 0) => {
@@ -197,7 +207,10 @@ window.DetailTemplateStyleFormPage = {
     };
     const selectComponent = (id) => { this.activeComponentId = id; renderAll(); };
     const removeComponent = (id) => {
+      const removedIndex = components.findIndex((component) => component.id === id);
       components = components.filter((component) => component.id !== id);
+      if (removedIndex !== -1 && removedIndex < merchantRulePosition) merchantRulePosition -= 1;
+      if (removedIndex !== -1 && removedIndex < rechargeActionPosition) rechargeActionPosition -= 1;
       if (this.activeComponentId === id) this.activeComponentId = components[0]?.id || null;
       renderAll();
     };
@@ -207,7 +220,7 @@ window.DetailTemplateStyleFormPage = {
       removeComponent(id);
       return true;
     };
-    const addComponent = (type) => {
+    const addComponent = (type, { belowRechargeAction = false } = {}) => {
       if (type === 'search' && !supportsSearch) {
         window.BackofficeLayout.showToast('当前样式类型不支持搜索功能', '仅电商详情页支持添加搜索组件');
         return;
@@ -222,7 +235,21 @@ window.DetailTemplateStyleFormPage = {
       }
       const component = this.createComponent(type);
       if (type === 'merchantProductFlow') component.selectedProductIds = this.productCatalog(record).filter((item) => item.status === '上线中').map((item) => item.id);
-      components.push(component);
+      if (belowRechargeAction && rechargeDetailConfig) {
+        const hasMerchantRules = Boolean(this.renderMerchantRules(record));
+        const items = components.map((item) => ({ kind: 'component', component: item }));
+        if (hasMerchantRules) items.splice(merchantRulePosition, 0, { kind: 'rule' });
+        const actionInsertIndex = rechargeActionPosition + (hasMerchantRules && rechargeActionPosition >= merchantRulePosition ? 1 : 0);
+        items.splice(actionInsertIndex, 0, { kind: 'rechargeAction' });
+        items.splice(items.findIndex((item) => item.kind === 'rechargeAction') + 1, 0, { kind: 'component', component });
+        if (hasMerchantRules) merchantRulePosition = items.slice(0, items.findIndex((item) => item.kind === 'rule')).filter((item) => item.kind === 'component').length;
+        rechargeActionPosition = items.slice(0, items.findIndex((item) => item.kind === 'rechargeAction')).filter((item) => item.kind === 'component').length;
+        components = items.filter((item) => item.kind === 'component').map((item) => item.component);
+      } else {
+        if (merchantRulePosition === components.length) merchantRulePosition += 1;
+        if (rechargeActionPosition === components.length) rechargeActionPosition += 1;
+        components.push(component);
+      }
       this.activeComponentId = component.id;
       renderAll();
     };
@@ -248,6 +275,53 @@ window.DetailTemplateStyleFormPage = {
       }
       draggedComponentId = '';
     };
+    const reorderComponentAroundAnchors = (sourceId, targetElement, { insertAfter } = {}) => {
+      const sourceIndex = components.findIndex((component) => component.id === sourceId);
+      if (sourceIndex === -1 || !targetElement) return;
+      const sourceComponent = components[sourceIndex];
+      const placeAfter = insertAfter ?? (targetElement.hasAttribute('data-merchant-rule-anchor') || targetElement.hasAttribute('data-recharge-action-anchor'));
+      if (targetElement.hasAttribute('data-recharge-action-anchor') && placeAfter && !['resource', 'productFlow'].includes(sourceComponent.type)) {
+        window.BackofficeLayout.showToast('暂不支持放置在按钮下方', '仅资源位和商品信息流可拖至优惠充值按钮下方');
+        return;
+      }
+      const hasMerchantRules = Boolean(this.renderMerchantRules(record));
+      const hasRechargeAction = Boolean(rechargeDetailConfig);
+      const items = components.map((component) => ({ kind: 'component', component }));
+      if (hasMerchantRules) items.splice(merchantRulePosition, 0, { kind: 'rule' });
+      if (hasRechargeAction) {
+        const rechargeInsertIndex = rechargeActionPosition + (hasMerchantRules && rechargeActionPosition >= merchantRulePosition ? 1 : 0);
+        items.splice(rechargeInsertIndex, 0, { kind: 'rechargeAction' });
+      }
+      const movedIndex = items.findIndex((item) => item.kind === 'component' && item.component.id === sourceId);
+      const [moved] = items.splice(movedIndex, 1);
+      const targetIndex = targetElement.hasAttribute('data-merchant-rule-anchor')
+        ? items.findIndex((item) => item.kind === 'rule') + (placeAfter ? 1 : 0)
+        : targetElement.hasAttribute('data-recharge-action-anchor')
+          ? items.findIndex((item) => item.kind === 'rechargeAction') + (placeAfter ? 1 : 0)
+          : items.findIndex((item) => item.kind === 'component' && item.component.id === targetElement.dataset.styleComponentId) + (placeAfter ? 1 : 0);
+      if (targetIndex < 0) return;
+      items.splice(targetIndex, 0, moved);
+      if (hasMerchantRules) merchantRulePosition = items.slice(0, items.findIndex((item) => item.kind === 'rule')).filter((item) => item.kind === 'component').length;
+      if (hasRechargeAction) rechargeActionPosition = items.slice(0, items.findIndex((item) => item.kind === 'rechargeAction')).filter((item) => item.kind === 'component').length;
+      components = items.filter((item) => item.kind === 'component').map((item) => item.component);
+      renderAll();
+    };
+    const reorderComponentAtCanvasPosition = (sourceId, clientY) => {
+      const orderedElements = [...canvas.children].filter((element) => element.matches('[data-style-component-id],[data-merchant-rule-anchor],[data-recharge-action-anchor]'));
+      if (!orderedElements.length) return false;
+      const nextElement = orderedElements.find((element) => {
+        const box = element.getBoundingClientRect();
+        return clientY < box.top + box.height / 2;
+      });
+      if (nextElement) reorderComponentAroundAnchors(sourceId, nextElement, { insertAfter: false });
+      else reorderComponentAroundAnchors(sourceId, orderedElements[orderedElements.length - 1], { insertAfter: true });
+      return true;
+    };
+    const shouldInsertAfterTarget = (targetElement, clientY) => {
+      if (!targetElement.hasAttribute('data-merchant-rule-anchor') && !targetElement.hasAttribute('data-recharge-action-anchor')) return false;
+      const box = targetElement.getBoundingClientRect();
+      return clientY >= box.top + box.height / 2;
+    };
     const reorderSelectedProducts = (componentId, sourceId, targetId) => {
       if (!sourceId || !targetId || sourceId === targetId) return;
       const productComponent = components.find((item) => item.id === componentId && item.type === 'merchantProductFlow');
@@ -271,7 +345,7 @@ window.DetailTemplateStyleFormPage = {
       const useStackedAnnotations = phoneStage.clientWidth < frameBox.width + 108;
       const left = frameBox.right - stageBox.left + 16;
       annotations.classList.toggle('is-stacked', useStackedAnnotations);
-      annotations.innerHTML = [...canvas.querySelectorAll('[data-style-component-id]')].map((element) => {
+      const componentAnnotations = [...canvas.querySelectorAll('[data-style-component-id]')].map((element) => {
         const component = components.find((item) => item.id === element.dataset.styleComponentId);
         if (!component) return '';
         const box = element.getBoundingClientRect();
@@ -281,7 +355,24 @@ window.DetailTemplateStyleFormPage = {
         const position = useStackedAnnotations ? '' : ` style="top:${top}px;left:${left}px;height:${height}px"`;
         return `<button class="component-annotation" type="button" data-style-component-id="${this.escape(component.id)}"${position}><span>${this.escape(this.componentLabel(component.type))}${detail ? `<small>${detail}</small>` : ''}</span></button>`;
       }).join('');
-      annotations.querySelectorAll('.component-annotation').forEach((annotation) => annotation.addEventListener('click', () => selectComponent(annotation.dataset.styleComponentId)));
+      const rules = canvas.querySelector('[data-merchant-rule-anchor]');
+      const ruleAnnotation = rules ? (() => {
+        const box = rules.getBoundingClientRect();
+        const top = Math.max(0, box.top - stageBox.top);
+        const height = Math.max(36, box.height);
+        const position = useStackedAnnotations ? '' : ` style="top:${top}px;left:${left}px;height:${height}px"`;
+        return `<span class="component-annotation component-annotation-rule"${position}>合作商规则</span>`;
+      })() : '';
+      const rechargeAction = canvas.querySelector('[data-recharge-action-anchor]');
+      const rechargeActionAnnotation = rechargeAction ? (() => {
+        const box = rechargeAction.getBoundingClientRect();
+        const top = Math.max(0, box.top - stageBox.top);
+        const height = Math.max(36, box.height);
+        const position = useStackedAnnotations ? '' : ` style="top:${top}px;left:${left}px;height:${height}px"`;
+        return `<span class="component-annotation component-annotation-recharge-action"${position}>优惠充值</span>`;
+      })() : '';
+      annotations.innerHTML = `${componentAnnotations}${ruleAnnotation}${rechargeActionAnnotation}`;
+      annotations.querySelectorAll('[data-style-component-id]').forEach((annotation) => annotation.addEventListener('click', () => selectComponent(annotation.dataset.styleComponentId)));
     };
     const renderPreview = () => {
       const activeId = this.activeComponentId;
@@ -310,9 +401,15 @@ window.DetailTemplateStyleFormPage = {
           return `<button class="preview-component preview-merchant-product-flow${active}" type="button" ${selectedAttr}><div class="merchant-product-preview-row">${selectedProducts.length ? selectedProducts.map((product) => `<i draggable="true" data-product-order-id="${this.escape(product.id)}"><img src="${this.escape(product.image)}" alt="${this.escape(product.title)}商品图" /><span class="merchant-product-info"><b>${this.escape(product.title)}</b><small><em>¥${this.escape(product.salesPrice)}</em><del>¥${this.escape(product.officialPrice)}</del></small></span><span class="merchant-order-button">去下单</span><u aria-hidden="true">⠿</u></i>`).join('') : '<em class="merchant-product-empty">请在右侧勾选货品</em>'}</div></button>`;
         }
         return `<button class="preview-component preview-product-flow${active}" type="button" ${selectedAttr}><div class="preview-product-row"><i>商品</i><i>商品</i><i>商品</i></div></button>`;
-      }).join('');
-      const rechargeAction = rechargeDetailConfig ? `<div class="recharge-fixed-action"><button type="button">${this.escape(rechargeDetailConfig.actionText || '优惠充值')}</button></div>` : '';
-      canvas.innerHTML = componentPreview || rechargeFixedPreview || merchantRules ? `${rechargeFixedPreview}${componentPreview}${rechargeAction}${merchantRules}` : '<div class="canvas-empty"><b>+</b><span>拖入功能组件开始搭建</span></div>';
+      });
+      const rechargeAction = rechargeDetailConfig ? `<div class="recharge-fixed-action" data-recharge-action-anchor><button type="button">${this.escape(rechargeDetailConfig.actionText || '优惠充值')}</button></div>` : '';
+      const previewItems = [...componentPreview];
+      if (merchantRules) previewItems.splice(merchantRulePosition, 0, merchantRules);
+      if (rechargeAction) {
+        const rechargeInsertIndex = rechargeActionPosition + (merchantRules && rechargeActionPosition >= merchantRulePosition ? 1 : 0);
+        previewItems.splice(rechargeInsertIndex, 0, rechargeAction);
+      }
+      canvas.innerHTML = previewItems.length || rechargeFixedPreview ? `${rechargeFixedPreview}${previewItems.join('')}` : '<div class="canvas-empty"><b>+</b><span>拖入功能组件开始搭建</span></div>';
       dropTip.hidden = components.length > 0 || Boolean(rechargeFixedPreview);
       canvas.querySelectorAll('[data-merchant-flow-category]').forEach((tab) => tab.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -328,6 +425,20 @@ window.DetailTemplateStyleFormPage = {
           window.setTimeout(() => { if (draggedComponentId === componentId) draggedComponentId = ''; }, 0);
         });
       });
+      canvas.querySelector('[data-merchant-rule-anchor]')?.addEventListener('dragover', (event) => {
+        if (!draggedComponentId) return;
+        event.preventDefault();
+        event.currentTarget.classList.add('is-component-dragover');
+      });
+      canvas.querySelector('[data-merchant-rule-anchor]')?.addEventListener('dragleave', (event) => event.currentTarget.classList.remove('is-component-dragover'));
+      canvas.querySelector('[data-recharge-action-anchor]')?.addEventListener('dragover', (event) => {
+        if (!draggedComponentId) return;
+        const component = components.find((item) => item.id === draggedComponentId);
+        if (!component || !['resource', 'productFlow'].includes(component.type)) return;
+        event.preventDefault();
+        event.currentTarget.classList.add('is-component-dragover');
+      });
+      canvas.querySelector('[data-recharge-action-anchor]')?.addEventListener('dragleave', (event) => event.currentTarget.classList.remove('is-component-dragover'));
       canvas.querySelectorAll('[data-product-order-id]').forEach((product) => {
         product.addEventListener('dragstart', (event) => { event.stopPropagation(); draggedProductId = product.dataset.productOrderId; draggedProductComponentId = product.closest('[data-style-component-id]')?.dataset.styleComponentId || ''; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', draggedProductId); });
         product.addEventListener('dragend', (event) => {
@@ -491,13 +602,17 @@ window.DetailTemplateStyleFormPage = {
         draggedProductComponentId = '';
         return;
       }
-      if (draggedType) addComponent(draggedType);
+      if (draggedType) {
+        const dropTarget = event.target.closest('[data-recharge-action-anchor]');
+        const canPlaceBelowRechargeAction = Boolean(dropTarget && ['resource', 'productFlow'].includes(draggedType));
+        addComponent(draggedType, { belowRechargeAction: canPlaceBelowRechargeAction });
+      }
       if (draggedComponentId) {
-        const target = event.target.closest('[data-style-component-id]');
-        if (target && target.dataset.styleComponentId !== draggedComponentId) {
-          const from = components.findIndex((item) => item.id === draggedComponentId); const to = components.findIndex((item) => item.id === target.dataset.styleComponentId);
-          const [moved] = components.splice(from, 1); components.splice(to, 0, moved); renderAll();
+        const target = event.target.closest('[data-style-component-id],[data-merchant-rule-anchor],[data-recharge-action-anchor]');
+        if (target && (target.hasAttribute('data-merchant-rule-anchor') || target.hasAttribute('data-recharge-action-anchor') || target.dataset.styleComponentId !== draggedComponentId)) {
+          reorderComponentAroundAnchors(draggedComponentId, target, { insertAfter: shouldInsertAfterTarget(target, event.clientY) });
         }
+        else if (!target && canvas.contains(event.target) && !reorderComponentAtCanvasPosition(draggedComponentId, event.clientY)) removeDraggedComponent();
         else if (!target) removeDraggedComponent();
         if (draggedComponentId) draggedComponentId = '';
       }
@@ -527,7 +642,7 @@ window.DetailTemplateStyleFormPage = {
       }
       const updatedAt = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
       components.forEach((component) => { component.hasBeenSaved = true; });
-      window.localStorage.setItem(this.storageKey, JSON.stringify(records.map((item) => item.id === recordId ? { ...item, styleComponents: components, ...(rechargeDetailConfig ? { rechargeDetailConfig } : {}), updatedAt } : item)));
+      window.localStorage.setItem(this.storageKey, JSON.stringify(records.map((item) => item.id === recordId ? { ...item, styleComponents: components, merchantRulePosition, rechargeActionPosition, ...(rechargeDetailConfig ? { rechargeDetailConfig } : {}), updatedAt } : item)));
       window.BackofficeLayout.showToast('保存成功', '模板样式配置已更新');
       window.setTimeout(back, 350);
     });

@@ -18,7 +18,7 @@ window.GuidedUpgradeModalPage = {
     this.saveRecords();
   },
   adaptCopy(markup) {
-    return markup.replaceAll('隐私政策更新弹窗', '引导升级弹窗').replaceAll('维护 App 隐私政策更新提醒配置', '维护 App 引导升级弹窗的配置').replaceAll('隐私政策版本', '升级版本').replaceAll('隐私政策有更新', 'App 有新版本可升级').replaceAll('此隐私政策更新弹窗', '此引导升级弹窗').replaceAll('《隐私政策》', '《升级说明》').replaceAll('我已阅读并同意</button>', '去更新</button><button class="privacy-popup-exit" type="button">放弃更新</button>');
+    return markup.replaceAll('隐私政策更新弹窗', '引导升级弹窗').replaceAll('维护 App 隐私政策更新提醒配置', '维护 App 引导更新管理配置').replaceAll('隐私政策版本', '升级版本').replaceAll('隐私政策有更新', 'App 有新版本可升级').replaceAll('此隐私政策更新弹窗', '此引导升级弹窗').replaceAll('《隐私政策》', '《升级说明》').replaceAll('我已阅读并同意</button>', '去更新</button><button class="privacy-popup-exit" type="button">放弃更新</button>').replace('<h1>隐私政策更新</h1>', '<h1>引导更新管理</h1>').replaceAll('编辑隐私政策更新', '编辑引导更新管理').replaceAll('添加隐私政策更新', '添加引导更新管理');
   },
   render() { return this.adaptCopy(window.PrivacyPolicyModalPage.render.call(this)); },
   renderForm({ recordId = null } = {}) { return this.adaptCopy(window.PrivacyPolicyModalPage.renderForm.call(this, { recordId })); },

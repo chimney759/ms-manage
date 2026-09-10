@@ -110,7 +110,20 @@ window.BackofficeLayout = {
           <div class="brand"><div class="brand-mark"><b>MY</b></div><span class="brand-name">美柚省钱管理后台</span></div>
           <nav class="nav">
             <div class="nav-group open">
-              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="nav-text">合作商管理-待定</span><span class="chevron">⌃</span></button>
+              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><span class="nav-text">推广管理</span><span class="chevron">⌃</span></button>
+              <div class="subnav"><a data-view="operation-popup-management">营销弹窗管理</a><a>底Tab-红点管理</a><a data-view="edge-management">贴边管理</a><a data-view="banner-management">横幅管理</a></div>
+            </div>
+            <div class="nav-group open">
+              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span class="nav-text">营销管理</span><span class="chevron">⌃</span></button>
+              <div class="subnav">
+                <a data-view="marketing-config">底Tab-内容管理</a>
+                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>搜索中间页管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="hot-search-management">热搜词管理</a><a data-view="search-feed-management">信息流管理</a></div></div>
+                <a data-view="self-built-page-management">营销落地页管理</a>
+                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>营销玩法管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="cashback-red-packet-management">返现红包管理</a></div></div>
+              </div>
+            </div>
+            <div class="nav-group open">
+              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="nav-text">合作商管理</span><span class="chevron">⌃</span></button>
               <div class="subnav merchant-subnav">
                 <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>合作商-基础信息</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a class="active" data-view="merchant">合作商列表</a><a data-view="category">合作商分类</a></div></div>
                 <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>合作商-产品管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="merchant-product">货品列表（合作商）</a><a>商品列表（合作商）</a></div></div>
@@ -118,23 +131,15 @@ window.BackofficeLayout = {
               </div>
             </div>
             <div class="nav-group open">
+              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19V9M12 19V5M19 19v-7"/><path d="M3 19h18"/></svg></span><span class="nav-text">策略管理</span><span class="chevron">⌃</span></button>
+              <div class="subnav"><a data-view="settlement-strategy-management">到账策略管理</a></div>
+            </div>
+            <div class="nav-group open">
               <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h5M8 17h3"/></svg></span><span class="nav-text">配置中心</span><span class="chevron">⌃</span></button>
               <div class="subnav config-subnav">
-                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>升级弹窗</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="force-upgrade-modal">强制升级弹窗</a><a data-view="guided-upgrade-modal">引导升级弹窗</a></div></div>
-                <a data-view="privacy-policy-modal">隐私政策更新弹窗</a>
+                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>版本更新弹窗配置</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="force-upgrade-modal">强制更新管理</a><a data-view="guided-upgrade-modal">引导更新管理</a></div></div>
+                <a data-view="privacy-policy-modal">隐私政策更新</a>
               </div>
-            </div>
-            <div class="nav-group open">
-              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span class="nav-text">营销管理</span><span class="chevron">⌃</span></button>
-              <div class="subnav">
-                <a data-view="marketing-config">TabBar内容管理</a>
-                <a data-view="self-built-page-management">营销自建页管理</a>
-                <div class="nav-subgroup open"><button class="nav-subtitle" type="button"><span>搜索中间页管理</span><span class="sub-chevron">⌃</span></button><div class="nested-subnav"><a data-view="hot-search-management">热搜词管理</a><a data-view="search-feed-management">信息流管理</a></div></div>
-              </div>
-            </div>
-            <div class="nav-group open">
-              <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><span class="nav-text">推广管理</span><span class="chevron">⌃</span></button>
-              <div class="subnav"><a data-view="operation-popup-management">营销弹窗管理</a><a>频道底部红点管理</a><a data-view="edge-management">贴边管理</a><a data-view="banner-management">横幅管理</a></div>
             </div>
           </nav>
         </aside>

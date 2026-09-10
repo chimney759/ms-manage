@@ -48,7 +48,7 @@ window.MerchantShelfPage = {
     return `<section class="content merchant-shelf-page"><div class="page-heading"><h1>商家列表页管理</h1><span class="heading-note">固定样式配置，所见即所得</span></div><section class="merchant-shelf-editor">
       <aside class="shelf-log-panel"><div class="style-panel-heading"><h2>更新日志</h2><span>最近更新</span></div><div class="shelf-log-list" id="shelf-log-list"></div></aside>
       <section class="shelf-preview-panel"><div class="style-panel-heading"><h2>页面预览</h2><span>所见即所得</span></div><div class="shelf-phone-stage"><div class="shelf-phone-frame"><div class="shelf-phone-header"><span>‹</span><b>全部商家</b><i>•••</i></div><div class="shelf-search">⌕ <span>搜索商家名称，下单享返还</span></div><div class="shelf-phone-content"><nav class="shelf-category-nav" id="shelf-category-nav" aria-label="商家分类导航"></nav><div class="shelf-merchant-content" id="shelf-preview-content"></div></div></div></div></section>
-      <aside class="shelf-config-panel"><div class="style-panel-heading"><h2>商家配置</h2><span id="shelf-config-category"></span></div><div class="shelf-config-body"><p class="shelf-fixed-note">固定样式：左侧分类导航与右侧每行 3 个商家卡位。</p><section class="shelf-merchant-selector"><div class="shelf-selector-heading"><strong>选择合作商</strong><span id="shelf-selected-count"></span></div><div class="shelf-merchant-list" id="shelf-merchant-list"></div></section><div class="shelf-config-actions"><div class="shelf-action-buttons"><span class="shelf-undo-tooltip" data-tooltip="本次的修改可以一键撤销，恢复到最近一次保持的配置。"><button class="button secondary" id="cancel-merchant-shelf" type="button">撤销本次修改</button></span><button class="button primary" id="save-merchant-shelf" type="button">保存</button></div></div></div></aside>
+      <aside class="shelf-config-panel"><div class="style-panel-heading"><h2>商家配置</h2><span id="shelf-config-category"></span></div><div class="shelf-config-body"><p class="shelf-fixed-note">固定样式：左侧分类导航与右侧每行 3 个商家卡位。</p><section class="shelf-merchant-selector"><div class="shelf-selector-heading"><strong>选择合作商</strong><span id="shelf-selected-count"></span></div><div class="shelf-merchant-list" id="shelf-merchant-list"></div></section><div class="shelf-config-actions"><div class="shelf-action-buttons"><button class="button primary" id="save-merchant-shelf" type="button">保存</button></div></div></div></aside>
     </section></section>`;
   },
   bind() {
@@ -172,7 +172,7 @@ window.MerchantShelfPage = {
           const merchantId = fieldGroup.dataset.marketingFields;
           config.merchantMarketing[merchantId] = { ...marketingFor(merchantId), [input.dataset.marketingKey]: input.value };
           renderPreview();
-          updateUndoState();
+          updateActionState();
         }));
       });
       list.querySelectorAll('[data-selector-merchant]').forEach((item) => {
@@ -183,10 +183,8 @@ window.MerchantShelfPage = {
         item.addEventListener('drop', (event) => { if (!isEditing || !item.classList.contains('selected')) return; event.preventDefault(); item.classList.remove('is-dragover'); config.selectedByCategory[activeCategory] = reorder(config.selectedByCategory[activeCategory], draggedMerchant, item.dataset.selectorMerchant); renderAll(); });
       });
     };
-    const updateUndoState = () => {
-      const hasChanges = JSON.stringify(configValue(config)) !== JSON.stringify(configValue(savedConfig));
+    const updateActionState = () => {
       const editor = document.querySelector('.merchant-shelf-editor');
-      document.getElementById('cancel-merchant-shelf').disabled = !isEditing || !hasChanges;
       const primaryAction = document.getElementById('save-merchant-shelf');
       primaryAction.textContent = isEditing ? '保存' : '编辑';
       primaryAction.classList.toggle('is-edit-action', !isEditing);
@@ -200,7 +198,7 @@ window.MerchantShelfPage = {
         return `<article class="shelf-log-item"><div><span>上次更新时间：</span><b>${this.escape(log.updatedAt)}</b></div><div><span>操作人：</span><b>${this.escape(log.updatedBy)}</b></div><div class="shelf-log-details"><span>更新内容明细：</span><ul>${visible.map((detail) => `<li>${this.escape(detail)}</li>`).join('')}</ul>${more}</div></article>`;
       }).join('');
     };
-    const renderAll = () => { renderCategories(); renderPreview(); renderSelector(); renderLogs(); updateUndoState(); };
+    const renderAll = () => { renderCategories(); renderPreview(); renderSelector(); renderLogs(); updateActionState(); };
     document.getElementById('save-merchant-shelf').addEventListener('click', () => {
       if (!isEditing) { isEditing = true; renderAll(); return; }
       config.lastUpdatedAt = formatTime(new Date());
@@ -214,13 +212,6 @@ window.MerchantShelfPage = {
       isEditing = false;
       renderAll();
       window.BackofficeLayout.showToast('保存成功', '商家页列表配置已更新');
-    });
-    document.getElementById('cancel-merchant-shelf').addEventListener('click', () => {
-      config = JSON.parse(JSON.stringify(savedConfig));
-      activeCategory = config.categoryOrder[0] || '';
-      isEditing = false;
-      renderAll();
-      window.BackofficeLayout.showToast('已取消修改', '已恢复到最近一次保存的商家列表页配置');
     });
     renderAll();
   }

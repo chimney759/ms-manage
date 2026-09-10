@@ -41,7 +41,7 @@ window.MerchantProductListPage = {
   },
   saveRecords() { window.localStorage.setItem(this.storageKey, JSON.stringify(this.records)); },
   render() {
-    return `<section class="content"><div class="page-heading"><div class="page-title-row"><h1>合作商-货品列表</h1><button class="help-tooltip merchant-product-definition-tooltip" type="button" aria-label="合作商货品定义" data-tooltip="定义：合作商货品是供应链及仓储模块的基础数据实体，代表仓库中实际存在的最小不可拆分库存单元。它独立于前台销售逻辑，不包含任何营销属性（如折扣、活动价），仅记录物理状态，例如采购成本、官方价、货品标题、商品类型等。">?</button></div><span class="heading-note">维护合作商提供的货品信息</span></div><section class="panel">
+    return `<section class="content"><div class="page-heading"><div class="page-title-row"><h1>合作商-货品列表</h1><button class="help-tooltip merchant-product-definition-tooltip" type="button" aria-label="合作商货品定义" data-tooltip="定义：合作商货品是供应链及仓储模块的基础数据实体，代表仓库中实际存在的最小不可拆分库存单元。它独立于前台销售逻辑，不包含任何营销属性（如折扣、活动价），仅记录物理状态，例如采购成本、官方价、货品标题、商品类型等。">?</button></div><span class="heading-note">维护合作商提供的货品信息。货品定义：合作商直接可售、可配置价格和库存的最小经营单元</span></div><section class="panel">
       <div class="filters merchant-product-filters">
         <div class="field"><label for="merchant-product-supplier">合作商：</label><select class="control" id="merchant-product-supplier"><option value="">全部</option></select></div>
         <div class="field"><label for="merchant-product-title">货品标题：</label><input class="control" id="merchant-product-title" placeholder="请输入货品标题" /></div>
