@@ -1,6 +1,7 @@
 window.SelfBuiltPageManagementPage = {
   storageKey: 'meiyou-cashback-self-built-pages',
   pageSize: 20,
+  statusOptions: ['待上线', '上线中', '已下线'],
   contentComponentTools: [
     { type: 'mosaic', icon: '◫', label: '信息流-拼图', description: '活动素材组合展示' },
     { type: 'red-packet-delivery', icon: '￥', label: '信息流-红包发放功能', description: '红包权益发放展示' }
@@ -18,6 +19,7 @@ window.SelfBuiltPageManagementPage = {
   read() { try { const rows = JSON.parse(localStorage.getItem(this.storageKey)); if (Array.isArray(rows)) return rows.map((record) => this.normalizeRecord(record)); } catch (error) { /* Restore the seed data when storage is invalid. */ } return this.clone(this.seedRows).map((record) => this.normalizeRecord(record)); },
   write(rows) { localStorage.setItem(this.storageKey, JSON.stringify(rows)); },
   formatDate(value) { return value ? `${value.replace('T', ' ')}${value.length === 16 ? ':00' : ''}` : '-'; },
+  statusFilterLabel(state) { const selected = this.statusOptions.filter((status) => state.statuses.has(status)); if (selected.length === this.statusOptions.length) return '全部状态'; if (!selected.length) return '请选择状态'; return selected.length === 1 ? selected[0] : `已选 ${selected.length} 项`; },
   sortIcon(direction) { const path = direction === 'asc' ? 'm4.5 9.5 3.5-3.5 3.5 3.5' : direction === 'desc' ? 'm4.5 6.5 3.5 3.5 3.5-3.5' : 'm4.75 6.25 3.25-3.25 3.25 3.25M4.75 9.75 8 13l3.25-3.25'; return `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="${path}" /></svg>`; },
   emptyRecord() { return { id: '', title: '', marker: '规则页', url: '', description: '', onlineAt: '', offlineAt: '', status: '待上线', creator: '管理员', createdAt: '', editor: '管理员', updatedAt: '', resources: [] }; },
   render() { return `<section class="content self-built-page-management-page"><section class="self-built-page-workspace panel"><div id="self-built-page-body"></div></section></section>`; },
@@ -41,7 +43,7 @@ window.SelfBuiltPageManagementPage = {
     const record = this.read().find((item) => item.id === recordId);
     if (!record) return `<section class="content self-built-page-content-page"><section class="marketing-editor-workspace panel"><div class="style-config-empty">当前页面不存在或已被删除。</div></section></section>`;
     this.ensureContentState(record);
-    return `<section class="content marketing-config-page self-built-page-content-page"><section class="marketing-editor-workspace panel"><div class="marketing-workspace-heading"><div><h1>页面内容管理</h1><span class="heading-note">${this.escape(record.title)}的内容编排与展示配置</span></div><div class="marketing-workspace-tools"><div class="marketing-page-actions" id="marketing-page-actions"></div><section class="marketing-recent-edits" id="marketing-recent-edits" aria-label="最近编辑"></section></div></div><div class="marketing-config-body" id="marketing-config-body">${window.FeedManagementPage.renderEmbedded({ componentToolNote: '保存页面内容后可继续添加信息流组件', componentTools: this.contentComponentTools })}</div></section></section>`;
+    return `<section class="content marketing-config-page self-built-page-content-page"><section class="marketing-editor-workspace panel"><div class="marketing-workspace-heading"><div><h1>页面内容管理</h1><span class="heading-note">${this.escape(record.title)}的内容编排与展示配置</span></div><div class="marketing-workspace-tools"><div class="marketing-page-actions" id="marketing-page-actions"></div><section class="marketing-recent-edits" id="marketing-recent-edits" aria-label="最近编辑"></section></div></div><div class="marketing-config-body" id="marketing-config-body">${window.FeedManagementPage.renderEmbedded({ singlePageMode: true, previewDescription: '页面内容展示', previewAriaLabel: '页面前台预览', previewEmptyText: '从左侧拖入页面组件', componentToolNote: '保存页面内容后可继续添加页面组件', componentTools: this.contentComponentTools })}</div></section></section>`;
   },
   renderDetail({ recordId = null } = {}) {
     const rows = this.read();
@@ -54,13 +56,13 @@ window.SelfBuiltPageManagementPage = {
   },
   renderList(rows, state) {
     const root = document.getElementById('self-built-page-body');
-    const filtered = rows.filter((row) => (!state.title || row.title.toLowerCase().includes(state.title.trim().toLowerCase())) && (!state.marker || row.marker === state.marker) && (!state.status || row.status === state.status) && (!state.start || row.offlineAt >= state.start) && (!state.end || row.onlineAt <= state.end));
+    const filtered = rows.filter((row) => (!state.title || row.title.toLowerCase().includes(state.title.trim().toLowerCase())) && (!state.marker || row.marker === state.marker) && state.statuses.has(row.status) && (!state.start || row.offlineAt >= state.start) && (!state.end || row.onlineAt <= state.end));
     const visible = [...filtered].sort((left, right) => state.sort.key ? String(left[state.sort.key] || '').localeCompare(String(right[state.sort.key] || '')) * state.sort.direction : 0);
     const pages = Math.max(1, Math.ceil(visible.length / this.pageSize));
     state.page = Math.min(state.page, pages);
     const pageRows = visible.slice((state.page - 1) * this.pageSize, state.page * this.pageSize);
     const sortHeader = (key, label) => `<button type="button" class="self-built-page-sort backoffice-sort" data-self-built-sort="${key}" aria-sort="${state.sort.key === key ? (state.sort.direction === 1 ? 'asc' : 'desc') : 'none'}"><span>${label}</span>${this.sortIcon(state.sort.key === key ? (state.sort.direction === 1 ? 'asc' : 'desc') : 'none')}</button>`;
-    root.innerHTML = `<header class="marketing-workspace-heading self-built-page-heading"><div><h1>营销落地页管理</h1><span class="heading-note">自建 H5 页面的投放配置与资源位维护</span></div><button class="button primary" type="button" data-self-built-add>新增页面</button></header><div class="self-built-page-filters"><label><span>页面标题</span><input class="control" data-self-built-filter="title" value="${this.escape(state.title)}" placeholder="请输入页面标题" /></label><label><span>页面标记</span><select class="control" data-self-built-filter="marker"><option value="">请选择页面标记</option>${['活动页', '规则页'].map((item) => `<option value="${item}"${state.marker === item ? ' selected' : ''}>${item}</option>`).join('')}</select></label><label><span>状态</span><select class="control" data-self-built-filter="status"><option value="">请选择状态</option>${['待上线', '上线中', '已下线'].map((item) => `<option value="${item}"${state.status === item ? ' selected' : ''}>${item}</option>`).join('')}</select></label><label class="self-built-page-date-filter"><span>上线时间</span><div><input class="control" type="datetime-local" data-self-built-filter="start" value="${this.escape(state.start)}" /><i>-</i><input class="control" type="datetime-local" data-self-built-filter="end" value="${this.escape(state.end)}" /></div></label><div class="self-built-page-filter-actions"><button class="button secondary" type="button" data-self-built-search>搜索</button></div></div><div class="self-built-page-table-wrap"><table class="self-built-page-table"><thead><tr><th>${sortHeader('id', 'ID')}</th><th>页面标题</th><th>页面标记</th><th>页面链接</th><th>页面说明</th><th>${sortHeader('onlineAt', '上线时间')}</th><th>${sortHeader('offlineAt', '下线时间')}</th><th>状态</th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th>${sortHeader('updatedAt', '更新时间')}</th><th>操作</th></tr></thead><tbody>${pageRows.length ? pageRows.map((row) => `<tr data-self-built-id="${this.escape(row.id)}"><td>${this.escape(row.id)}</td><td class="self-built-page-title">${this.escape(row.title)}</td><td>${this.escape(row.marker)}</td><td class="self-built-page-link"><a href="${this.escape(row.url)}" target="_blank" rel="noreferrer">${this.escape(row.url)}</a></td><td>${this.escape(row.description || '-')}</td><td>${this.formatDate(row.onlineAt)}</td><td>${this.formatDate(row.offlineAt)}</td><td>${window.BackofficeLayout.statusTag(row.status)}</td><td>${this.escape(row.creator)}</td><td>${this.escape(row.createdAt || '-')}</td><td>${this.escape(row.editor)}</td><td>${this.escape(row.updatedAt)}</td><td><span class="self-built-page-actions"><button class="text-button" type="button" data-self-built-edit>编辑</button><button class="text-button" type="button" data-self-built-resources>页面内容管理</button></span></td></tr>`).join('') : '<tr><td class="self-built-page-empty" colspan="13">暂无符合条件的页面</td></tr>'}</tbody></table></div><footer class="self-built-page-footer"><span>共 ${visible.length} 条</span><div class="self-built-page-pagination"><span>20条/页</span><button type="button" data-self-built-page="previous"${state.page === 1 ? ' disabled' : ''} aria-label="上一页">‹</button>${Array.from({ length: pages }, (_, index) => index + 1).slice(0, 3).map((item) => `<button type="button" data-self-built-page="${item}" class="${item === state.page ? 'is-active' : ''}">${item}</button>`).join('')}<button type="button" data-self-built-page="next"${state.page === pages ? ' disabled' : ''} aria-label="下一页">›</button><label>前往 <input class="control" type="number" min="1" max="${pages}" data-self-built-jump value="${state.page}" /> 页</label></div></footer>`;
+    root.innerHTML = `<header class="marketing-workspace-heading self-built-page-heading"><div><h1>营销落地页管理</h1><span class="heading-note">自建 H5 页面的投放配置与资源位维护</span></div><button class="button primary" type="button" data-self-built-add>新增页面</button></header><div class="self-built-page-filters"><label><span>页面标题</span><input class="control" data-self-built-filter="title" value="${this.escape(state.title)}" placeholder="请输入页面标题" /></label><label><span>页面标记</span><select class="control" data-self-built-filter="marker"><option value="">请选择页面标记</option>${['活动页', '规则页'].map((item) => `<option value="${item}"${state.marker === item ? ' selected' : ''}>${item}</option>`).join('')}</select></label><label><span>状态</span><span class="self-built-page-status-filter" data-self-built-status-filter><button class="control self-built-page-status-toggle" type="button" data-self-built-status-toggle aria-haspopup="true" aria-expanded="false" aria-controls="self-built-page-status-menu">${this.statusFilterLabel(state)}<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m4.5 6.5 3.5 3.5 3.5-3.5" /></svg></button><span class="self-built-page-status-menu" id="self-built-page-status-menu" data-self-built-status-menu hidden>${this.statusOptions.map((item) => `<label><input type="checkbox" value="${item}" data-self-built-status-option${state.statuses.has(item) ? ' checked' : ''} /><span>${item}</span></label>`).join('')}</span></span></label><label class="self-built-page-date-filter"><span>上线时间</span><div><input class="control" type="datetime-local" data-self-built-filter="start" value="${this.escape(state.start)}" /><i>-</i><input class="control" type="datetime-local" data-self-built-filter="end" value="${this.escape(state.end)}" /></div></label><div class="self-built-page-filter-actions"><button class="button secondary" type="button" data-self-built-search>搜索</button></div></div><div class="self-built-page-table-wrap"><table class="self-built-page-table"><thead><tr><th>${sortHeader('id', 'ID')}</th><th>页面标题</th><th>页面标记</th><th>页面链接</th><th>页面说明</th><th>${sortHeader('onlineAt', '上线时间')}</th><th>${sortHeader('offlineAt', '下线时间')}</th><th>状态</th><th>创建人</th><th>创建时间</th><th>最后编辑</th><th>${sortHeader('updatedAt', '更新时间')}</th><th>操作</th></tr></thead><tbody>${pageRows.length ? pageRows.map((row) => `<tr data-self-built-id="${this.escape(row.id)}"><td>${this.escape(row.id)}</td><td class="self-built-page-title">${this.escape(row.title)}</td><td>${this.escape(row.marker)}</td><td class="self-built-page-link"><a href="${this.escape(row.url)}" target="_blank" rel="noreferrer">${this.escape(row.url)}</a></td><td>${this.escape(row.description || '-')}</td><td>${this.formatDate(row.onlineAt)}</td><td>${this.formatDate(row.offlineAt)}</td><td>${window.BackofficeLayout.statusTag(row.status)}</td><td>${this.escape(row.creator)}</td><td>${this.escape(row.createdAt || '-')}</td><td>${this.escape(row.editor)}</td><td>${this.escape(row.updatedAt)}</td><td><span class="self-built-page-actions"><button class="text-button" type="button" data-self-built-edit>编辑</button><button class="text-button" type="button" data-self-built-resources>页面内容管理</button></span></td></tr>`).join('') : '<tr><td class="self-built-page-empty" colspan="13">暂无符合条件的页面</td></tr>'}</tbody></table></div><footer class="self-built-page-footer"><span>共 ${visible.length} 条</span><div class="self-built-page-pagination"><span>20条/页</span><button type="button" data-self-built-page="previous"${state.page === 1 ? ' disabled' : ''} aria-label="上一页">‹</button>${Array.from({ length: pages }, (_, index) => index + 1).slice(0, 3).map((item) => `<button type="button" data-self-built-page="${item}" class="${item === state.page ? 'is-active' : ''}">${item}</button>`).join('')}<button type="button" data-self-built-page="next"${state.page === pages ? ' disabled' : ''} aria-label="下一页">›</button><label>前往 <input class="control" type="number" min="1" max="${pages}" data-self-built-jump value="${state.page}" /> 页</label></div></footer>`;
   },
   renderResources(record) {
     const resourceRows = (record.resources || []).map((item, index) => `<tr><td><input class="control" data-resource-field="name" data-resource-index="${index}" value="${this.escape(item.name)}" placeholder="资源位名称" /></td><td><select class="control" data-resource-field="type" data-resource-index="${index}">${['图片', '跳转', '商品', '组件'].map((type) => `<option value="${type}"${item.type === type ? ' selected' : ''}>${type}</option>`).join('')}</select></td><td><input class="control" data-resource-field="description" data-resource-index="${index}" value="${this.escape(item.description)}" placeholder="资源位说明" /></td><td><button class="text-button" type="button" data-resource-remove="${index}">删除</button></td></tr>`).join('');
@@ -74,7 +76,10 @@ window.SelfBuiltPageManagementPage = {
         navigate,
         storageKey: this.ensureContentState(record),
         pageName: `${record.title}页面内容`,
-        componentToolNote: '保存页面内容后可继续添加信息流组件',
+        singlePageMode: true,
+        previewAriaLabel: '页面前台预览',
+        previewEmptyText: '从左侧拖入页面组件',
+        componentToolNote: '保存页面内容后可继续添加页面组件',
         onReturnToConfigurationList: () => navigate('self-built-page-management')
       });
       return;
@@ -107,9 +112,32 @@ window.SelfBuiltPageManagementPage = {
       return;
     }
     const rows = this.read();
-    const state = { title: '', marker: '', status: '', start: '', end: '', sort: { key: 'updatedAt', direction: -1 }, page: 1 };
+    const state = { title: '', marker: '', statuses: new Set(this.statusOptions), start: '', end: '', sort: { key: 'updatedAt', direction: -1 }, page: 1 };
     const root = document.getElementById('self-built-page-body');
+    let statusMenuOutsideListener = null;
+    const closeStatusMenu = () => {
+      const menu = root.querySelector('[data-self-built-status-menu]');
+      const toggle = root.querySelector('[data-self-built-status-toggle]');
+      if (menu) menu.hidden = true;
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      if (statusMenuOutsideListener) {
+        document.removeEventListener('pointerdown', statusMenuOutsideListener, true);
+        statusMenuOutsideListener = null;
+      }
+    };
+    const openStatusMenu = () => {
+      const menu = root.querySelector('[data-self-built-status-menu]');
+      const toggle = root.querySelector('[data-self-built-status-toggle]');
+      if (!menu || !toggle) return;
+      menu.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      statusMenuOutsideListener = (event) => {
+        if (!root.isConnected || !event.target.closest('[data-self-built-status-filter]')) closeStatusMenu();
+      };
+      document.addEventListener('pointerdown', statusMenuOutsideListener, true);
+    };
     const refresh = () => {
+      closeStatusMenu();
       this.renderList(rows, state);
     };
     const closeModal = () => document.querySelector('.self-built-page-resources')?.remove();
@@ -135,8 +163,9 @@ window.SelfBuiltPageManagementPage = {
       navigate(`self-built-page-content:${row.dataset.selfBuiltId}`);
     }, true);
     root.addEventListener('input', (event) => { if (event.target.matches('[data-self-built-filter]')) state[event.target.dataset.selfBuiltFilter] = event.target.value; });
-    root.addEventListener('change', (event) => { if (event.target.matches('[data-self-built-filter]')) state[event.target.dataset.selfBuiltFilter] = event.target.value; });
-    root.addEventListener('click', (event) => { if (event.target.closest('[data-self-built-add]')) return navigate('self-built-page-add'); if (event.target.closest('[data-self-built-search]')) { state.page = 1; return refresh(); } const sort = event.target.closest('[data-self-built-sort]'); if (sort) { const key = sort.dataset.selfBuiltSort; state.sort.direction = state.sort.key === key ? -state.sort.direction : 1; state.sort.key = key; return refresh(); } const page = event.target.closest('[data-self-built-page]'); if (page) { const requested = page.dataset.selfBuiltPage; state.page = requested === 'next' ? state.page + 1 : requested === 'previous' ? state.page - 1 : Number(requested); return refresh(); } const row = event.target.closest('[data-self-built-id]'); if (row && event.target.closest('[data-self-built-edit]')) return navigate(`self-built-page-edit:${row.dataset.selfBuiltId}`); if (row && event.target.closest('[data-self-built-resources]')) return openResources(row.dataset.selfBuiltId); });
+    root.addEventListener('change', (event) => { if (event.target.matches('[data-self-built-status-option]')) { if (event.target.checked) state.statuses.add(event.target.value); else state.statuses.delete(event.target.value); state.page = 1; closeStatusMenu(); refresh(); openStatusMenu(); return; } if (event.target.matches('[data-self-built-filter]')) state[event.target.dataset.selfBuiltFilter] = event.target.value; });
+    root.addEventListener('click', (event) => { const statusToggle = event.target.closest('[data-self-built-status-toggle]'); if (statusToggle) { if (statusToggle.getAttribute('aria-expanded') === 'true') closeStatusMenu(); else openStatusMenu(); return; } if (event.target.closest('[data-self-built-add]')) return navigate('self-built-page-add'); if (event.target.closest('[data-self-built-search]')) { state.page = 1; return refresh(); } const sort = event.target.closest('[data-self-built-sort]'); if (sort) { const key = sort.dataset.selfBuiltSort; state.sort.direction = state.sort.key === key ? -state.sort.direction : 1; state.sort.key = key; return refresh(); } const page = event.target.closest('[data-self-built-page]'); if (page) { const requested = page.dataset.selfBuiltPage; state.page = requested === 'next' ? state.page + 1 : requested === 'previous' ? state.page - 1 : Number(requested); return refresh(); } const row = event.target.closest('[data-self-built-id]'); if (row && event.target.closest('[data-self-built-edit]')) return navigate(`self-built-page-edit:${row.dataset.selfBuiltId}`); if (row && event.target.closest('[data-self-built-resources]')) return openResources(row.dataset.selfBuiltId); });
     root.addEventListener('change', (event) => { if (event.target.matches('[data-self-built-jump]')) { state.page = Math.max(1, Number(event.target.value) || 1); refresh(); } });
+    root.addEventListener('keydown', (event) => { if (event.key === 'Escape' && root.querySelector('[data-self-built-status-toggle][aria-expanded="true"]')) { closeStatusMenu(); root.querySelector('[data-self-built-status-toggle]')?.focus(); } });
   }
 };

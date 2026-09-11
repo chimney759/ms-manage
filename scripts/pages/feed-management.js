@@ -159,7 +159,10 @@ window.FeedManagementPage = {
   render() {
     return `<section class="content feed-management-page"><div class="page-heading"><div><h1>首页-信息流营销</h1><span class="heading-note">维护首页信息流 Tab、资源位状态及展示配置</span></div><div class="feed-page-actions" id="feed-page-actions"></div></div><section class="panel feed-filter-panel"><div class="feed-status-filter"><strong>Tab状态：</strong><div class="feed-filter-options" data-feed-filter="status"><label><input type="checkbox" value="上线中" checked />上线中</label><label><input type="checkbox" value="待上线" checked />待上线</label><label><input type="checkbox" value="已下线" checked />已下线</label></div></div><div class="feed-status-filter"><strong>资源位状态：</strong><div class="feed-filter-options" data-feed-filter="resourceStatus"><label><input type="checkbox" value="上线中" checked />上线中</label><label><input type="checkbox" value="待上线" checked />待上线</label><label><input type="checkbox" value="已下线" checked />已下线</label></div></div></section><section class="panel feed-tab-management"><div class="feed-tab-nav" id="feed-tab-nav" role="tablist" aria-label="首页信息流 Tab"></div><div class="feed-tab-workspace" id="feed-tab-workspace"></div></section></section>`;
   },
-  renderEmbedded({ showTabStatus = true, resourceStatusLabel = '资源位状态', showPreviewTabNav = true, previewTitle = '页面预览', previewDescription = '当前 Tab 资源位', componentToolNote = '保存当前 Tab 后可拖入信息流组件', componentTools = null, sortPopupPreviewByPriority = false, focusedEditor = false, operationPopupListWorkspace = false, operationPopupStandaloneEditor = false } = {}) {
+  renderEmbedded({ showTabStatus = true, showResourceStatus = true, resourceStatusLabel = '资源位状态', showPreviewTabNav = true, previewTitle = '页面预览', previewDescription = '当前 Tab 资源位', previewAriaLabel = 'Tab 前台预览', previewEmptyText = '从左侧拖入信息流组件', componentToolNote = '保存当前 Tab 后可拖入信息流组件', componentTools = null, sortPopupPreviewByPriority = false, focusedEditor = false, operationPopupListWorkspace = false, operationPopupStandaloneEditor = false, singlePageMode = false } = {}) {
+    const showTabControls = !singlePageMode && showTabStatus;
+    const showResourceControls = !singlePageMode && showResourceStatus;
+    const showPreviewNavigation = !singlePageMode && showPreviewTabNav;
     const tools = componentTools || [
       { type: 'mosaic', icon: '◫', label: '信息流-拼图', description: '活动素材组合展示' },
       { type: 'red-packet-delivery', icon: '￥', label: '信息流-红包发放功能', description: '红包权益发放展示' },
@@ -169,14 +172,14 @@ window.FeedManagementPage = {
     const collapseIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M9.75 3.5 5.25 8l4.5 4.5" /></svg>';
     const toolToggle = focusedEditor ? `<button class="feed-workspace-collapse" type="button" data-feed-workspace-toggle="tools" aria-expanded="true" aria-label="收起组件区" title="收起组件区">${collapseIcon}</button>` : '';
     const previewToggle = focusedEditor ? `<button class="feed-workspace-collapse" type="button" data-feed-workspace-toggle="preview" aria-expanded="true" aria-label="收起预览区" title="收起预览区">${collapseIcon}</button>` : '';
-    const preview = `<section class="home-marketing-preview feed-marketing-preview"><div class="style-panel-heading"><div class="feed-workspace-panel-heading"><h2>${this.escape(previewTitle)}</h2>${previewDescription ? `<span>${this.escape(previewDescription)}</span>` : ''}</div>${previewToggle}</div><div class="feed-embedded-filter-bar" id="feed-embedded-filters" data-feed-resource-status-label="${this.escape(resourceStatusLabel)}"></div><div class="feed-embedded-preview" id="feed-embedded-preview"></div></section>`;
+    const preview = `<section class="home-marketing-preview feed-marketing-preview"><div class="style-panel-heading"><div class="feed-workspace-panel-heading"><h2>${this.escape(previewTitle)}</h2>${previewDescription ? `<span>${this.escape(previewDescription)}</span>` : ''}</div>${previewToggle}</div><div class="feed-embedded-filter-bar" id="feed-embedded-filters" data-feed-resource-status-label="${this.escape(resourceStatusLabel)}" data-feed-show-tab-status="${showTabControls}" data-feed-show-resource-status="${showResourceControls}" data-feed-preview-navigation="${showPreviewNavigation}" data-feed-preview-aria-label="${this.escape(previewAriaLabel)}" data-feed-preview-empty-text="${this.escape(previewEmptyText)}"></div><div class="feed-embedded-preview" id="feed-embedded-preview"></div></section>`;
     if (operationPopupListWorkspace) {
       return `<section class="home-marketing-builder feed-marketing-builder is-popup-list-workspace" id="feed-marketing-builder" data-feed-show-tab-status="${showTabStatus}"><aside class="home-marketing-settings feed-marketing-settings feed-operation-popup-list-settings"><div class="style-panel-heading"><div><h2>弹窗列表</h2><span>当前导航下已保存的运营弹窗配置</span></div><div class="marketing-page-actions" id="operation-popup-list-actions"></div></div><div class="home-config-content" id="feed-embedded-config-content"></div></aside></section>`;
     }
     if (operationPopupStandaloneEditor) {
       return `<section class="operation-popup-standalone-editor" id="feed-marketing-builder"><div class="operation-popup-standalone-heading"><h2>弹窗配置</h2></div><div class="operation-popup-standalone-content" id="feed-embedded-config-content"></div><div class="operation-popup-standalone-actions"><button class="button primary" id="save-feed-tab" type="button">保存</button></div></section>`;
     }
-    return `<section class="home-marketing-builder feed-marketing-builder${sortPopupPreviewByPriority ? ' is-popup-priority-preview' : ''}${focusedEditor ? ' is-focused-editor' : ''}" id="feed-marketing-builder" data-feed-show-tab-status="${showTabStatus}"><aside class="home-marketing-tools feed-marketing-tools"><div class="feed-workspace-panel-heading"><h2>组件</h2>${toolToggle}</div><p id="feed-component-tools-note">${this.escape(componentToolNote)}</p><div class="home-tool-list">${toolMarkup}</div></aside>${preview}<aside class="home-marketing-settings feed-marketing-settings"><div class="style-panel-heading"><h2>配置</h2><span id="feed-embedded-config-type">未选择 Tab</span></div><div class="home-config-content" id="feed-embedded-config-content"></div><div class="home-config-actions"><button class="button secondary home-remove-component-action" id="remove-feed-component" type="button" hidden>移除组件</button><span class="home-component-save-tooltip" data-tooltip="点击编辑当前选中的 Tab 或组件。"><button class="button primary is-edit-action" id="save-feed-tab" type="button">编辑</button></span></div></aside></section>`;
+    return `<section class="home-marketing-builder feed-marketing-builder${sortPopupPreviewByPriority ? ' is-popup-priority-preview' : ''}${focusedEditor ? ' is-focused-editor' : ''}${singlePageMode ? ' is-single-page-editor' : ''}" id="feed-marketing-builder" data-feed-show-tab-status="${showTabControls}" data-feed-single-page-mode="${singlePageMode}"><aside class="home-marketing-tools feed-marketing-tools"><div class="feed-workspace-panel-heading"><h2>组件</h2>${toolToggle}</div><p id="feed-component-tools-note">${this.escape(componentToolNote)}</p><div class="home-tool-list">${toolMarkup}</div></aside>${preview}<aside class="home-marketing-settings feed-marketing-settings"><div class="style-panel-heading"><h2>配置</h2><span id="feed-embedded-config-type">${singlePageMode ? '未选择组件' : '未选择 Tab'}</span></div><div class="home-config-content" id="feed-embedded-config-content"></div><div class="home-config-actions"><button class="button secondary home-remove-component-action" id="remove-feed-component" type="button" hidden>移除组件</button><span class="home-component-save-tooltip" data-tooltip="点击编辑当前选中的${singlePageMode ? '页面组件' : ' Tab 或组件'}。"><button class="button primary is-edit-action" id="save-feed-tab" type="button">编辑</button></span></div></aside></section>`;
   },
   renderEmbeddedComponent(component, selectedComponentId = '', readonly = false) {
     const slots = component.slots || [];
@@ -198,7 +201,7 @@ window.FeedManagementPage = {
     if (component.type === 'native-slider') return `<button class="feed-preview-component feed-preview-native-slider${activeClass}${unsavedClass}" type="button"${interaction} data-feed-preview-component="${this.escape(component.id)}"><span>${slots.map((slot, index) => `<i class="${index === 0 ? 'is-active' : ''}">${this.escape(slot)}</i>`).join('')}</span><small><b></b><b></b><b></b></small></button>`;
     return `<button class="feed-preview-component feed-preview-red-packet${activeClass}${unsavedClass}" type="button"${interaction} data-feed-preview-component="${this.escape(component.id)}"><span><small>福利红包</small><b>${this.escape(slots[0] || '福利红包')}</b></span><i>立即领取</i></button>`;
   },
-  renderEmbeddedPreview(tab, tabs = [], selectedComponentId = '', readonlyTopPreview = '', showPreviewTabNav = true, sortPopupPreviewByPriority = false, preservePopupDraftOrder = false, readonly = false) {
+  renderEmbeddedPreview(tab, tabs = [], selectedComponentId = '', readonlyTopPreview = '', showPreviewTabNav = true, sortPopupPreviewByPriority = false, preservePopupDraftOrder = false, readonly = false, previewAriaLabel = 'Tab 前台预览', previewEmptyText = '从左侧拖入信息流组件') {
     if (!tab) return '<div class="feed-tab-empty"><b>当前筛选条件下暂无 Tab</b><span>可调整上方状态筛选，或新增 Tab。</span></div>';
     const previewTabs = tabs.length ? tabs : [tab];
     const tabNav = previewTabs.map((item) => {
@@ -220,9 +223,9 @@ window.FeedManagementPage = {
     }
     const content = components.length
       ? components.map(({ component }) => this.renderEmbeddedComponent(component, selectedComponentId, readonly)).join('')
-      : `<div class="feed-preview-empty"><b>${readonly ? '-' : '+'}</b><span>${readonly ? '暂无可预览的弹窗' : '从左侧拖入信息流组件'}</span></div>`;
+      : `<div class="feed-preview-empty"><b>${readonly ? '-' : '+'}</b><span>${readonly ? '暂无可预览的弹窗' : this.escape(previewEmptyText)}</span></div>`;
     const navigation = showPreviewTabNav ? `<div class="feed-app-tabs" role="tablist" aria-label="信息流 Tab 预览导航"><div class="feed-app-tab-list">${tabNav}</div><button class="feed-app-tab-add" type="button" title="添加 Tab" aria-label="添加 Tab" data-feed-preview-add>+</button></div>` : '';
-    return `<section class="feed-tab-preview feed-embedded-preview-card" aria-label="Tab 前台预览">${readonlyTopPreview}${navigation}<div class="feed-preview-drop-zone${sortPopupPreviewByPriority ? ' operation-popup-preview-stack' : ''}" data-feed-preview-drop-zone>${content}</div></section>`;
+    return `<section class="feed-tab-preview feed-embedded-preview-card" aria-label="${this.escape(previewAriaLabel)}">${readonlyTopPreview}${navigation}<div class="feed-preview-drop-zone${sortPopupPreviewByPriority ? ' operation-popup-preview-stack' : ''}" data-feed-preview-drop-zone>${content}</div></section>`;
   },
   renderEmbeddedConfig(tab) {
     if (!tab) return '<div class="style-config-empty">请选择预览中的 Tab，或点击加号新增 Tab 进行配置</div>';
@@ -286,9 +289,14 @@ window.FeedManagementPage = {
     };
     return `<div class="style-config-form feed-component-form"><section class="home-entry-info-section shared-config-section"><h3>基本信息</h3>${field('<b class="field-required">*</b>记录名称', `<input class="control" data-feed-component-field="recordName" value="${this.escape(component.recordName || component.label)}" maxlength="30" placeholder="仅用于后台记录，前台不可见" />`)}${field('组件类型', `<input class="control feed-component-type-control" value="${this.escape(component.label)}" data-feed-static disabled />`)}</section><section class="home-entry-info-section shared-config-section"><h3>素材配置</h3>${slots.map((slot, index) => `${field(`<b class="field-required">*</b>坑位${index + 1}`, `<input class="control" data-feed-component-slot="${index}" value="${this.escape(slot)}" maxlength="20" placeholder="请输入坑位名称" />`)}${field('图片', assetControl(index))}`).join('')}</section></div>`;
   },
-  bindEmbedded({ navigate, storageKey = this.storageKey, pageName = '首页信息流营销', renderReadonlyTopPreview = null, showTabStatus = true, resourceStatusLabel = '资源位状态', showPreviewTabNav = true, componentToolNote = '', defaultComponentType = 'mosaic', sortPopupPreviewByPriority = false, focusedEditor = false, configurationListMode = false, tabReminderOptions = null, tabReminderNote = '', tabReminderReadonly = false, showTabConfigWhenNoComponent = false, operationPopupListWorkspace = false, operationPopupStandaloneEditor = false, onAddConfiguration = null, onEditConfiguration = null, onCopyConfiguration = null, createInitialOperationPopup = false, editorOperationPopupId = '', editorOperationPopupMode = 'add', onReturnToConfigurationList = null, operationPopupPosition = '首页', operationPopupPositionDisplay = operationPopupPosition } = {}) {
+  bindEmbedded({ navigate, storageKey = this.storageKey, pageName = '首页信息流营销', renderReadonlyTopPreview = null, showTabStatus = true, showResourceStatus = true, resourceStatusLabel = '资源位状态', showPreviewTabNav = true, previewAriaLabel = 'Tab 前台预览', previewEmptyText = '从左侧拖入信息流组件', componentToolNote = '', defaultComponentType = 'mosaic', sortPopupPreviewByPriority = false, focusedEditor = false, configurationListMode = false, tabReminderOptions = null, tabReminderNote = '', tabReminderReadonly = false, showTabConfigWhenNoComponent = false, operationPopupListWorkspace = false, operationPopupStandaloneEditor = false, onAddConfiguration = null, onEditConfiguration = null, onCopyConfiguration = null, createInitialOperationPopup = false, editorOperationPopupId = '', editorOperationPopupMode = 'add', onReturnToConfigurationList = null, operationPopupPosition = '首页', operationPopupPositionDisplay = operationPopupPosition, singlePageMode = false } = {}) {
     const root = document.getElementById('feed-marketing-builder');
     if (!root) return;
+    const showTabControls = !singlePageMode && showTabStatus;
+    const showResourceControls = !singlePageMode && showResourceStatus;
+    const componentSaveToast = singlePageMode
+      ? { title: '请先保存页面', message: '保存成功后才可添加页面组件' }
+      : { title: '请先保存Tab', message: '保存成功后才可拖入信息流组件' };
     let saved = this.loadState(storageKey);
     if (operationPopupListWorkspace) {
       const actionContainer = document.getElementById('operation-popup-list-actions');
@@ -499,9 +507,12 @@ window.FeedManagementPage = {
       draft.tabs,
       selectedComponentId,
       typeof renderReadonlyTopPreview === 'function' ? renderReadonlyTopPreview() : '',
-      showPreviewTabNav,
+      !singlePageMode && showPreviewTabNav,
       sortPopupPreviewByPriority,
-      popupOrderPending
+      popupOrderPending,
+      false,
+      previewAriaLabel,
+      previewEmptyText
     );
     const snapshot = () => ({ tabs: draft.tabs });
     const editSession = window.EditSession.create({
@@ -673,8 +684,8 @@ window.FeedManagementPage = {
       const toolNote = root.querySelector('#feed-component-tools-note');
       const toolPanel = root.querySelector('.feed-marketing-tools');
       if (toolNote) toolNote.textContent = tab?.hasBeenSaved
-        ? (componentToolNote || '拖入当前 Tab 的信息流预览区域')
-        : '请先保存当前 Tab，再拖入信息流组件';
+        ? (componentToolNote || (singlePageMode ? '拖入当前页面的预览区域' : '拖入当前 Tab 的信息流预览区域'))
+        : (singlePageMode ? '请先保存页面，再拖入页面组件' : '请先保存当前 Tab，再拖入信息流组件');
       if (toolPanel) toolPanel.classList.toggle('is-locked', !canConfigureComponents);
       const component = activeComponent();
       const removeButton = root.querySelector('#remove-feed-component');
@@ -689,12 +700,14 @@ window.FeedManagementPage = {
       });
       const saveButton = root.querySelector('#save-feed-tab');
       const needsInitialTabSave = Boolean(tab && !tab.hasBeenSaved);
-      saveButton.textContent = operationPopupStandaloneEditor ? '保存' : (isEditing ? (component ? '保存组件' : (needsInitialTabSave ? '保存Tab' : '保存配置')) : '编辑');
+      const initialSaveLabel = singlePageMode ? '保存页面' : '保存Tab';
+      const configurationSaveLabel = singlePageMode ? '保存页面' : '保存配置';
+      saveButton.textContent = operationPopupStandaloneEditor ? '保存' : (isEditing ? (component ? '保存组件' : (needsInitialTabSave ? initialSaveLabel : configurationSaveLabel)) : '编辑');
       saveButton.classList.toggle('is-edit-action', !isEditing);
       const saveTooltip = saveButton.closest('.home-component-save-tooltip');
       if (saveTooltip) saveTooltip.dataset.tooltip = isEditing
-        ? (component ? '保存当前组件配置。' : (needsInitialTabSave ? '首次保存当前 Tab 后才可拖入信息流组件。' : '保存当前 Tab 配置。'))
-        : '点击编辑当前选中的 Tab 或组件。';
+        ? (component ? '保存当前组件配置。' : (needsInitialTabSave ? (singlePageMode ? '首次保存页面后才可添加页面组件。' : '首次保存当前 Tab 后才可拖入信息流组件。') : (singlePageMode ? '保存当前页面配置。' : '保存当前 Tab 配置。')))
+        : (singlePageMode ? '点击编辑当前页面或组件。' : '点击编辑当前选中的 Tab 或组件。');
       saveButton.disabled = isEditing && !editSession.hasComponentChanges();
       refreshRecentEdits();
     };
@@ -782,13 +795,15 @@ window.FeedManagementPage = {
       component.operationPopup = popup;
     };
     const renderAll = () => {
-      const visibleTabs = draft.tabs.filter((tab) => filters.status.has(tab.status) && filters.resourceStatus.has(tab.resourceStatus));
+      const visibleTabs = singlePageMode
+        ? draft.tabs.slice(0, 1)
+        : draft.tabs.filter((tab) => filters.status.has(tab.status) && filters.resourceStatus.has(tab.resourceStatus));
       const active = visibleTabs.find((tab) => tab.id === draft.activeTabId) || visibleTabs[0] || null;
       if (active && active.id !== draft.activeTabId) draft.activeTabId = active.id;
       if (!active?.components.some((component) => component.id === selectedComponentId)) selectedComponentId = '';
       const component = activeComponent();
       if (!operationPopupStandaloneEditor) {
-        root.querySelector('#feed-embedded-filters').innerHTML = `${showTabStatus ? `<div class="feed-embedded-filter"><strong>Tab状态</strong><div>${['上线中', '待上线', '已下线'].map((value) => `<label><input type="checkbox" data-feed-embedded-filter="status" value="${value}"${filters.status.has(value) ? ' checked' : ''} />${value}</label>`).join('')}</div></div>` : ''}<div class="feed-embedded-filter"><strong>${this.escape(resourceStatusLabel)}</strong><div>${['上线中', '待上线', '已下线'].map((value) => `<label><input type="checkbox" data-feed-embedded-filter="resourceStatus" value="${value}"${filters.resourceStatus.has(value) ? ' checked' : ''} />${value}</label>`).join('')}</div></div>`;
+        root.querySelector('#feed-embedded-filters').innerHTML = `${showTabControls ? `<div class="feed-embedded-filter"><strong>Tab状态</strong><div>${['上线中', '待上线', '已下线'].map((value) => `<label><input type="checkbox" data-feed-embedded-filter="status" value="${value}"${filters.status.has(value) ? ' checked' : ''} />${value}</label>`).join('')}</div></div>` : ''}${showResourceControls ? `<div class="feed-embedded-filter"><strong>${this.escape(resourceStatusLabel)}</strong><div>${['上线中', '待上线', '已下线'].map((value) => `<label><input type="checkbox" data-feed-embedded-filter="resourceStatus" value="${value}"${filters.resourceStatus.has(value) ? ' checked' : ''} />${value}</label>`).join('')}</div></div>` : ''}`;
         root.querySelector('#feed-embedded-preview').innerHTML = renderPreview(active);
         root.querySelector('#feed-embedded-config-type').textContent = component
           ? component.label
@@ -796,7 +811,7 @@ window.FeedManagementPage = {
       }
       root.querySelector('#feed-embedded-config-content').innerHTML = component
         ? this.renderEmbeddedComponentConfig(component, { tabReminderOptions, tabReminderNote, tabReminderReadonly })
-        : showTabConfigWhenNoComponent
+        : !singlePageMode && showTabConfigWhenNoComponent
           ? this.renderEmbeddedConfig(active)
           : '';
       applyEditState();
@@ -811,12 +826,12 @@ window.FeedManagementPage = {
         return;
       }
       const previewTabButton = event.target.closest('[data-feed-preview-tab]');
-      if (previewTabButton) { draft.activeTabId = previewTabButton.dataset.feedPreviewTab; selectedComponentId = ''; refreshRecentEdits(true); renderAll(); return; }
-      if (event.target.closest('[data-feed-preview-add]')) { if (!editSession.isEditing()) editSession.startEditing(); const tab = this.createTab(); draft.tabs.push(tab); draft.activeTabId = tab.id; selectedComponentId = ''; refreshRecentEdits(true); renderAll(); return; }
+      if (!singlePageMode && previewTabButton) { draft.activeTabId = previewTabButton.dataset.feedPreviewTab; selectedComponentId = ''; refreshRecentEdits(true); renderAll(); return; }
+      if (!singlePageMode && event.target.closest('[data-feed-preview-add]')) { if (!editSession.isEditing()) editSession.startEditing(); const tab = this.createTab(); draft.tabs.push(tab); draft.activeTabId = tab.id; selectedComponentId = ''; refreshRecentEdits(true); renderAll(); return; }
       const previewComponent = event.target.closest('[data-feed-preview-component]');
       if (previewComponent) { selectedComponentId = previewComponent.dataset.feedPreviewComponent; refreshRecentEdits(true); renderAll(); return; }
       const componentTool = event.target.closest('[data-feed-component-add]');
-      if (componentTool) { const tab = activeTab(); if (!editSession.isEditing() || !tab?.hasBeenSaved) { window.BackofficeLayout.showToast?.('请先保存Tab', '保存成功后才可拖入信息流组件'); return; } const component = this.createFeedComponent(componentTool.dataset.feedComponentAdd); tab.components.push(component); selectedComponentId = component.id; refreshRecentEdits(true); renderAll(); return; }
+      if (componentTool) { const tab = activeTab(); if (!editSession.isEditing() || !tab?.hasBeenSaved) { window.BackofficeLayout.showToast?.(componentSaveToast.title, componentSaveToast.message); return; } const component = this.createFeedComponent(componentTool.dataset.feedComponentAdd); tab.components.push(component); selectedComponentId = component.id; refreshRecentEdits(true); renderAll(); return; }
       if (event.target.closest('#remove-feed-component')) {
         if (!editSession.isEditing()) return;
         const tab = activeTab();
@@ -915,7 +930,7 @@ window.FeedManagementPage = {
       if (!editSession.isEditing()) return;
       const tool = event.target.closest('[data-feed-component-add]');
       if (tool) {
-        if (!activeTab()?.hasBeenSaved) { event.preventDefault(); window.BackofficeLayout.showToast?.('请先保存Tab', '保存成功后才可拖入信息流组件'); return; }
+        if (!activeTab()?.hasBeenSaved) { event.preventDefault(); window.BackofficeLayout.showToast?.(componentSaveToast.title, componentSaveToast.message); return; }
         draggedToolType = tool.dataset.feedComponentAdd;
         tool.classList.add('is-dragging');
         event.dataTransfer.effectAllowed = 'copy';
@@ -946,7 +961,7 @@ window.FeedManagementPage = {
       const target = event.target.closest('[data-feed-preview-drop-zone], [data-feed-preview-component]');
       const tab = activeTab();
       if (!target || !tab || (!draggedToolType && !draggedComponentId)) return;
-      if (draggedToolType && !tab.hasBeenSaved) { clearDragState(); window.BackofficeLayout.showToast?.('请先保存Tab', '保存成功后才可拖入信息流组件'); return; }
+      if (draggedToolType && !tab.hasBeenSaved) { clearDragState(); window.BackofficeLayout.showToast?.(componentSaveToast.title, componentSaveToast.message); return; }
       event.preventDefault();
       const targetId = target.dataset.feedPreviewComponent;
       if (draggedToolType) {
@@ -1153,7 +1168,7 @@ window.FeedManagementPage = {
       refreshRecentEdits(true);
       if (shouldCommitPopupDragOrder) renderAll();
       else applyEditState();
-      window.BackofficeLayout.showToast?.(operationPopupStandaloneEditor ? '配置已保存' : (component ? '组件已保存' : 'Tab已保存'), `${pageName}已更新`);
+      window.BackofficeLayout.showToast?.(operationPopupStandaloneEditor ? '配置已保存' : (component ? '组件已保存' : (singlePageMode ? '页面已保存' : 'Tab已保存')), `${pageName}已更新`);
       if (operationPopupStandaloneEditor && typeof onReturnToConfigurationList === 'function') onReturnToConfigurationList();
     });
     applyWorkspaceLayout();
