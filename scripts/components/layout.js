@@ -69,7 +69,7 @@ window.BackofficeDemoData = {
         videoName: '', coverName: '',
         ruleContent: '<p><b>卡券使用说明</b></p><p>请在有效期内使用卡券，具体使用范围以卡券详情页说明为准。</p><ul><li>卡券逾期不补发、不退款</li><li>卡券不可与其他优惠叠加使用</li></ul>',
         targeting: {
-          identities: ['仅注册MS用户'], targetGroup: '', excludeGroup: '', audiences: ['新注册用户'], audienceInversion: '否',
+          identities: [], targetGroup: '', excludeGroup: '', audiences: ['新注册用户'], audienceInversion: '否',
           platformVersions: {
             ios: { enabled: true, start: '8.96.0.0', end: '' },
             android: { enabled: false, start: '', end: '' },
@@ -111,7 +111,7 @@ window.BackofficeLayout = {
           <nav class="nav">
             <div class="nav-group open">
               <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><span class="nav-text">推广管理</span><span class="chevron">⌃</span></button>
-              <div class="subnav"><a data-view="operation-popup-management">营销弹窗管理</a><a>底Tab-红点管理</a><a data-view="edge-management">贴边管理</a><a data-view="banner-management">横幅管理</a></div>
+              <div class="subnav"><a data-view="operation-popup-management">营销弹窗管理</a><a data-view="tab-red-dot-management">底Tab-红点管理</a><a data-view="edge-management">贴边管理</a><a data-view="banner-management">横幅管理</a></div>
             </div>
             <div class="nav-group open">
               <button class="nav-title" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span class="nav-text">营销管理</span><span class="chevron">⌃</span></button>

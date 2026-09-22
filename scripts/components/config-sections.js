@@ -1,5 +1,22 @@
 window.ConfigurationSections = {
-  identities: ['经期', '怀孕', '备孕', '辣妈', '亲友', '仅注册MS用户'],
+  identities: ['经期', '怀孕', '备孕', '辣妈', '亲友'],
+  targetPages: [
+    '首页',
+    '福利页Tab',
+    '柚子街Tab',
+    '我Tab',
+    '搜索中间页',
+    '站内信列表',
+    '钱包页',
+    '累计已省页',
+    '订单列表页',
+    '全部商城页',
+    '收藏页',
+    '足迹页',
+    '金豆页',
+    '专享礼金页',
+    '红包列表页'
+  ],
   audienceGroups: [
     { title: '常用人群', items: ['高活跃用户', '新注册用户', '近30日下单用户', '价格敏感用户'] },
     { title: '活动人群', items: ['大促活动用户', '会员活动用户', '内容活动用户', '召回活动用户'] },
@@ -24,7 +41,7 @@ window.ConfigurationSections = {
     return {
       ...defaults,
       ...value,
-      identities: Array.isArray(value.identities) ? value.identities : [],
+      identities: (Array.isArray(value.identities) ? value.identities : []).filter((identity) => this.identities.includes(identity)),
       audiences: Array.isArray(value.audiences) ? value.audiences : [],
       platformVersions: Object.fromEntries(Object.entries(defaults.platformVersions).map(([key, platform]) => [key, { ...platform, ...(value.platformVersions?.[key] || {}) }]))
     };
@@ -41,6 +58,38 @@ window.ConfigurationSections = {
     if (new Date(testPlan.start).getTime() >= new Date(testPlan.end).getTime()) return '测试结束时间需晚于开始时间';
 
     return '';
+  },
+  createRoute(value = {}) {
+    return { type: 'protocol', targetPage: '', protocol: '', pid: '', selectedPid: '', skipType: '', description: '', ...(value && typeof value === 'object' ? value : {}) };
+  },
+  renderRouteConfig({ prefix, route = {}, targetPages = this.targetPages, field = null, extraProtocol = '', bindingAttribute = '', fieldMap = {} } = {}) {
+    const value = this.createRoute(route);
+    const escape = (input) => String(input ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+    const renderField = field || ((label, control, className = '') => `<div class="config-field ${className}"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`);
+    const required = '<b class="field-required">*</b>';
+    const bind = (key, fallbackName) => {
+      const name = fieldMap[key] || fallbackName;
+      return `${bindingAttribute ? `${bindingAttribute}="${name}" ` : ''}name="${name}"`;
+    };
+    return `${renderField(`${required}跳转类型`, `<select class="control" ${bind('type', 'routeType')} data-${prefix}-route-type><option value="page"${value.type === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${value.type === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select>`)}<div class="shared-route-config" data-${prefix}-route-page${value.type === 'page' ? '' : ' hidden'}>${renderField(`${required}目标页面`, `<select class="control" ${bind('targetPage', 'routeTargetPage')}><option value="">请选择目标页面</option>${targetPages.map((item) => `<option value="${escape(item)}"${value.targetPage === item ? ' selected' : ''}>${escape(item)}</option>`).join('')}</select>`)}</div><div class="shared-route-config" data-${prefix}-route-protocol${value.type === 'protocol' ? '' : ' hidden'}><div class="shared-route-heading"><span>跳转类型：</span><button class="shared-route-example" type="button" data-tooltip="请按路由协议规范填写跳转地址。">路由协议填写示例</button></div>${renderField('路由协议', `<input class="control" ${bind('protocol', 'routeProtocol')} value="${escape(value.protocol)}" placeholder="请输入路由协议" />`)}${renderField('PID <button class="help-tooltip" type="button" aria-label="PID说明" data-tooltip="用于商城埋点上报的 PID 配置。">?</button>', `<input class="control" ${bind('pid', 'routePid')} value="${escape(value.pid)}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" />`)}${renderField('PID选择 <button class="help-tooltip" type="button" aria-label="PID选择说明" data-tooltip="京东、拼多多、抖音和1688根据填写的 pid 进行转链跟单。">?</button>', `<select class="control" ${bind('selectedPid', 'routeSelectedPid')}><option value="">请选择pid</option><option value="default"${value.selectedPid === 'default' ? ' selected' : ''}>默认pid</option><option value="custom"${value.selectedPid === 'custom' ? ' selected' : ''}>自定义pid</option></select>`)}${renderField('skip_type <button class="help-tooltip" type="button" aria-label="skip_type说明" data-tooltip="自定义地址或协议跳转时用于埋点上报。">?</button>', `<input class="control" ${bind('skipType', 'routeSkipType')} value="${escape(value.skipType)}" placeholder="skip_type（用于埋点上报）" />`)}${renderField(`${required}地址/协议说明`, `<input class="control" ${bind('description', 'routeDescription')} value="${escape(value.description)}" maxlength="100" placeholder="请输入地址/协议说明" />`)}${extraProtocol}</div>`;
+  },
+  bindRouteConfig(root, prefix) {
+    if (!root) return;
+    const routeType = root.querySelector(`[data-${prefix}-route-type]`);
+    if (!routeType || routeType.dataset.routeConfigBound) return;
+    routeType.dataset.routeConfigBound = 'true';
+    routeType.addEventListener('change', (event) => {
+      const isProtocol = event.target.value === 'protocol';
+      root.querySelector(`[data-${prefix}-route-page]`)?.toggleAttribute('hidden', isProtocol);
+      root.querySelector(`[data-${prefix}-route-protocol]`)?.toggleAttribute('hidden', !isProtocol);
+    });
+  },
+  readRoute(form) {
+    const data = new FormData(form);
+    return { type: String(data.get('routeType') || ''), targetPage: String(data.get('routeTargetPage') || '').trim(), protocol: String(data.get('routeProtocol') || '').trim(), pid: String(data.get('routePid') || '').trim(), selectedPid: String(data.get('routeSelectedPid') || ''), skipType: String(data.get('routeSkipType') || '').trim(), description: String(data.get('routeDescription') || '').trim() };
+  },
+  validateRoute(route = {}) {
+    return (route.type === 'page' && !route.targetPage) || (route.type === 'protocol' && (!route.protocol || !route.description));
   },
   renderAudienceGroups({ attribute, selected = [], groups = this.audienceGroups } = {}) {
     return groups.map(({ title, items }) => `<div class="audience-group config-audience-group"><div class="audience-group-title">${title}</div><div class="audience-group-items">${items.map((item) => `<label><input type="checkbox" value="${item}" ${attribute}${selected.includes(item) ? ' checked' : ''} /><span>${item}</span></label>`).join('')}</div></div>`).join('');
@@ -63,12 +112,12 @@ window.ConfigurationSections = {
   renderMerchantTestPlan() {
     return `<section class="form-section"><h2 class="section-title">测试计划</h2><div class="section-body test-plan-body"><p class="test-plan-notice">测试 UID 内的用户将在测试有效时间内看到此合作商配置，到期自动终止。</p><div class="form-row"><label for="merchant-test-uids">测试 UID：</label><div class="form-control-area"><input class="control compact-control" id="merchant-test-uids" placeholder="多个 UID 用英文逗号分隔" /></div></div><div class="form-row date-range"><label for="merchant-test-start">测试时间：</label><div class="form-control-area"><input class="control" id="merchant-test-start" type="datetime-local" /><span>至</span><input class="control" id="merchant-test-end" type="datetime-local" /></div></div><div class="form-row check-row"><label>测试状态：</label><div class="form-control-area"><label class="switch"><input id="merchant-test-enabled" type="checkbox" checked /><span class="switch-track"></span></label><span class="status-badge" id="merchant-test-status">生效</span></div></div></div></section>`;
   },
-  renderTargeting({ prefix, value = {}, includePlatform = true, includeSchedule = true, required = false, identityLabel = '用户身份', identityOptions = this.identities, audienceGroups = this.audienceGroups, audienceInversionHint = '', statusOptions = ['上线', '下线'] } = {}) {
+  renderTargeting({ prefix, value = {}, includePlatform = true, includeSchedule = true, required = false, title = '定向信息（投放设置）', identityLabel = '用户身份', identityOptions = this.identities, audienceGroups = this.audienceGroups, audienceInversionHint = '', statusOptions = ['上线', '下线'] } = {}) {
     const targeting = this.normalizeTargeting(value);
     const requiredMark = required ? '<b class="field-required">*</b>' : '';
     const field = (label, control, className = '') => `<div class="config-field ${className}"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
     const platformRow = (key, label) => `<div class="config-platform-row"><label><input type="checkbox" data-${prefix}-platform="${key}"${targeting.platformVersions[key].enabled ? ' checked' : ''} />${label}</label><input class="control" data-${prefix}-version="${key}:start" value="${targeting.platformVersions[key].start}" placeholder="最低版本" /><span>至</span><input class="control" data-${prefix}-version="${key}:end" value="${targeting.platformVersions[key].end}" placeholder="最高版本（选填）" /></div>`;
-    return `<section class="home-entry-info-section shared-config-section"><h3>定向信息（投放设置）</h3>
+    return `<section class="home-entry-info-section shared-config-section"><h3>${title}</h3>
       <div class="shared-targeting-subsection"><h4>人群信息</h4>
         ${field(identityLabel, `<span class="home-identity-options">${this.renderIdentityOptions({ attribute: `data-${prefix}-identity`, selected: targeting.identities, items: identityOptions })}</span>`)}
         ${field('指定人群包', `<input class="control" data-${prefix}-targeting-field="targetGroup" value="${targeting.targetGroup}" placeholder="填入表名，不填默认全部用户" />`)}

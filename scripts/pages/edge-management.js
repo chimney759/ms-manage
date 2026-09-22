@@ -1,10 +1,10 @@
 window.EdgeManagementPage = {
   storageKey: 'meiyou-cashback-edge-management',
   tabs: [
-    { id: 'home', label: '首页', sublabel: 'Home' },
-    { id: 'benefits', label: '福利页', sublabel: '第2Tab' },
-    { id: 'youzi-street', label: '柚子街', sublabel: '第3Tab' },
-    { id: 'mine', label: '我', sublabel: 'Mine' }
+    { id: 'home', label: '首页' },
+    { id: 'benefits', label: '福利页' },
+    { id: 'youzi-street', label: '柚子街' },
+    { id: 'mine', label: '我' }
   ],
   seedRowsByTab: {
     home: [
@@ -40,13 +40,13 @@ window.EdgeManagementPage = {
   write(tabId, rows) { window.localStorage.setItem(`${this.storageKey}:${tabId}`, JSON.stringify(rows)); },
   formatDate(value) { return value ? value.replace('T', ' ') + (value.length === 16 ? ':00' : '') : '-'; },
   renderTabs(activeTab) {
-    return `<section class="marketing-navigation panel"><nav class="marketing-tabs" aria-label="底部Tab"><strong class="marketing-tabs-title">底部Tab</strong><div class="marketing-tabs-list" role="tablist">${this.tabs.map((tab) => `<button class="marketing-tab${tab.id === activeTab ? ' is-active' : ''}" type="button" role="tab" aria-selected="${tab.id === activeTab}" data-edge-tab="${tab.id}"><span>${tab.label}</span><small>${tab.sublabel}</small></button>`).join('')}</div></nav></section>`;
+    return `<section class="marketing-navigation panel"><nav class="marketing-tabs" aria-label="底部Tab"><strong class="marketing-tabs-title">底部Tab</strong><div class="marketing-tabs-list" role="tablist">${this.tabs.map((tab) => `<button class="marketing-tab${tab.id === activeTab ? ' is-active' : ''}" type="button" role="tab" aria-selected="${tab.id === activeTab}" data-edge-tab="${tab.id}"><span>${tab.label}</span></button>`).join('')}</div></nav></section>`;
   },
   render({ activeTab = 'home', mode = 'list', recordId = '', copy = false } = {}) {
     const tab = this.tabs.find((item) => item.id === activeTab) || this.tabs[0];
     const isEditor = mode === 'editor';
     const action = recordId ? (copy ? '复制' : '编辑') : '添加';
-    const heading = isEditor ? `<header class="edge-editor-heading"><button class="edge-back" type="button" data-edge-back aria-label="返回贴边列表" title="返回贴边列表"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.75 3.5 5.25 8l4.5 4.5" /></svg></button><h1>${action}${tab.label}(${tab.sublabel})贴边</h1></header>` : '';
+    const heading = isEditor ? `<header class="edge-editor-heading"><button class="edge-back" type="button" data-edge-back aria-label="返回贴边列表" title="返回贴边列表"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.75 3.5 5.25 8l4.5 4.5" /></svg></button><h1>${action}${tab.label}贴边</h1></header>` : '';
     return `<section class="content marketing-config-page edge-management-page${isEditor ? ' is-edge-editor' : ''}">${this.renderTabs(tab.id)}${heading}<section class="marketing-editor-workspace panel"><div class="edge-management-body" id="edge-management-body"></div></section></section>`;
   },
   sortIcon(direction) {
@@ -74,8 +74,8 @@ window.EdgeManagementPage = {
   renderEditor(record, { copy = false } = {}) {
     const root = document.getElementById('edge-management-body');
     const field = (label, control, className = '') => `<div class="config-field ${className}"><span class="config-field-label">${label}</span><div class="config-field-control">${control}</div></div>`;
-    const route = { type: 'protocol', targetPage: '', protocol: '', pid: '', selectedPid: '', skipType: '', description: '', ...(record.route || {}) };
-    const routing = `<section class="shared-config-section"><h3>跳转配置</h3>${field('<b class="field-required">*</b>跳转类型', `<select class="control" name="routeType" data-edge-route-type><option value="page"${route.type === 'page' ? ' selected' : ''}>页面跳转</option><option value="protocol"${route.type === 'protocol' ? ' selected' : ''}>自定义地址/协议</option></select>`)}<div class="edge-route-config" data-edge-route-page${route.type === 'page' ? '' : ' hidden'}>${field('<b class="field-required">*</b>目标页面', `<select class="control" name="routeTargetPage"><option value="">请选择目标页面</option>${['商品收藏', '购物车返现', '领现金', '省钱秘籍'].map((item) => `<option value="${item}"${route.targetPage === item ? ' selected' : ''}>${item}</option>`).join('')}</select>`)}</div><div class="edge-route-config" data-edge-route-protocol${route.type === 'protocol' ? '' : ' hidden'}><div class="edge-route-heading"><span>跳转类型：</span><button class="edge-route-example" type="button" data-tooltip="请按路由协议规范填写跳转地址。">路由协议填写示例</button></div><input class="control" name="routeProtocol" value="${this.escape(route.protocol)}" placeholder="请输入路由协议" /><div class="edge-route-input"><input class="control" name="routePid" value="${this.escape(route.pid)}" placeholder="pid（除京东&拼多多&抖音&1688，其余商城用于埋点上报）" /><button class="help-tooltip" type="button" aria-label="PID说明" data-tooltip="用于商城埋点上报的 PID 配置。">?</button></div><div class="edge-route-input"><select class="control" name="routeSelectedPid"><option value="">请选择pid</option><option value="default"${route.selectedPid === 'default' ? ' selected' : ''}>默认pid</option><option value="custom"${route.selectedPid === 'custom' ? ' selected' : ''}>自定义pid</option></select><button class="help-tooltip" type="button" aria-label="PID选择说明" data-tooltip="京东、拼多多、抖音和1688根据填写的 pid 进行转链跟单。">?</button></div><div class="edge-route-input"><input class="control" name="routeSkipType" value="${this.escape(route.skipType)}" placeholder="skip_type（用于埋点上报）" /><button class="help-tooltip" type="button" aria-label="skip_type说明" data-tooltip="自定义地址或协议跳转时用于埋点上报。">?</button></div>${field('<b class="field-required">*</b>地址/协议说明', `<input class="control" name="routeDescription" value="${this.escape(route.description)}" maxlength="100" placeholder="请输入地址/协议说明" />`)}</div></section>`;
+    const route = window.ConfigurationSections.createRoute(record.route);
+    const routing = `<section class="shared-config-section"><h3>跳转配置</h3>${window.ConfigurationSections.renderRouteConfig({ prefix: 'edge', route, field })}</section>`;
     const frequency = { dailyCloseLimit: '', totalCloseLimit: '', ...(record.frequency || {}) };
     const frequencySection = `<section class="shared-config-section edge-frequency-section"><h3>频次管理 <span>（说明：不填写默认为不限制推送次数/人数）</span></h3>${field('推送频次', `<div class="edge-frequency-control"><span>每人每日关闭</span><input class="control" name="dailyCloseLimit" type="number" min="1" step="1" value="${this.escape(frequency.dailyCloseLimit)}" placeholder="请输入大于0的整数" /><span>次后不展示；</span><button class="help-tooltip" type="button" aria-label="推送频次说明" data-tooltip="单次访问生命周期内，用户关闭后不再展示。">?</button></div>`)}${field('展示次数', `<div class="edge-frequency-control"><span>用户最多关闭</span><input class="control" name="totalCloseLimit" type="number" min="1" step="1" value="${this.escape(frequency.totalCloseLimit)}" placeholder="请输入大于0的整数" /><span>次后不再展示给该用户；</span><button class="help-tooltip" type="button" aria-label="展示次数说明" data-tooltip="示例：当用户 A 关闭了 X 次后，不再展示给用户 A。">?</button></div>`)}</section>`;
     const targeting = window.ConfigurationSections.normalizeTargeting({ ...record.targeting, onlineStart: record.targeting?.onlineStart || record.onlineAt || '', onlineEnd: record.targeting?.onlineEnd || record.offlineAt || '', status: record.targeting?.status || record.status || '待上线' });
@@ -193,11 +193,7 @@ window.EdgeManagementPage = {
       const returnToList = () => open('list');
       root.querySelector('[data-edge-cancel]')?.addEventListener('click', returnToList);
       document.querySelector('[data-edge-back]')?.addEventListener('click', returnToList);
-      root.querySelector('[data-edge-route-type]')?.addEventListener('change', (event) => {
-        const isProtocol = event.target.value === 'protocol';
-        root.querySelector('[data-edge-route-page]')?.toggleAttribute('hidden', isProtocol);
-        root.querySelector('[data-edge-route-protocol]')?.toggleAttribute('hidden', !isProtocol);
-      });
+      window.ConfigurationSections.bindRouteConfig(root, 'edge');
       root.querySelector('[data-edge-test="enabled"]')?.addEventListener('change', (event) => {
         const status = root.querySelector('[data-edge-test-status]');
         if (status) status.textContent = event.target.checked ? '生效' : '未启用';
@@ -216,9 +212,8 @@ window.EdgeManagementPage = {
         const required = ['name', 'sortValue'];
         const missing = required.find((key) => !String(data.get(key) || '').trim()) || (!data.get('image') ? 'image' : '');
         if (missing) { window.BackofficeLayout.showRequiredFieldToast({ name: '名称', sortValue: '排序值', image: '贴边图片' }[missing]); return; }
-        const routeType = data.get('routeType');
-        const route = { type: routeType, targetPage: String(data.get('routeTargetPage') || ''), protocol: String(data.get('routeProtocol') || '').trim(), pid: String(data.get('routePid') || '').trim(), selectedPid: String(data.get('routeSelectedPid') || ''), skipType: String(data.get('routeSkipType') || '').trim(), description: String(data.get('routeDescription') || '').trim() };
-        if ((routeType === 'page' && !route.targetPage) || (routeType === 'protocol' && (!route.protocol || !route.description))) { window.BackofficeLayout.showRequiredFieldToast('跳转配置'); return; }
+        const route = window.ConfigurationSections.readRoute(event.currentTarget);
+        if (window.ConfigurationSections.validateRoute(route)) { window.BackofficeLayout.showRequiredFieldToast('跳转配置'); return; }
         const frequency = { dailyCloseLimit: String(data.get('dailyCloseLimit') || '').trim(), totalCloseLimit: String(data.get('totalCloseLimit') || '').trim() };
         const invalidFrequency = Object.values(frequency).find((value) => value && (!/^\d+$/.test(value) || Number(value) <= 0));
         if (invalidFrequency) { window.BackofficeLayout.showToast('频次管理校验失败', '推送频次和展示次数填写时必须为大于 0 的整数'); return; }
